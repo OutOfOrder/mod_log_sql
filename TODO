@@ -1,0 +1,22 @@
+$Id: TODO,v 1.1 2004/02/12 03:21:35 urkle Exp $
+
+TODO:
+* Port connection portion to other DBMS?  Genericize the module?  Start with 
+  PostgreSQL. (provider mechanism, and libDBI)
+* does determining table name in massvirtual mode upon every request
+  cause performance degradation?  If so fix.
+* LogSQLRotateLogs directive with daily/monthly/weekly/etc.
+* new format char: IP as bigint? ( not w/ ipV6 )
+* socket-based middleman daemon with configurable conns, or connect/disconnect.
+	DBI connection pool when I switch to DBI.
+* ignore by cookie
+* tools to import logs into SQL (waiting on permission from author)
+* Directive to yes/no create ancillary tables (or just access table)
+* break module into separate code files
+    separate DB implimentation into sub-modules via provider mechanism
+* convert documentation to docbook
+* add document building to Makefile.in
+* investigate thread safety issues (libmysqlclient_r)
+	Add thread locks if using standard mysqlclient
+* rewrite main core logging function to optimize for speed.
+* Clean up table creation code.
