@@ -109,13 +109,22 @@ static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 		  return from_str;
 	}
 }
-
+#if defined(WIN32)
+#define SIGNAL_GRAB
+#define SIGNAL_RELEASE
+#define SIGNAL_VAR
+#else
+#define SIGNAL_VAR void (*handler) (int)
+#define SIGNAL_GRAB handler = signal(SIGPIPE, SIG_IGN)
+#define SIGNAL_RELEASE signal(SIGPIPE, handler);
+#endif
 /* Run a mysql insert query and return a categorized error or success */
 static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 								const char *query)
 {
 	int retval;
-	void (*handler) (int);
+    SIGNAL_VAR
+
 	unsigned int real_error = 0;
 	/*const char *real_error_str = NULL;*/
 
@@ -124,12 +133,13 @@ static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *
 	if (!dblink) {
 		return LOGSQL_QUERY_NOLINK;
 	}
+
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
-	handler = signal(SIGPIPE, SIG_IGN);
+	SIGNAL_GRAB
 
 	/* Run the query */
 	if (!(retval = mysql_query(dblink, query))) {
-		signal(SIGPIPE, handler);
+	    SIGNAL_RELEASE
 		return LOGSQL_QUERY_SUCCESS;
 	}
 	/* Check to see if the error is "nonexistent table" */
@@ -138,12 +148,12 @@ static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *
 	if (real_error == ER_NO_SUCH_TABLE) {
 		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"table does not exist, preserving query");
 		/* Restore SIGPIPE to its original handler function */
-		signal(SIGPIPE, handler);
+	    SIGNAL_RELEASE
 		return LOGSQL_QUERY_NOTABLE;
 	}
 
 	/* Restore SIGPIPE to its original handler function */
-	signal(SIGPIPE, handler);
+	SIGNAL_RELEASE
 	return LOGSQL_QUERY_FAIL;
 }
 
@@ -153,7 +163,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
 {
 	int retval;
 	const char *tabletype = apr_table_get(db->parms,"tabletype");
-	void (*handler) (int);
+	SIGNAL_VAR
 	char *type_suffix = NULL;
 
 	char *create_prefix = "create table if not exists `";
@@ -220,16 +230,16 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
 		return LOGSQL_QUERY_NOLINK;
 	}
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
-	handler = signal(SIGPIPE, SIG_IGN);
+	SIGNAL_GRAB
 
 	/* Run the create query */
   	if ((retval = mysql_query(dblink, create_sql))) {
 		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"failed to create table: %s",
 			table_name);
-		signal(SIGPIPE, handler);
+		SIGNAL_RELEASE
 		return LOGSQL_TABLE_FAIL;
 	}
-	signal(SIGPIPE, handler);
+	SIGNAL_RELEASE
 	return LOGSQL_TABLE_SUCCESS;
 }
 

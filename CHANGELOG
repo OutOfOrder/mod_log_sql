@@ -1,3 +1,12 @@
+1.98: 2004-04-?
+* re-fixed apache.m4 to better detect APR and APU code
+* fixed for win32 compilation under apache 2
+* lowered minumum required apache 2 version to 2.0.40 (RH9)
+* Added LogSQLDisablePreserve to disable the preserve file.
+* Changed default preserve file location to logs/mod_log_sql-preserve
+  And made LogSQLPreserveFile root relative.
+* fixed bug where preserve file wouldn't be created in apache 2
+
 1.97: 2004-04-08
 * fixed apache.m4 to work with apache 2 setups with different include
   directories for APR and APU then core Apache

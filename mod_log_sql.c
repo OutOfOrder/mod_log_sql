@@ -36,7 +36,7 @@
 #define DEFAULT_HIN_TABLE_NAME		"headers_in"
 #define DEFAULT_HOUT_TABLE_NAME		"headers_out"
 #define DEFAULT_COOKIE_TABLE_NAME	"cookies"
-#define DEFAULT_PRESERVE_FILE		"/tmp/sql-preserve"
+#define DEFAULT_PRESERVE_FILE		"logs/mod_log_sql-preserve"
 
 /* -------------*
  * DECLARATIONS *
@@ -54,6 +54,7 @@ typedef struct {
 	int massvirtual;
 	int createtables;
 	int forcepreserve;
+	int disablepreserve;
 	char *machid;
 	int announce;
 	logsql_dbconnection db;
@@ -193,14 +194,20 @@ static void preserve_entry(request_rec *r, const char *query)
 	#if defined(WITH_APACHE20)
 		apr_file_t *fp;
 		apr_status_t result;
-		result = apr_file_open(&fp, cls->preserve_file,APR_APPEND, APR_OS_DEFAULT, r->pool);
 	#elif defined(WITH_APACHE13)
 		FILE *fp;
 		int result;
+	#endif
+	/* If preserve file is disabled bail out */
+	if (global_config.disablepreserve)
+       return;
+    #if defined(WITH_APACHE20)
+		result = apr_file_open(&fp, cls->preserve_file,APR_APPEND | APR_WRITE | APR_CREATE, APR_OS_DEFAULT, r->pool);
+    #elif defined(WITH_APACHE13)
 		fp = ap_pfopen(r->pool, cls->preserve_file, "a");
 		result = (fp)?0:errno;
-	#endif
-	if (result != APR_SUCCESS) {
+    #endif
+    if (result != APR_SUCCESS) {
 		log_error(APLOG_MARK, APLOG_ERR, result, r->server,
 			"attempted append of local preserve file '%s' but failed.",cls->preserve_file);
 	} else {
@@ -272,6 +279,27 @@ static const char *set_server_string_slot(cmd_parms *cmd,
     return NULL;
 }
 
+static const char *set_server_file_slot(cmd_parms *cmd,
+                                     		 void *struct_ptr,
+                                     		 const char *arg)
+{
+	void *ptr = ap_get_module_config(cmd->server->module_config,
+			&log_sql_module);
+	int offset = (int)(long)cmd->info;
+    const char *path;
+
+    path = ap_server_root_relative(cmd->pool, arg);
+                            
+    if (!path) {
+        return apr_pstrcat(cmd->pool, "Invalid file path ",
+                           arg, NULL);
+    }
+    
+    *(const char **)((char*)ptr + offset) = path;
+    
+    return NULL;
+}
+
 static const char *set_logformat_slot(cmd_parms *cmd,
                                      		 void *struct_ptr,
                                      		 const char *arg)
@@ -325,6 +353,7 @@ static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 						const char *host, const char *user, const char *pwd)
 {
 	if (!user) { /* user is null, so only one arg passed */
+	    /* TODO: to more error checking/force all params to be set */
 		apr_uri_t uri;
 		apr_uri_parse(cmd->pool, host, &uri);
 		if (uri.scheme) {
@@ -372,7 +401,7 @@ static const char *add_server_string_slot(cmd_parms *cmd,
 	void *ptr = ap_get_module_config(cmd->server->module_config,
 			&log_sql_module);
 	int offset = (int)(long)cmd->info;
-	apr_array_header_t *ary = *(apr_array_header_t **)(ptr + offset);
+	apr_array_header_t *ary = *(apr_array_header_t **)((char *)ptr + offset);
 	addme = apr_array_push(ary);
 	*addme = apr_pstrdup(ary->pool, arg);
 	    
@@ -464,7 +493,17 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 	if (global_config.announce) {
 		ap_add_version_component(p, PACKAGE_NAME"/"PACKAGE_VERSION);
 	}
-
+	/* ap_server_root_relative any default preserve file locations */
+	{
+	    server_rec *cur_s;
+	    const char *default_p = ap_server_root_relative(p, DEFAULT_PRESERVE_FILE);
+	    for (cur_s = s; cur_s != NULL; cur_s= cur_s->next) {
+    	     logsql_state *cls = ap_get_module_config(cur_s->module_config,
+									&log_sql_module);
+             if (cls->preserve_file == DEFAULT_PRESERVE_FILE)
+                 cls->preserve_file = default_p;
+	    }
+	}
 #if defined(WITH_APACHE20)
 	return OK;
 #endif
@@ -693,7 +732,10 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 
 	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
 		child->preserve_file = parent->preserve_file;
-
+	/* server_root_relative the preserve file location */
+	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
+        child->preserve_file = ap_server_root_relative(p, DEFAULT_PRESERVE_FILE);
+ 
 	if (child->notes_table_name == DEFAULT_NOTES_TABLE_NAME)
 		child->notes_table_name = parent->notes_table_name;
 
@@ -1070,7 +1112,7 @@ static const command_rec log_sql_cmds[] = {
 	,
 	/* DB connection parameters */
 	AP_INIT_TAKE13("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
-	 "The database connection URI in the form<br>driver://user:password@hostname:port/database")
+	 "The database connection URI in the form &quot;driver://user:password@hostname:port/database&quot;")
 	,
 	AP_INIT_TAKE2("LogSQLDBParam", set_dbparam, NULL, RSRC_CONF,
 	 "First argument is the DB parameter, second is the value to assign")
@@ -1079,7 +1121,11 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
 	 "Forces logging to preserve file and bypasses database")
 	,
-	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_string_slot,
+	AP_INIT_FLAG("LogSQLDisablePreserve", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, disablepreserve), RSRC_CONF,
+	 "Completely disables use of the preserve file")
+	,
+	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_file_slot,
 	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
 	 "Name of the file to use for data preservation during database downtime")
 	,
