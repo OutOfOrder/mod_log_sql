@@ -57,74 +57,83 @@ http://www.grubbybaby.com/mod_log_sql/
 Summary
 \layout Standard
 
-This Apache module will permit you to log Apache accesses (and a lot of
- related information) to a SQL database.
- Unlike logging to a flat text file (which is standard in Apache), there
- are a lot of powerful advantages to logging to SQL.
- This module can either replace or happily coexist with Apache's text file
- logging facility.
+This Apache module will permit you to log to a SQL database; it can log
+ each access request as well as data associated with each request: cookies,
+ notes, and inbound/outbound headers.
+ Unlike logging to a flat text file -- which is standard in Apache -- a
+ SQL-based log exhibits tremendous flexibility and power of data extraction.
+ (See section 
+\begin_inset LatexCommand \ref{sub:why}
+
+\end_inset 
+
+ in the FAQ for further discussion and examples of the advantages to SQL.)
+\layout Standard
+
+This module can either replace or happily coexist with mod_log_config, Apache's
+ text file logging facility.
+ In addition to being more configurable than the standard module, mod_log_sql
+ is much more flexible.
 \layout Subsection
 
 Approach
 \layout Standard
 
-This project was formerly known as mod_log_mysql.
- It has been renamed to mod_log_sql in order to reflect the project goal
- of database-inspecificity.
- The module currently supports MySQL, and development for other database
- backends is underway.
+This project was formerly known as 
+\begin_inset Quotes eld
+\end_inset 
+
+mod_log_mysql.
+\begin_inset Quotes erd
+\end_inset 
+
+ It was renamed 
+\begin_inset Quotes eld
+\end_inset 
+
+mod_log_sql
+\begin_inset Quotes erd
+\end_inset 
+
+ in order to reflect the project goal of database-inspecificity.
+ The module currently supports MySQL, but support for other database backends
+ is underway.
 \layout Standard
 
 In order to save speed and overhead, links are kept alive in between queries.
- This module uses one SQL link per httpd child.
+ This module uses one dedicated SQL link per httpd child, opened by each
+ child process when it is born.
  Among other things, this means that this module supports logging into only
  one MySQL server, and for now, also, only one SQL database.
  But that's a small tradeoff compared to the blinding speed of this module.
+ Error reporting is robust throughout the module and will inform the administrat
+or of database issues in the Apache 
+\noun on 
+ErrorLog
+\noun default 
+ for the server/virtual server.
 \layout Standard
 
 Virtual hosts are supported in the same manner they are in the regular logging
  modules.
- You define some basic 'global' directives in the main server config, then
- you define more specific 'local' directives inside each virtualhost stanza.
-\layout Standard
-
-SQL links are opened by each child process when it is born.
- Error reporting is robust throughout and will let you know about database
- issues in the standard Apache error-log for the server or virtual server.
+ The administrator defines some basic 'global' directives in the main server
+ config, then defines more specific 'local' directives inside each VirtualHost
+ stanza.
 \layout Standard
 
 A robust "preserve" capability has now been implemented.
  This permits the module to preserve any failed INSERT commands to a local
  file on its machine.
  In any situation that the database is unavailable -- e.g.
- the network fails, you reboot the db host, etc.
- -- mod_log_sql will note this in the error log and begin appending its
- log entries to the preserve file (which is created with the user & group
- ID of the running Apache process, e.g.
- "nobody" on many Linux installations).
- When your database becomes available again, mod_log_sql seamlessly resumes
- logging to it.
+ the network fails or the database host is rebooted -- mod_log_sql will
+ note this in the error log and begin appending its log entries to the preserve
+ file (which is created with the user & group ID of the running Apache process,
+ e.g.
+ "nobody/nobody" on many Linux installations).
+ When database availablity returns, mod_log_sql seamlessly resumes logging
+ to it.
  When convenient for the sysadmin, he/she can easily import the preserve
- file into the database because it is simply a series of SQL insert statements:
-\layout LyX-Code
-
-# mysql -uadminuser -p mydbname < /tmp/mysql-preserve
-\layout Subsection
-
-Supported directives
-\layout Standard
-
-Please see the web-based documentation for full explanation of all supported
- run-time directives.
-\layout Standard
-
-http://www.grubbybaby.com/mod_log_sql/directives.html
-\layout Standard
-
-See the FAQ for some handy examples:
-\layout Standard
-
-http://www.grubbybaby.com/mod_log_sql/faq.html
+ file into the database because it is simply a series of SQL insert statements.
 \layout Subsection
 
 What gets logged by default? 
@@ -136,11 +145,16 @@ All the data that would be contained in the "Combined Log Format" is logged
  the log configuration based on your needs.
 \layout Standard
 
-The online documentation of the run-time directives includes a full explanation
- of what you can log, including examples.
+The documentation of the run-time directives includes a full explanation
+ of what you can log, including examples -- see section 
+\begin_inset LatexCommand \ref{sec:ConfRef}
+
+\end_inset 
+
+.
 \layout Subsection
 
-Minor Notes
+Miscellaneous Notes
 \layout Itemize
 
 Note which directives go in the 'main server config' and which directives
@@ -149,13 +163,19 @@ Note which directives go in the 'main server config' and which directives
 \layout Itemize
 
 The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the standard
- unix "seconds since 1/1/1970 12:00:00" format.
+ unix 
+\begin_inset Quotes eld
+\end_inset 
+
+seconds since the epoch
+\begin_inset Quotes erd
+\end_inset 
+
+ format.
  This is superior to storing the access time as a string due to size requirement
-s: an UNSIGNED INT type fits in 4 bytes, whereas the Apache date string
- (e.g.
- "18/Nov/2001:13:59:52 -0800") requires 26 bytes -- significantly larger,
- and those extra 22 bytes will add up over the thousands of accesses that
- a busy server will experience.
+s: an UNSIGNED INT requires 4 bytes, whereas an Apache date string -- e.g.
+ "18/Nov/2001:13:59:52 -0800" -- requires 26 bytes: those extra 22 bytes
+ become significant when multiplied by thousands of accesses on a busy server.
  Besides, an INT type is far more flexible for comparisons, etc.
 \begin_deeper 
 \layout Standard
@@ -168,35 +188,42 @@ select remote_host,request_uri,from_unixtime(time_stamp) from access_log;
 \layout Standard
 
 The enclosed perl program 
-\begin_inset Quotes sld
+\begin_inset Quotes eld
 \end_inset 
 
 make_combined_log.pl
 \begin_inset Quotes srd
 \end_inset 
 
- shows how you can extract your access records in a format that is completely
- Combined Log Format compliant.
+ extracts your access log in a format that is completely compatible with
+ the Combined Log Format.
  You can then feed this to your favorite web log analysis tool.
 \end_deeper 
 \layout Itemize
 
 The table's string values can be CHAR or VARCHAR, at a length of your choice.
  VARCHAR is superior because it truncates long strings; CHAR types are fixed-len
-gth and will be padded with spaces.
- Just like the time_stamp described above, that kind of space waste will
- add up over thousands of records.
+gth and will be padded with spaces, resulting in waste.
+ Just like the time_stamp issue described above, that kind of space waste
+ multiplies over thousands of records.
 \layout Itemize
 
 Be careful not to go overboard setting fields to NOT NULL.
- If a field is marked NOT NULL then it must contain data in the INSERT or
- the INSERT will fail, sometimes in a really mysterious way to the frustrated
- sysad.
+ If a field is marked NOT NULL then it must contain data in the INSERT statement
+, or the INSERT will fail.
+ These mysterious failures can be quite frustrating and difficult to debug.
 \layout Itemize
 
-Apache normally logs numeric fields with a '-' character to mean "not applicable
-," e.g.
- bytes_sent on a request with a 304 response code.
+When Apache logs a numeric field, it uses a '-' character to mean 
+\begin_inset Quotes eld
+\end_inset 
+
+not applicable,
+\begin_inset Quotes erd
+\end_inset 
+
+ e.g.
+ the number of bytes returned on a 304 (unchanged) request.
  Since '-' is an illegal character in an SQL numeric field, such fields
  are assigned the value 0 instead of '-' which, of course, makes perfect
  sense anyway.
@@ -226,20 +253,35 @@ Requirements
 \layout Itemize
 
 A compatible system.
- I have run mod_log_sql on Red Hat based systems (Red Hat, Mandrake).
- These instructions should easily adapt to any modern distro.
+ mod_log_sql was authored and tested on systems based on Red Hat Linux (Red
+ Hat, Mandrake), but the module should easily adapt to any modern distribution.
+ mod_log_sql has also been ported successfully to Solaris and FreeBSD.
 \layout Itemize
 
-Apache 1.2 or 1.3 installed.
- (I run 1.3.22 and it works fine).
- You should have already successfully compiled Apache and know what you're
- doing there.
+Apache 1.2 or 1.3.
+ Ideally you should already have successfully compiled Apache and understand
+ the process, but this document tries to make it simple for beginners.
 \layout Itemize
 
 The MySQL development headers.
- This is called different things on different distros.
- For example, Red Hat 6.x called this RPM "MySQL-devel" whereas Mandrake
- calls it "libmysql10-devel".
+ This package is called different things on different distros.
+ For example, Red Hat 6.x calls this RPM 
+\begin_inset Quotes eld
+\end_inset 
+
+MySQL-devel
+\begin_inset Quotes erd
+\end_inset 
+
+ whereas Mandrake calls it 
+\begin_inset Quotes eld
+\end_inset 
+
+libmysql10-devel.
+\begin_inset Quotes erd
+\end_inset 
+
+
 \layout Itemize
 
 MySQL >= 3.23.15 configured, installed and running on either localhost or
@@ -247,22 +289,16 @@ MySQL >= 3.23.15 configured, installed and running on either localhost or
  You should already have a basic understanding of MySQL and how it functions.
 \layout Itemize
 
-Again, basic administrative skills with Apache and MySQL.
- I try to make things as easy as possible in this file, but its purpose
- is not to be an administrative tutorial.
-\layout Itemize
-
-Additionally, if you want to be able to log SSL information such as keysize
- or cipher, you need OpenSSL and glibc-devel installed.
- Both are available as RPMs.
+Optionally, if you want to be able to log SSL information such as keysize
+ or cipher, you need OpenSSL and mod_ssl installed.
 \layout Subsection
 
 Platform-specific notes
 \layout Standard
 
 These installation documents assume a relatively modern GNU/Linux scenario.
- mod_log_sql has been ported to other platforms; notes on compiling the
- module on those platforms are noted here.
+ mod_log_sql has been ported to other platforms; following are notes on
+ compiling the module for those platforms.
 \layout Subsubsection
 
 Solaris
@@ -353,7 +389,7 @@ contact
  and help fill in this section.
 \layout Subsection
 
-Do I want a DSO?
+Do I want a DSO or a static module?
 \layout Standard
 
 You need to know the answer to this question before you proceed.
@@ -387,8 +423,6 @@ Perform all the following steps as root so that you have install privs,
 \layout Enumerate
 
 Edit Makefile for your system.
-\newline 
-
 \begin_deeper 
 \layout Standard
 
@@ -429,11 +463,9 @@ Instruct apxs to compile the module as a DSO.
 \layout LyX-Code
 
 # make dso
-\end_deeper 
-\layout Enumerate
+\layout Standard
 
 You should see output similar to the following:
-\begin_deeper 
 \layout LyX-Code
 
 /usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/incl...
@@ -447,7 +479,7 @@ gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HSREGEX -DEAPI...
 gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc,-DEAPI...
 \layout Standard
 
-You should see no errors and have a file called "mod_log_sql.so" in your
+You should see no errors and have a new file called "mod_log_sql.so" in your
  directory.
 \end_deeper 
 \layout Enumerate
@@ -472,8 +504,8 @@ chmod 755 /usr/local/Apache/libexec/mod_log_sql.so
 \end_deeper 
 \layout Enumerate
 
-Module ordering within httpd.conf is important.
- If you are logging SSL, you must make sure that
+Module ordering within httpd.conf is important if you are logging SSL information.
+ Please ensure that
 \begin_deeper 
 \layout LyX-Code
 
@@ -486,7 +518,8 @@ comes before
 LoadModule sql_log_module libexec/mod_log_sql.so
 \layout Standard
 
-If you don't, you will get this error when you start Apache:
+in your httpd.conf file.
+ If you do not, you will get this error when you start Apache:
 \layout LyX-Code
 
 /usr/local/apache/libexec/mod_log_mysql.so: undefined symbol: ssl_var_lookup
@@ -495,8 +528,8 @@ If you don't, you will get this error when you start Apache:
 /usr/local/apache/bin/apachectl startssl: httpd could not be started
 \layout Standard
 
-(Because mod_log_sql doesn't yet have the required symbols that mod_ssl
- provides.)
+(This is because mod_log_sql doesn't yet have the required symbols that
+ mod_ssl provides.)
 \layout Standard
 
 Now skip below to the "Configuration" section.
@@ -519,7 +552,10 @@ Unpack the archive into a working directory.
 \begin_deeper 
 \layout LyX-Code
 
-# tar zxf mod_log_sql.tar.gz -C /usr/local/src # cd /usr/local/src/mod_log_sql
+# tar zxf mod_log_sql.tar.gz -C /usr/local/src 
+\layout LyX-Code
+
+# cd /usr/local/src/mod_log_sql
 \end_deeper 
 \layout Enumerate
 
@@ -573,13 +609,33 @@ IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS, OPNSSLHDRS
 \end_deeper 
 \layout Enumerate
 
+Compile the module.
+\begin_deeper 
+\layout LyX-Code
+
 # make static
+\layout Standard
+
+You should see output similar to the following:
+\layout LyX-Code
+
+gcc -fPIC -O2 -Wall -I/usr/local/Apache/include -I/usr/include/mysql -I/usr/lo...
+\layout Standard
+
+You should see no errors and have a new file called "mod_log_sql.o" in your
+ directory.
+\end_deeper 
 \layout Enumerate
+
+Install the module.
+\begin_deeper 
+\layout LyX-Code
 
 # make statinstall
+\end_deeper 
 \layout Enumerate
 
-Change to your Apache source dir.
+Change to your Apache source directory.
 \begin_deeper 
 \layout LyX-Code
 
@@ -587,7 +643,7 @@ Change to your Apache source dir.
 \end_deeper 
 \layout Enumerate
 
-Re-make your httpd binary as follows.
+Re-compile your httpd binary as follows.
 \begin_deeper 
 \layout Enumerate
 
@@ -596,7 +652,7 @@ Re-make your httpd binary as follows.
 
 \end_inset 
 
-Edit Configuration.apaci as follows...
+Make these changes to Configuration.apaci:
 \begin_deeper 
 \layout Itemize
 
@@ -606,13 +662,13 @@ Append the following string to the EXTRA_LIBS= line.
 
 \end_inset 
 
-, where your MySQL libraries live):
+, and is where your MySQL libraries live):
 \layout LyX-Code
 
 -L/usr/lib/mysql -lmysqlclient -lm -lz
 \layout Itemize
 
-Find the mod_log_config.o line, and add this line immediately after it:
+Find the mod_log_config.o line, and insert this line immediately after it:
 \layout LyX-Code
 
 AddModule modules/sql/mod_log_sql.o
@@ -637,11 +693,9 @@ Test your new apache binary:
 \layout LyX-Code
 
 # ./httpd -l
-\end_deeper 
-\layout Enumerate
+\layout Standard
 
 You should see something like:
-\begin_deeper 
 \layout LyX-Code
 
 Compiled-in modules: 
@@ -650,7 +704,7 @@ Compiled-in modules:
 http_core.c
 \layout LyX-Code
 
-mod_log_sql.c <-- That's the line you're looking for.
+mod_log_sql.c       <-- That's the line you're looking for.
 \layout LyX-Code
 
 mod_env.c 
@@ -662,7 +716,7 @@ mod_log_config.c
 mod_mime.c 
 \layout LyX-Code
 
-mod_negotiation.c ...
+mod_negotiation.c
 \layout LyX-Code
 
 etc...
@@ -689,6 +743,11 @@ Install your httpd binary.
 Configuration
 \layout Subsection
 
+
+\begin_inset LatexCommand \label{sub:PrepDb}
+
+\end_inset 
+
 Preparing MySQL for logging
 \layout Standard
 
@@ -698,24 +757,40 @@ You have to prepare the database to receive data from mod_log_sql, and set
 \layout Standard
 
 This section will discuss how to get started with a basic config.
- Full documentation of the run-time directives is available here: http://www.grub
-bybaby.com/mod_log_sql/directives.html
+ Full documentation of all available run-time directives is available in
+ section 
+\begin_inset LatexCommand \ref{sec:ConfRef}
+
+\end_inset 
+
+.
 \layout Enumerate
 
 mod_log_sql can make its own tables on-the-fly, or you can pre-make the
  tables by hand.
  The advantage of letting the module make the tables is ease-of-use, but
  for raw performance you will want to pre-make the tables in order to save
- overhead.
- In this basic setup we'll let the module create tables for us.
+ some overhead.
+ In this basic setup we'll just let the module create tables for us.
 \layout Enumerate
+
+
+\begin_inset LatexCommand \label{part:CrTbl}
+
+\end_inset 
 
 We still need to have a logging database created and ready, so run the MySQL
  command line client and create a database:
 \begin_deeper 
 \layout LyX-Code
 
-# mysql -uadmin -pmypassword mysql> create database apachelogs;
+# mysql -uadmin -pmypassword 
+\layout LyX-Code
+
+Enter password:
+\layout LyX-Code
+
+mysql> create database apachelogs;
 \end_deeper 
 \layout Enumerate
 
@@ -746,12 +821,20 @@ identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
 
-You may be especially security-paranoid and not want "loguser" to have "create"
- capability within the "apachelogs" databse.
- You can disable that but the cost is that you cannot use the module's automatic
--table-creation feature.
- If that's an acceptable cost, hand-create the tables as described in step
- 1 and use the following GRANT statement instead of the one above:
+You may be especially security-paranoid and want "loguser" to 
+\emph on 
+not 
+\emph default 
+have "create" capability within the "apachelogs" database.
+ You can disable that privilege, but the cost is that you will not be able
+ to use the module's on-the-fly table creation feature.
+ If that cost is acceptable, hand-create the tables as described in step
+ 
+\begin_inset LatexCommand \ref{part:CrTbl}
+
+\end_inset 
+
+ and use the following GRANT statement instead of the one above:
 \begin_deeper 
 \layout LyX-Code
 
@@ -761,6 +844,11 @@ mysql> grant insert on apachelogs.* to loguser@my.apachemachine.com
 identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
+
+
+\begin_inset LatexCommand \label{step:EnaLog}
+
+\end_inset 
 
 Enable full logging of your MySQL daemon (at least temporarily for debugging
  purposes) if you don't do this already.
@@ -784,28 +872,39 @@ A very basic logging setup in Apache
 Tell the module what database to use and the appropriate authentication
  information.
 \begin_deeper 
-\layout Description
+\layout Quote
 
-EXAMPLE: Use the MySQL database called "apachelogs" running on "dbmachine.foo.com".
- The module uses username "loguser" and password "l0gger" to authenticate
- to the database.
- The log entries will be INSERTed into the table called "access_log".
+
+\series bold 
+Example:
+\series default 
+ Use the MySQL database called "apachelogs" running on "dbmachine.foo.com".
+ Use username "loguser" and password "l0gger" to authenticate to the database.
+ Let the module create tables for us.
 \layout Standard
 
-So, edit httpd.conf and insert the following lines somewhere AFTER any LoadModule
+So, edit httpd.conf and insert the following lines somewhere after any LoadModule
  / AddModule statements.
  
 \emph on 
-Make sure these statements are "global," i.e.
+Make sure these statements are 
+\begin_inset Quotes eld
+\end_inset 
+
+global,
+\begin_inset Quotes erd
+\end_inset 
+
+ i.e.
  not inside any VirtualHost stanza
 \emph default 
 .
 \layout LyX-Code
 
-LogSQLDatabase apachelogs
+LogSQLLoginInfo dbmachine.foo.com loguser l0gger 
 \layout LyX-Code
 
-LogSQLLoginInfo dbmachine.foo.com loguser l0gger 
+LogSQLDatabase apachelogs
 \layout LyX-Code
 
 LogSQLCreateTables on
@@ -829,17 +928,24 @@ LogSQLTCPPort 1234
 The actual logging is set up on a virtual-host-by-host basis.
  So, skip down to the virtual host you want to set up.
  Instruct this virtual host to log entries to the table 
-\begin_inset Quotes sld
+\begin_inset Quotes eld
 \end_inset 
 
 access_log
 \begin_inset Quotes srd
 \end_inset 
 
- by inserting a LogSQLTransferLogTable directive.
- (The LogSQLTransferLogTable directive is the minimum required to log --
- other directives that you'll learn about later simply tune the module's
- behavior.)
+ by inserting a 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ directive.
+ (The 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ directive is the minimum required to log -- other directives that you'll
+ learn about later simply tune the module's behavior.)
 \begin_deeper 
 \layout LyX-Code
 
@@ -870,52 +976,83 @@ Restart apache.
 Testing the basic setup
 \layout Enumerate
 
-Load your web site in a browser to trigger some hits, then confirm that
+Visit your web site in a browser to trigger some hits, then confirm that
  the entries are being successfully logged:
 \begin_deeper 
 \layout LyX-Code
 
-# mysql -hmysql.host.com -umysqladmin -p -e "select * from access_log" apachelogs
- 
+# mysql -hdbmachine.foo.com -umysqladmin -p -e "select * from access_log"
+ apachelogs 
 \layout LyX-Code
 
 Enter password:
-\layout LyX-Code
-
-(Several lines of output should follow, corresponding to your hits on the
- site.)
 \layout Standard
 
-You now have basic functionality.
+Several lines of output should follow, corresponding to your hits on the
+ site.
+ You now have basic functionality.
  Don't disable your regular Apache logs until you feel comfortable that
  the database is behaving as you'd like and that things are going well.
 \end_deeper 
 \layout Enumerate
 
-If you do not see any entries in the access_log, then something is preventing
+You can now activate the advanced features of mod_log_sql, which are described
+ in the next section.
+ If you do not see any entries in the access_log, then something is preventing
  the inserts from happening.
- This problem could be caused by several things:
+ This could be caused by several things:
 \begin_deeper 
 \layout Itemize
 
 Improper privileges set up in the MySQL database 
 \layout Itemize
 
-You aren't hitting a VirtualHost that has a LogSQLTransferLogTable entry
- 
+You aren't hitting a VirtualHost that has a 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ entry 
 \layout Itemize
 
-You didn't specify the right host
+You didn't specify the right database host or login information
 \layout Standard
 
-If you have confirmed your LogSQL* directives and know them to be correct,
- you should examine the httpd server logs for mod_log_sql messages; the
- module will offer hints as to why it cannot connect, etc.
- Also examine the MySQL log that you established in step 3.
- Ensure that the INSERTs are not being rejected because of a malformed table
- entry or other clerical error.
- If you see no INSERT attempts in the log, the module isn't successfully
- connecting to the database.
+So, first examine the MySQL log that you established in step 
+\begin_inset LatexCommand \ref{step:EnaLog}
+
+\end_inset 
+
+ of section 
+\begin_inset LatexCommand \ref{sub:PrepDb}
+
+\end_inset 
+
+.
+ Ensure that the INSERT statements are not being rejected because of a malformed
+ table entry or other clerical error.
+ By enabling that log, you instructed MySQL to log every connection and
+ command it receives -- if you see no INSERT attempts in the log, the module
+ isn't successfully connecting to the database.
+ If you see nothing at all in the log -- not even a record of your administrativ
+e connection attempts, then you did not enable the log correctly.
+ If you do see INSERT attempts but they are failing, the log should tell
+ you why.
+\layout Standard
+
+Second, confirm that your 
+\noun on 
+LogSQL*
+\noun default 
+ directives are all correct.
+\layout Standard
+
+Third, examine the Apache
+\noun on 
+ 
+\noun default 
+error logs for messages from mod_log_sql; the module will offer hints as
+ to why it cannot connect, etc.
+ 
 \layout Standard
 
 The next thing to do is recompile the module with debugging output activated.
@@ -924,10 +1061,6 @@ The next thing to do is recompile the module with debugging output activated.
  The module will now output copious notes about what it is doing, and this
  will help you (and the maintainer) solve the problem.
 \end_deeper 
-\layout Standard
-
-You can now activate the advanced features of mod_log_sql.
- These are all described in the next section.
 \layout Subsection
 
 How to tune logging with run-time directives
@@ -936,30 +1069,63 @@ How to tune logging with run-time directives
 Instructing the module what to log
 \layout Standard
 
-The LogSQLTransferLogFormat directive tells the module which information
- to send to the database.
- This directive resembles -- but is not identical to -- the Apache LogFormat
- directive.
- For each virtual host that you want to enable SQL logging, insert a LogSQLTrans
-ferLogFormat directive into the VirtualHost stanza.
+The most basic directive for the module is 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+, which tells the module which information to send to the database; logging
+ to the database will not take place without it.
+ Place a 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ directive in the VirtualHost stanza of each virtual host that you want
+ to activate.
 \layout Standard
 
-After LogSQLTransferLogFormat you supply a string of characters that tell
- the module what to log.
+After 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ you supply a string of characters that tell the module what information
+ to log.
  In the configuration directive reference (section 
-\begin_inset LatexCommand \ref{sec:ConfRef}
+\begin_inset LatexCommand \ref{sub:Frmat}
 
 \end_inset 
 
 ) there is a table which clearly defines all the possible things to log.
- Let's say you only wanted to log only the request time, the remote host,
- and the request; you'd use:
+ Let's say you want to log only the 
+\begin_inset Quotes eld
+\end_inset 
+
+request time,
+\begin_inset Quotes erd
+\end_inset 
+
+ the 
+\begin_inset Quotes eld
+\end_inset 
+
+remote host,
+\begin_inset Quotes erd
+\end_inset 
+
+ and the 
+\begin_inset Quotes eld
+\end_inset 
+
+request
+\begin_inset Quotes erd
+\end_inset 
+
+; you'd use:
 \layout LyX-Code
 
 LogSQLTransferLogFormat hUS
 \layout Standard
 
-A more appropriate string to use is
+But a more appropriate string to use is
 \layout LyX-Code
 
 LogSQLTransferLogFormat AbHhmRSsTUuv
@@ -970,27 +1136,48 @@ which logs all the information required to be compatible with the Combined
 \layout Standard
 
 If you don't choose to log everything that is available, that's fine.
- The table in your database will have unused columns that will simply contain
- NULL and do not cause issues.
+ The unused columns in your table will have simply contain NULL and do not
+ cause issues.
 \layout Standard
 
-Some directives need a little extra configuration:
+Some of the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ characters require a little extra configuration:
 \layout Itemize
 
 If you specify 'c' to indicate that you want to log the cookie value, you
- need to also tell the module which cookie you want with LogSQLWhichCookie
+ must also tell the module which cookie you mean by using 
+\noun on 
+LogSQLWhichCookie
+\noun default 
  -- after all, there could be many cookies associated with a given request.
- Fail to specify LogSQLWhichCookie, and no cookie information at all will
- be logged.
+ Fail to specify 
+\noun on 
+LogSQLWhichCookie
+\noun default 
+, and no cookie information at all will be logged.
  
 \layout Itemize
 
 If you specify 'M' to indicate that you want to log the machine ID, you
- need to also instruct the module this machine's identifier using the LogSQLMach
-ineID directive.
- Fail to specify LogSQLMachineID, and a simple '-' character will be logged
- in the machine_id column.
+ must also tell the module this machine's identity using the 
+\noun on 
+LogSQLMachineID
+\noun default 
+ directive.
+ Fail to specify 
+\noun on 
+LogSQLMachineID
+\noun default 
+, and a simple '-' character will be logged in the machine_id column.
 \layout Subsubsection
+
+
+\begin_inset LatexCommand \label{sub:Ignore}
+
+\end_inset 
 
 Instructing the module what NOT to log
 \layout Standard
@@ -1004,24 +1191,142 @@ ignore
 \end_inset 
 
  directives allow you to specify things that the module should not log.
- This can be very handy for a variety of reasons, such as keeping your database
- as uncluttered as possible, keeping your statistics free of unneeded numbers,
- etc.
+ These are very handy for keeping your database as uncluttered as possible
+ and keeping your statistics free of unneeded numbers.
 \layout Standard
 
-You are able to tell the module to ignore based on LogSQLRemhostIgnore and
- LogSQLRequestIgnore.
- A good way to use LogSQLRemhostIgnore is to prevent the module from logging
- the traffic that your internal hosts generate.
- LogSQLRequestIgnore is great for preventing things like requests for favicon.ico
- from cluttering up your database, as well as the various requests that
- worms make, etc.
+You are able to tell the module what to exclude based on 
+\noun on 
+LogSQLRemhostIgnore
+\noun default 
+ and 
+\noun on 
+LogSQLRequestIgnore
+\noun default 
+.
+ A good way to use 
+\noun on 
+LogSQLRemhostIgnore
+\noun default 
+ is to prevent the module from logging the traffic that your internal hosts
+ generate.
+ 
+\noun on 
+LogSQLRequestIgnore
+\noun default 
+ is great for preventing things like requests for 
+\begin_inset Quotes eld
+\end_inset 
+
+favicon.ico
+\begin_inset Quotes erd
+\end_inset 
+
+ from cluttering up your database, as well as excluding the various requests
+ that worms make, etc.
 \layout Standard
 
 You can specify a series of strings after each directive.
  Do not use any type of globbing or regular-expression syntax -- each string
- is considered a match if it is a substring of the larger request or remote-host.
- In other words, if you want to match 
+ is considered a match
+\emph on 
+ if it is a substring of the larger request or remote-host, and the comarison
+ is case-sensitive.
+
+\emph default 
+ This means that 
+\noun on 
+
+\begin_inset Quotes eld
+\end_inset 
+
+LogSQLRemhostIgnore
+\noun default 
+ micro
+\begin_inset Quotes erd
+\end_inset 
+
+ will ignore requests from 
+\begin_inset Quotes eld
+\end_inset 
+
+microsoft.com,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+microworld.net,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+mymicroscope.org,
+\begin_inset Quotes erd
+\end_inset 
+
+ etc.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\noun on 
+LogSQLRequestIgnore
+\noun default 
+ gif
+\begin_inset Quotes erd
+\end_inset 
+
+ will instruct the module to ignore requests for 
+\begin_inset Quotes eld
+\end_inset 
+
+leftbar.gif,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+bluedot.gif
+\begin_inset Quotes erd
+\end_inset 
+
+ and even 
+\begin_inset Quotes eld
+\end_inset 
+
+giftwrap.jpg
+\begin_inset Quotes erd
+\end_inset 
+
+ -- but 
+\begin_inset Quotes eld
+\end_inset 
+
+RED.GIF
+\begin_inset Quotes erd
+\end_inset 
+
+ and 
+\begin_inset Quotes eld
+\end_inset 
+
+Tree.Gif
+\begin_inset Quotes erd
+\end_inset 
+
+ would still get logged.
+\layout Standard
+
+Tip: if you want to match all the hosts in your domain such as 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -1033,7 +1338,7 @@ host1.corp.foo.com
 \begin_inset Quotes eld
 \end_inset 
 
-host2.dmz.foo.com
+server.dmz.foo.com
 \begin_inset Quotes srd
 \end_inset 
 
@@ -1043,14 +1348,153 @@ host2.dmz.foo.com
 LogSQLRemhostIgnore foo.com
 \layout Standard
 
-A great way to catch the vast majority of worm-attack requests and prevent
- them from being logged is to specify:
+Tip: a great way to catch the vast majority of worm-attack requests and
+ prevent them from being logged is to specify:
 \layout LyX-Code
 
 LogSQLRequestIgnore root.exe cmd.exe default.ida
+\layout Standard
+
+Tip: to prevent the logging of requests for common graphic types, make sure
+ to put a '.' before the suffix to avoid matches that you didn't intend:
+\layout LyX-Code
+
+LogSQLRequestIgnore .gif .jpg
 \layout Subsection
 
 Advanced logging scenarios
+\layout Subsubsection
+
+Using the module in an ISP environment
+\layout Standard
+
+mod_log_sql has three basic tiers of operation:
+\layout Enumerate
+
+The administrator creates all necessary tables by hand and configures each
+ Apache VirtualHost by hand.
+ (
+\noun on 
+LogSQLCreateTables Off
+\noun default 
+)
+\layout Enumerate
+
+The module is permitted to create necessary tables on-the-fly, but the administr
+ator configures each Apache VirtualHost by hand.
+ (
+\noun on 
+LogSQLCreateTables On
+\noun default 
+)
+\layout Enumerate
+
+The module is permitted to create all necessary tables and to make intelligent,
+ on-the-fly configuration of each VirtualHost.
+\layout Standard
+
+Many users are happy to use the module in its most minimal form: they hand-creat
+e any necessary tables (using 
+\begin_inset Quotes eld
+\end_inset 
+
+create_tables.sql
+\begin_inset Quotes erd
+\end_inset 
+
+), and they configure each VirtualHost by hand to suit their needs.
+ However, some administrators need extra features due to a large and growing
+ number of VirtualHosts.
+ The 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ directive activates module capabilities that make it far easier to manage
+ an ISP environment, or any situation characterized by a large and varying
+ number of virtual servers:
+\layout Itemize
+
+the on-the-fly table creation feature is activated automatically
+\layout Itemize
+
+the transfer log table name is dynamically set from the virtual host's name
+ (example: a virtual host 
+\begin_inset Quotes eld
+\end_inset 
+
+www.grubbybaby.com
+\begin_inset Quotes erd
+\end_inset 
+
+ gets logged to table 
+\begin_inset Quotes eld
+\end_inset 
+
+access_www_grubbybaby_com
+\begin_inset Quotes erd
+\end_inset 
+
+) 
+\layout Standard
+
+There are numerous benefits.
+ The admin will not need to create new tables for every new VirtualHost.
+ (Although the admin will still need to drop the tables of virtual hosts
+ that are removed.) The admin will not need to set 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ for each virtual host -- it will be configured automatically based on the
+ host's name.
+ Because each virtual host will log to its own segregated table, data about
+ one virtual server will segregate from others; an admin can grant users
+ access to the tables they need, and they will be unable to view data about
+ another user's virtual host.
+\layout Standard
+
+In an ISP scenario the admin is likely to have a cluster of many front-end
+ webservers logging to a back-end database.
+ mod_log_sql has a feature that permits analysis of how well the web servers
+ are loadbalancing: the 
+\noun on 
+LogSQLMachineID
+\noun default 
+ directive.
+ The administrator uses this directive to assign a unique identifier to
+ each machine in the web cluster, e.g.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\noun on 
+LogSQLMachineID
+\noun default 
+ web01,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\noun on 
+LogSQLMachineID
+\noun default 
+ web02,
+\begin_inset Quotes erd
+\end_inset 
+
+ etc.
+ Used in conjunction with the 'M' character in 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+, each entry in the SQL log will include the machine ID of the machine that
+ created the entry.
+ This permits the administrator to count the entries made by each particular
+ machine and thereby analyze the front-end loadbalancing algorithm.
 \layout Subsubsection
 
 
@@ -1064,19 +1508,31 @@ Logging many-to-one data in separate tables
 A given HTTP request can have a one-to-many relationship with certain kinds
  of data.
  For example, a single HTTP request can have 4 cookies, 3 headers and 5
- mod_gzip notes associated with it.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+mod_gzip
+\begin_inset Quotes erd
+\end_inset 
+
+ notes associated with it.
  mod_log_sql is capable of logging these relationships due to the elegance
  of SQL relational data.
 \layout Standard
 
 You already have a single table containing access requests.
- One of the columns in that table is 'id' which contains the unique request
- ID supplied by the standard Apache module mod_unique_id (assuming you compile
- in that module and employ the LogSQLTransferLogFormat character 'I').
- Each request gets a unique ID that can be thought of as a primary key within
- the database.
- So let's add several new tables: a notes table, a cookies table, and tables
- for inbound and outbound headers.
+ One of the columns in that table is 'id' which is intended to contain the
+ unique request ID supplied by the standard Apache module mod_unique_id
+ -- all you need to do is compile in that module and employ the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ character 'I'.
+ Thereafter, each request gets a unique ID that can be thought of as a primary
+ key within the database, useful for joining multiple tables.
+ So let's envision several new tables: a notes table, a cookies table, and
+ a table for inbound and outbound headers.
  
 \layout Standard
 
@@ -1459,8 +1915,8 @@ XYZ123
 
 \end_inset 
 
-, you have a many-to-one relationship for request XYZ123: one access has
- two associated notes and four associated headers.
+, you have a one-to-many relationship for request XYZ123: that one access
+ has two associated notes and four associated headers.
  You can extract this data easily using the power of SQL's 
 \begin_inset Quotes eld
 \end_inset 
@@ -1599,8 +2055,6 @@ mod_gzip_compression_ratio
 
 \layout LyX-Code
 
-\layout LyX-Code
-
 \layout Standard
 
 In order to use this capability of mod_log_sql, you must do several things:
@@ -1615,7 +2069,15 @@ Compile mod_unique_id into Apache (statically or as a DSO).
 
 Create the appropriate tables.
  This will be done for you if you permit mod_log_sql to create its own tables,
- or if you use the enclosed create_tables.sql script.
+ or if you use the enclosed 
+\begin_inset Quotes eld
+\end_inset 
+
+create_tables.sql
+\begin_inset Quotes erd
+\end_inset 
+
+ script.
 \layout Itemize
 
 Create a SQL index on the 
@@ -1632,12 +2094,22 @@ id
  a column index if you are not familiar with this operation.
 \layout Itemize
 
-Within each appropriate VirtualHost stanza, use the LogSQLWhich* and LogSQL*LogT
-able directives to tell the module what and where to log the data.
- In the following example, I have specified a name for the notes table that
- is different from the default, whereas I have left the other table names
- at their defaults.
+Within each appropriate VirtualHost stanza, use the
+\noun on 
+ LogSQLWhich*
+\noun default 
+ and 
+\noun on 
+LogSQL*LogTable
+\noun default 
+ directives to tell the module what and where to log the data.
+ In the following example, I have overridden the name for the notes table
+ whereas I have left the other table names at their defaults.
  I then specified the cookies, headers and notes that interest me.
+ As you can see, these directives do not require me to add any characters
+ to 
+\noun on 
+LogSQLTransferLogTable.
 \layout LyX-Code
 
 <VirtualHost 216.231.36.128>
@@ -1665,8 +2137,83 @@ able directives to tell the module what and where to log the data.
 \layout LyX-Code
 
 </VirtualHost>
+\layout Subsubsection
+
+Using the same database for production and test
+\layout Standard
+
+Although suboptimal, it is not uncommon to use the same backend database
+ for the 
+\begin_inset Quotes eld
+\end_inset 
+
+production
+\begin_inset Quotes erd
+\end_inset 
+
+ webservers as well as the 
+\begin_inset Quotes eld
+\end_inset 
+
+test
+\begin_inset Quotes erd
+\end_inset 
+
+ webservers (budgetary constraints, rackspace limits, etc.).
+ Furthermore, an administrator in this situation may be unable to use 
+\noun on 
+LogSQLRemhostIgnore 
+\noun default 
+to exclude requests from the test servers -- perhaps the generated entries
+ are genuinely useful for analytical or QA purposes, but their value after
+ analysis is minimal.
+\layout Standard
+
+It is wasteful and potentially confusing to permit this internal test data
+ to clutter the database, and a solution to the problem is the proper use
+ of the 
+\noun on 
+LogSQLMachineID 
+\noun default 
+directive.
+ Assume a scenario where the production webservers have IDs like 
+\begin_inset Quotes eld
+\end_inset 
+
+web01,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+web02,
+\begin_inset Quotes erd
+\end_inset 
+
+ and so on -- and the test webservers have IDs like 
+\begin_inset Quotes eld
+\end_inset 
+
+test01,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+test02,
+\begin_inset Quotes erd
+\end_inset 
+
+ etc.
+ Because entries in the log database are distinguished by their source machine,
+ an administrator may purge unneeded test data from the access log as follows:
 \layout LyX-Code
 
+delete from access_log where machine_id like 'test%';
 \layout Subsection
 
 
@@ -1712,8 +2259,23 @@ Context: main server config
 \layout Quote
 
 Defines the database that is used for logging.
- database must be operating on the MySQL host defined in LogSQLLoginInfo.
- This is defined only once in the httpd.conf file.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+database
+\begin_inset Quotes erd
+\end_inset 
+
+ must be a valid db on the MySQL host defined in 
+\noun on 
+LogSQLLoginInfo
+\noun default 
+.
+ 
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLLoginInfo 
@@ -1736,11 +2298,42 @@ Context: main server config
 \layout Quote
 
 Defines the general parameters of the MySQL host to which you will be logging.
- host is the hostname or IP address of the MySQL machine.
- user is the MySQL userid (not a Unix userid!) with INSERT privileges on
- the table defined in LogSQLTransferLogTable.
- password is that user's password.
- This is defined only once in the httpd.conf file.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+host
+\begin_inset Quotes erd
+\end_inset 
+
+ is the hostname or IP address of the MySQL machine.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+user
+\begin_inset Quotes erd
+\end_inset 
+
+ is the MySQL userid (not a Unix userid!) with INSERT privileges on the
+ table defined in 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+password
+\begin_inset Quotes erd
+\end_inset 
+
+ is that user's password.
+ 
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLTCPPort
@@ -1762,6 +2355,9 @@ Your database may listen on a different port than the default.
  If so, use this directive to instruct the module which port to use.
  This directive only applies if the database is on a different machine connected
  via TCP/IP.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLSocketFile 
@@ -1789,6 +2385,9 @@ mod_log_sql will automatically employ the socket for db communications if
  If the db resides on a separate host the module will automatically use
  TCP/IP.
  This is a function of the MySQL API and is not user-configurable.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLPreserveFile
@@ -1815,21 +2414,36 @@ mod_log_sql writes queries to this local preserve file in the event that
  The file consists of a series of SQL statements that can be imported into
  your database at your convenience; furthermore, because the SQL queries
  contain the access timestamps you do not need to worry about out-of-order
- data after the import.
+ data after the import, which is done in a simple manner:
+\layout LyX-Code
+
+# mysql -uadminuser -p mydbname < /tmp/sql-preserve
 \layout Quote
 
-If you do not define LogSQLPreserveFile then all virtual servers will log
- to the same default preserve file (/tmp/mysql-preserve).
+If you do not define 
+\noun on 
+LogSQLPreserveFile
+\noun default 
+ then all virtual servers will log to the same default preserve file (/tmp/sql-p
+reserve).
  You can redefine this on a virtual-host basis in order to segregate your
  preserve files if you desire.
- Note that segregation is not really necessary, as the SQL statements that
+ Note that segregation is not usually necessary, as the SQL statements that
  are written to the preserve file already distinguish between different
- virtual hosts if you include the 'v' character in your LogSQLTransferLogFormat
+ virtual hosts if you include the 'v' character in your 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
  directive.
+ It is only necessary to segregate preserve-files by virualhost if you also
+ segregate access logs by virtualhost.
 \layout Quote
 
-The module will log to error-log if/when it notices a database outage, and
- upon database return.
+The module will log to Apache's 
+\noun on 
+ErrorLog
+\noun default 
+ when it notices a database outage, and upon database return.
  You will therefore know when the preserve file is being used, although
  it is your responsibility to import the file.
 \layout Quote
@@ -1866,6 +2480,9 @@ You may need to perform debugging on your database and specifically want
 This is presumably a directive for temporary use only; it could be dangerous
  if you set it and forget it, as all your entries will simply pile up in
  the preserve file.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLMachineID
@@ -1880,11 +2497,46 @@ Example: LogSQLMachineID web01
 Context: main server config
 \layout Quote
 
-If you have a farm of webservers you may wish to log which particular machine
- made each entry; this is useful for analyzing your loadbalancing methodology.
- LogSQLMachineID permits you to distinguish each machine's entries if you
- assign each machine its own LogSQLMachineID: for example, web01, web02,
- web03, etc.
+If you have a farm of webservers then you may wish to know which particular
+ machine made each entry; this is useful for analyzing your loadbalancing
+ methodology.
+ 
+\noun on 
+LogSQLMachineID
+\noun default 
+ permits you to distinguish each machine's entries if you assign each machine
+ its own 
+\noun on 
+LogSQLMachineID
+\noun default 
+: for example, the first webserver gets 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\noun on 
+LogSQLMachineID
+\noun default 
+ web01,
+\begin_inset Quotes erd
+\end_inset 
+
+ the second gets 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\noun on 
+LogSQLMachineID
+\noun default 
+ web02,
+\begin_inset Quotes erd
+\end_inset 
+
+ etc.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLCreateTables
@@ -1906,20 +2558,31 @@ mod_log_sql has the ability to create its tables on-the-fly.
  The advantage to this is convenience: you don't have to execute any SQL
  by hand to prepare the table.
  This is especially helpful for people with lots of virtual hosts (who should
- also see the LogSQLMassVirtualHosting directive).
+ also see the 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ directive).
 \layout Quote
 
 There is a slight disadvantage: if you wish to activate this feature, then
- the user specified by LogSQLLoginInfo must have CREATE privileges on the
- database.
+ the userid specified in 
+\noun on 
+LogSQLLoginInfo
+\noun default 
+ must have CREATE privileges on the database.
  In an absolutely paranoid, locked-down situation you may only want to grant
  your mod_log_sql user INSERT privileges on the database; in that situation
- you are unable to take advantage of LogSQLCreateTables.
+ you are unable to take advantage of 
+\noun on 
+LogSQLCreateTables
+\noun default 
+.
  But most people -- even the very security-conscious -- will find that granting
  CREATE on the logging database is reasonable.
 \layout Quote
 
-Defined this only once in the httpd.conf file.
+This is defined only once in the httpd.conf file.
 \layout Subsubsection
 
 LogSQLMassVirtualHosting
@@ -1939,7 +2602,11 @@ Context: main server config
 
 If you administer a site hosting many, many virtual hosts then this option
  will appeal to you.
- If you activate LogSQLMassVirtualHosting then several things happen:
+ If you turn on 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ then several things happen:
 \begin_deeper 
 \layout Itemize
 
@@ -1947,8 +2614,8 @@ the on-the-fly table creation feature is activated automatically
 \layout Itemize
 
 the transfer log table name is dynamically set from the virtual host's name
- (example: a virtual host www.grubbybaby.com gets logged to table access_www_grubb
-ybaby_com) 
+ after stripping out SQL-unfriendly characters (example: a virtual host
+ www.grubbybaby.com gets logged to table access_www_grubbybaby_com) 
 \layout Itemize
 
 which, in turn, means that each virtual host logs to its own segregated
@@ -1960,8 +2627,12 @@ which, in turn, means that each virtual host logs to its own segregated
 \layout Quote
 
 This is a huge boost in convenience for sites with many virtual servers.
- Activating LogSQLMassVirtualHosting obviates the need to create every virtual
- server's table and provides more granular security possibilities.
+ Activating 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ obviates the need to create every virtual server's table and provides more
+ granular security possibilities.
 \layout Quote
 
 This is defined only once in the httpd.conf file.
@@ -1972,7 +2643,19 @@ LogSQLTransferLogTable
 
 
 \series bold 
-MANDATORY (if not LogSQLMassVirtualHosting)
+MANDATORY (unless 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ is 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+)
 \layout LyX-Code
 
 Syntax: LogSQLTransferLogTable table-name 
@@ -1986,14 +2669,28 @@ Context: virtual host
 
 Defines which table is used for logging of Apache's transfers; this is analogous
  to Apache's TransferLog directive.
- table-name must be a valid table within the database defined in LogSQLDatabase.
+ table-name must be a valid table within the database defined in 
+\noun on 
+LogSQLDatabase
+\noun default 
+.
 \layout Quote
 
-This directive is not necessary if you declare LogSQLMassVirtualHosting
- On, since that directive activates dynamically-named tables.
- If you attempt to use LogSQLTransferLogTable at the same time a warning
- will be logged and it will be ignored, since LogSQLMassVirtualHosting takes
- priority.
+This directive is not necessary if you declare 
+\noun on 
+LogSQLMassVirtualHosting On
+\noun default 
+, since that directive activates dynamically-named tables.
+ If you attempt to use 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ at the same time a warning will be logged and it will be ignored, since
+ 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+ takes priority.
 \layout Subsubsection
 
 LogSQLRequestIgnore
@@ -2010,17 +2707,29 @@ Context: virtual host
 \layout Quote
 
 Lists a series of strings that, if present in the URI, will cause that request
- NOT to be logged.
- This directive is useful for cutting down on log clutter when you KNOW
- that you do not want to log requests for certain objects.
- (The example above is a genuinely useful one; it will prevent logging of
- many common Microsoft-based worm intrusion attempts, as well as those ridiculou
-s requests for the favicon.)
+ to 
+\series bold 
+NOT
+\series default 
+ be
+\series bold 
+ 
+\series default 
+logged.
+ This directive is useful for cutting down on log clutter when you are certain
+ that you want to ignore requests for certain objects.
+ See section 
+\begin_inset LatexCommand \ref{sub:Ignore}
+
+\end_inset 
+
+ for some tips for using this directive.
 \layout Quote
 
-Each string is separated by a space, and NO regular expressions or globbing
+Each string is separated by a space, and no regular expressions or globbing
  are allowed.
  Each string is evaluated as a substring of the URI using strstr().
+ The comparison is case sensitive.
 \layout Subsubsection
 
 LogSQLRemhostIgnore
@@ -2037,17 +2746,32 @@ Context: virtual host
 \layout Quote
 
 Lists a series of strings that, if present in the REMOTE_HOST, will cause
- that request NOT to be logged.
- This directive is useful for cutting down on log clutter when you KNOW
- that you do not want to log requests from certain hosts, such as your own
- internal network machines.
+ that request to 
+\series bold 
+NOT
+\series default 
+ be logged.
+ This directive is useful for cutting down on log clutter when you are certain
+ that you want to ignore requests from certain hosts, such as your own internal
+ network machines.
+ See section 
+\begin_inset LatexCommand \ref{sub:Ignore}
+
+\end_inset 
+
+ for some tips for using this directive.
 \layout Quote
 
-Each string is separated by a space, and NO regular expressions or globbing
+Each string is separated by a space, and no regular expressions or globbing
  are allowed.
- Each string is simply evaluated as a substring of the REMOTE_HOST using
- strstr().
+ Each string is evaluated as a substring of the REMOTE_HOST using strstr().
+ The comparison is case sensitive.
 \layout Subsubsection
+
+
+\begin_inset LatexCommand \label{sub:Frmat}
+
+\end_inset 
 
 LogSQLTransferLogFormat 
 \layout LyX-Code
@@ -3345,9 +4069,15 @@ In HTTP, cookies have names to distinguish them from each other.
  a name with the CookieName directive.
 \layout Quote
 
-You must include a 'c' character in LogSQLTransferLogFormat for this directive
- to take effect; once you specify 'c', LogSQLWhichCookie tells mod_log_sql
- which cookie to log.
+You must include a 'c' character in 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ for this directive to take effect; once you specify 'c', 
+\noun on 
+LogSQLWhichCookie
+\noun default 
+ tells mod_log_sql which cookie to log.
  This is necessary because many times you will be setting and receiving
  more than one cookie from a client; without this directive you'd be unable
  to choose which cookie is your mod_usertrack cookie.
@@ -3377,15 +4107,27 @@ Context: virtual host
 \layout Quote
 
 Defines the list of cookies you would like logged.
- This works in conjunction with LogSQLCookieLogTable.
+ This works in conjunction with 
+\noun on 
+LogSQLCookieLogTable
+\noun default 
+.
  This directive does not require any additional characters to be added to
- the LogSQLTransferLogFormat string.
+ the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ string.
  The feature is activated simply by including this directive, upon which
  you will begin populating the separate cookie table with data.
 \layout Quote
 
 Note that you must have already created the table (see create-tables.sql,
- included in the package), or LogSQLCreateTables must be set to 
+ included in the package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3413,15 +4155,27 @@ Context: virtual host
 \layout Quote
 
 Defines the list of inbound headers you would like logged.
- This works in conjunction with LogSQLHeadersInLogTable.
+ This works in conjunction with
+\noun on 
+ LogSQLHeadersInLogTable
+\noun default 
+.
  This directive does not require any additional characters to be added to
- the LogSQLTransferLogFormat string.
+ the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ string.
  The feature is activated simply by including this directive, upon which
  you will begin populating the separate inbound-headers table with data.
 \layout Quote
 
 Note that you must have already created the table (see create-tables.sql,
- included in the package), or LogSQLCreateTables must be set to 
+ included in the package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3449,15 +4203,27 @@ Context: virtual host
 \layout Quote
 
 Defines the list of outbound headers you would like logged.
- This works in conjunction with LogSQLHeadersOutLogTable.
+ This works in conjunction with 
+\noun on 
+LogSQLHeadersOutLogTable
+\noun default 
+.
  This directive does not require any additional characters to be added to
- the LogSQLTransferLogFormat string.
+ the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ string.
  The feature is activated simply by including this directive, upon which
  you will begin populating the separate outbound-headers table with data.
 \layout Quote
 
 Note that you must have already created the table (see create-tables.sql,
- included in the package), or LogSQLCreateTables must be set to 
+ included in the package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3485,15 +4251,27 @@ Context: virtual host
 \layout Quote
 
 Defines the list of notes you would like logged.
- This works in conjunction with LogSQLNotesLogTable.
+ This works in conjunction with 
+\noun on 
+LogSQLNotesLogTable
+\noun default 
+.
  This directive does not require any additional characters to be added to
- the LogSQLTransferLogFormat string.
+ the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ string.
  The feature is activated simply by including this directive, upon which
  you will begin populating the separate notes table with data.
 \layout Quote
 
 Note that you must have already created the table (see create-tables.sql,
- included in the package), or LogSQLCreateTables must be set to 
+ included in the package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3520,14 +4298,21 @@ Context: virtual host
 \layout Quote
 
 Defines which table is used for logging of cookies.
- Working in conjunction with LogSQLWhichCookies, you can log many of each
- request's associated cookies to a separate table.
+ Working in conjunction with 
+\noun on 
+LogSQLWhichCookies
+\noun default 
+, you can log many of each request's associated cookies to a separate table.
  For meaningful data retrieval the cookie table is keyed to the access table
  by the unique request ID supplied by the standard Apache module mod_unique_id.
 \layout Quote
 
 Note that you must create the table (see create-tables.sql, included in the
- package), or LogSQLCreateTables must be set to 
+ package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3554,15 +4339,22 @@ Context: virtual host
 \layout Quote
 
 Defines which table is used for logging of inbound headers.
- Working in conjunction with LogSQLWhichHeadersIn, you can log many of each
- request's associated headers to a separate table.
+ Working in conjunction with 
+\noun on 
+LogSQLWhichHeadersIn
+\noun default 
+, you can log many of each request's associated headers to a separate table.
  For meaningful data retrieval the headers table is keyed to the access
  table by the unique request ID supplied by the standard Apache module mod_uniqu
 e_id.
 \layout Quote
 
 Note that you must create the table (see create-tables.sql, included in the
- package), or LogSQLCreateTables must be set to 
+ package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3589,15 +4381,22 @@ Context: virtual host
 \layout Quote
 
 Defines which table is used for logging of outbound headers.
- Working in conjunction with LogSQLWhichHeadersOut, you can log many of
- each request's associated headers to a separate table.
+ Working in conjunction with 
+\noun on 
+LogSQLWhichHeadersOut
+\noun default 
+, you can log many of each request's associated headers to a separate table.
  For meaningful data retrieval the headers table is keyed to the access
  table by the unique request ID supplied by the standard Apache module mod_uniqu
 e_id.
 \layout Quote
 
 Note that you must create the table (see create-tables.sql, included in the
- package), or LogSQLCreateTables must be set to 
+ package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3624,14 +4423,21 @@ Context: virtual host
 \layout Quote
 
 Defines which table is used for logging of notes.
- Working in conjunction with LogSQLWhichNotes, you can log many of each
- request's associated notes to a separate table.
+ Working in conjunction with 
+\noun on 
+LogSQLWhichNotes
+\noun default 
+, you can log many of each request's associated notes to a separate table.
  For meaningful data retrieval the notes table is keyed to the access table
  by the unique request ID supplied by the standard Apache module mod_unique_id.
 \layout Quote
 
 Note that you must create the table (see create-tables.sql, included in the
- package), or LogSQLCreateTables must be set to 
+ package), or 
+\noun on 
+LogSQLCreateTables
+\noun default 
+ must be set to 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -3644,6 +4450,11 @@ on
 
 FAQ
 \layout Subsection
+
+
+\begin_inset LatexCommand \label{sub:why}
+
+\end_inset 
 
 Why log to an SQL database?
 \layout Standard
@@ -4510,8 +5321,11 @@ alter table acc_log_tbl add column cookie varchar(255);
 \layout Standard
 
 Next configure your server to set usertracking cookies as follows, and make
- sure you include the new 'c' directive in your LogSQLTransferLogFormat,
- which activates cookie logging.
+ sure you include the new 'c' directive in your 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+, which activates cookie logging.
  Here's an example:
 \layout LyX-Code
 
@@ -4543,9 +5357,27 @@ The first three lines configure mod_usertrack to create a COOKIE (RFC 2109)
  be sent to the server by the client.
 \layout Standard
 
-FYI, you are advised NOT to use CookieStyle Cookie2 -- it seems that even
- newer browsers (IE 5.5, etc.) have trouble with the new COOKIE2 (RFC 2965)
- format.
+Recap: the 'c' character 
+\emph on 
+activates
+\emph default 
+ cookie logging, and the 
+\noun on 
+LogSQLWhichCookie
+\noun default 
+ directive 
+\emph on 
+chooses 
+\emph default 
+which cookie to log.
+\layout Standard
+
+FYI, you are advised NOT to use 
+\noun on 
+CookieStyle Cookie2
+\noun default 
+ -- it seems that even newer browsers (IE 5.5, etc.) have trouble with the
+ new COOKIE2 (RFC 2965) format.
  Just stick with the standard COOKIE format and you'll be fine.
 \layout Standard
 
@@ -4659,12 +5491,24 @@ If you are interested in logging only one cookie per request, follow the
 
  above.
  That cookie will be logged to a column in the regular access_log table,
- and the actual cookie you want to log is specified with LogSQLWhichCookie.
- Don't forget to specify the 'c' character in LogSQLTransferLogFormat.
+ and the actual cookie you want to log is specified with
+\noun on 
+ LogSQLWhichCookie
+\noun default 
+.
+ Don't forget to specify the 'c' character in 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+.
 \layout Standard
 
 If, however, you need to log multiple cookies per request, you must employ
- the LogSQLWhichCookies (note the plural) directive.
+ the 
+\noun on 
+LogSQLWhichCookies
+\noun default 
+ (note the plural) directive.
  The cookies you specify will be logged to a separate table (as discussed
  in section 
 \begin_inset LatexCommand \ref{secMulTable}
@@ -4675,16 +5519,31 @@ If, however, you need to log multiple cookies per request, you must employ
  via the unique ID that is supplied by mod_unique_id.
  Without mod_unique_id the information will still be logged but you will
  be unable to correlate which cookies go with which access-requests.
- Furthermore, with LogSQLWhichCookies, you do 
+ Furthermore, with 
+\noun on 
+LogSQLWhichCookies
+\noun default 
+, you do 
 \series bold 
 not
 \series default 
- need to include the 'c' character in LogSQLTransferLogFormat.
+ need to include the 'c' character in 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+.
 \layout Standard
 
-LogSQLWhichCookie and LogSQLWhichCookies can coexist without conflict because
- they operate on entireley different tables, but you're better off choosing
- the one you need.
+
+\noun on 
+LogSQLWhichCookie
+\noun default 
+ and 
+\noun on 
+LogSQLWhichCookies
+\noun default 
+ can coexist without conflict because they operate on entireley different
+ tables, but you're better off choosing the one you need.
 \layout Subsection
 
 What are the SSL logging features, and how do I activate them?
@@ -4692,9 +5551,12 @@ What are the SSL logging features, and how do I activate them?
 
 If you run an SSL-enabled server you may benefit from logging some SSL details.
  mod_log_sql now supports this ability.
- By adding certain characters to your LogSQLTransferLogFormat string you
- can tell mod_log_sql to log the SSL cipher, the SSL keysize of the connection,
- and the Max-keysize that was available.
+ By adding certain characters to your 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ string you can tell mod_log_sql to log the SSL cipher, the SSL keysize
+ of the connection, and the Max-keysize that was available.
  This would let you tell, for example, which clients were using only export-grad
 e security to access your secure software area.
 \layout Standard
@@ -4953,8 +5815,12 @@ It depends! This actually is not determined by mod_log_sql.
 \layout Standard
 
 You do have control over where mod_log_sql looks for the socket.
- The LogSQLSocketFile runtime configuration directive overrides the default
- of "/var/lib/mysql/mysql.sock" to whatever you wish.
+ The 
+\noun on 
+LogSQLSocketFile
+\noun default 
+ runtime configuration directive overrides the default of "/var/lib/mysql/mysql.s
+ock" to whatever you wish.
  (Applies to mod_log_sql 1.16 or later only.)
 \layout Subsection
 
