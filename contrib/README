@@ -1,1 +1,38 @@
-This directory contains contributed scripts/programs/utilites related to mod_log_sql.
+This directory contains contributed scripts/programs/utilites for mod_log_sql.
+
+* create_tables.sql
+
+This is the create table SQL commands to create the access, headers_in, 
+headers_out, cookies, and notes tables in the MySQL database.
+Use it like this.
+mysql -u user -h host -p apachelogdatabase < create_tables.sql
+Where:
+	user is the username to log in as,
+	host is the hostname the server is on, 
+	apachelogdatabase is the database to put the tables into
+	-p will have mysql ask you for a password for the user
+
+*make_combined_log.pl
+
+This perl script will extract the data from mod_log_sql's tables in the 
+database and export a standard Apache combined log file. Use this to run
+logs through a program like webalizer.
+
+You must edit the perl script to configure variables before you run it.
+Usage:
+./make_combined_log.pl days virtualhost
+Where:
+	days is the number of days to fetch (starting from now and going back 
+		in time)
+	virtualhost is the name of the virtualhost to retrieve
+
+Example:
+	./make_combined_log.pl 2 example.com
+
+*mysql_import_combined_log.pl
+
+This is a perl script written by Aaron Jenson that imports a combined log file
+from apache into a SQL database table.. You can use this script to import logs
+from a webserver you are converting over from the standard Apache log system to
+mod_log_sql.  A Usage statement can be fetch by running the program with no 
+parameters or with --help or -?.
