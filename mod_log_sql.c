@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.9 2004/01/20 20:33:20 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.10 2004/01/20 20:36:41 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -122,7 +122,7 @@ typedef struct {
 	  int string_contents;			/* if it returns a string */
 } log_sql_item;
 
-apr_hash_t *log_sql_hash;
+static apr_hash_t *log_sql_hash;
 
 /* Registration Function for extract functions */
 LOGSQL_DECLARE(void) log_sql_register_item(apr_pool_t *p, char *key,
@@ -688,6 +688,8 @@ static void log_sql_pre_config(server_rec *s, apr_pool_t *p)
 		global_config.socketfile = "/tmp/mysql.sock";
 	if (!global_config.tcpport)
 		global_config.tcpport = 3306;
+	if (!log_sql_hash)
+		log_sql_hash = apr_hash_make(p);
 
 	/* Register handlers */
 	log_sql_register_item(p,"A", extract_agent,             "agent",            1, 1);
@@ -929,7 +931,7 @@ static int log_sql_transaction(request_rec *orig)
 		 * what the user has configured. */
 		for (i = 0; i < length; i++) {
 			j = 0;
-
+			
 			while (log_sql_item_keys[j].ch) {
 
 				  if (log_sql_item_keys[j].ch == cls->transfer_log_format[i]) {
