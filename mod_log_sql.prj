@@ -60,7 +60,8 @@ module.source.type=
 module.source.expanded=1
 module.source.files=\
 	mod_log_sql.c\
-	make_combined_log.pl
+	make_combined_log.pl\
+	contrib/mysql_import_combined_log.pl
 
 module.pixmap.name=.
 module.pixmap.type=
@@ -73,7 +74,9 @@ module.data.expanded=1
 module.data.files=\
 	Makefile.in\
 	configure.ac\
-	create_tables.sql
+	create_tables.sql\
+	Documentation/Makefile.in\
+	contrib/Makefile.in
 
 module.help.name=.
 module.help.type=

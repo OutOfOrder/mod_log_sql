@@ -14,10 +14,3 @@ $ACLOCAL -I m4
 $AUTOHEADER
 $AUTOCONF
 touch stamp-h.in
-
-for x in providers/*; do
-	if [ -e $x/autogen.sh ]; then
-		echo Generating Config files in $x
-		(cd $x; ./autogen.sh $*)
-	fi
-done

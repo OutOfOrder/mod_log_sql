@@ -17,10 +17,10 @@ CHECK_PATH_APACHE($APACHE_VERSION,
 CHECK_PATH_MYSQL(:,
 		AC_MSG_ERROR([*** Mysql client libraries not found!])
 		)
-
+AC_CHECK_HEADERS(limits.h)
 
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
 dnl Write config.status and the Makefile
 
-AC_OUTPUT(Makefile)
+AC_OUTPUT(Makefile Documentation/Makefile)

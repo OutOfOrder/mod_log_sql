@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.5 2003/12/30 21:05:30 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.6 2004/01/04 03:23:21 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -31,16 +31,6 @@
 
 #include "util_time.h"
 
-#if APR_HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#include "mysql.h"
-#include "mysqld_error.h"
-
 #ifdef HAVE_CONFIG_H
 /* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
@@ -53,6 +43,16 @@
 
 #include "config.h"
 #endif
+
+#if APR_HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#include "mysql.h"
+#include "mysqld_error.h"
 
 #ifdef WANT_SSL_LOGGING
 #include "mod_ssl.h"
@@ -178,11 +178,13 @@ static const char *extract_remote_user(request_rec *r, char *a)
 static const char *extract_ssl_keysize(request_rec *r, char *a)
 {
 	char *result = NULL;
+	SSLConnRec *scc = myConnConfig(r->connection);
+	SSLSrvConfigRec *ssc = mySrvConfig(r->server);
 
-	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	if (myCtxConfig(scc,ssc) != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_USEKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_KEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_KEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -195,11 +197,13 @@ static const char *extract_ssl_keysize(request_rec *r, char *a)
 static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 {
 	char *result = NULL;
+	SSLConnRec *scc = myConnConfig(r->connection);
+	SSLSrvConfigRec *ssc = mySrvConfig(r->server);
 
-	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	if (myCtxConfig(scc,ssc) != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_ALGKEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_ALGKEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -212,11 +216,13 @@ static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 static const char *extract_ssl_cipher(request_rec *r, char *a)
 {
 	char *result = NULL;
+	SSLConnRec *scc = myConnConfig(r->connection);
+	SSLSrvConfigRec *ssc = mySrvConfig(r->server);
 
-	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	if (myCtxConfig(scc,ssc) != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_CIPHER: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_CIPHER: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;

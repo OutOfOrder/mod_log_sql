@@ -4,17 +4,19 @@ dnl
 AC_DEFUN(CHECK_PATH_APACHE,
 [dnl
 AC_ARG_WITH(
-		apache,
-		[  --with-apache[=DIR]       Apache install root],
-		apache_prefix="$withval",
-		apache_prefix="/usr"
+		apxs,
+		[AC_HELP_STRING([--with-apxs[=DIR]],[Location to APXS binary])],
+		apxs_prefix="$withval",
+		apxs_prefix="/usr"
 	)
-AC_ARG_ENABLE(apachetest, [  --disable-apachetest    Do not try to compile and run apache version test program],
-					, enable_apachetest=yes)
+AC_ARG_ENABLE(apachetest,
+	[AC_HELP_STRING([--disable-apachetest],[Do not try to compile and run apache version test program])],
+	,
+	enable_apachetest=yes)
 
 
 	AC_REQUIRE([AC_CANONICAL_TARGET])
-	PATH="$apache_prefix:$apache_prefix/bin:$apache_prefix/sbin:$PATH"
+	PATH="$apxs_prefix:$apxs_prefix/bin:$apxs_prefix/sbin:$PATH"
 	AC_PATH_PROG(APXS_BIN, apxs, no, [$PATH])
 	min_apache_version=ifelse([$1], ,1.3.1,$1)
 	AC_MSG_CHECKING(for Apache - version >= $min_apache_version)
@@ -80,7 +82,7 @@ int main (int argc, char *argv[])
 			major1, minor1, micro1);
 		printf("*** I found version %d.%d.%d. Please verify the installation directory\n",
 			major2, minor2, micro2);
-		printf("*** of apache with the --with-apache configure option.\n");
+		printf("*** of apache with the --with-apxs configure option.\n");
 		return 1;
 	}
 }
@@ -97,7 +99,7 @@ int main (int argc, char *argv[])
 		if test "APXS_BIN" = "no" ; then
 			echo "*** The apxs binary installed by apache could not be found"
 			echo "*** If apache is installed in PREFIX, make sure PREFIX/bin is in"
-			echo "*** your path, or use the --with-apache configure option"
+			echo "*** your path, or use the --with-apxs configure option"
 		else
 			if test -f conf.apachetest ; then
 				:
