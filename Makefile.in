@@ -74,6 +74,9 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 		fi; \
 	done;
 
+TODO: TODO.in
+	@./gen_todo.pl
+
 $(TARGET): $(SOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(TARGET) $(INCLUDES) $(CFLAGS) \
 		$(LDADD) @DEFS@ @APACHE_DEFS@ $(SOURCES)
