@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.10 2004/02/04 02:16:33 urkle Exp $
+$Id: CHANGELOG,v 1.11 2004/02/05 22:05:42 urkle Exp $
 
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
@@ -21,6 +21,10 @@ TODO:
 * rewrite main core logging function to optimize for speed.
 
 CHANGES:
+1.95: 2004-02-05
+* audit and update of extract_* functions to acheive same output as 
+	mod_log_config.
+
 1.94: 2004-02-03
 * ssl loggin back in as separate module under 1.3 and 2.0
 * preparsing of format tags is now done to speed up main logging loop.
