@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.7 2002/04/08 06:35:04 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.8 2002/04/08 07:06:20 helios Exp $ */
 
 
 /* DEFINES */
@@ -514,7 +514,7 @@ void preserve_entry(request_rec *r, const char *query)
 	if (fp == NULL)
 		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: attempted append of local offline file but failed.");
 	else 
-		fprintf(fp,"%s\n", query);
+		fprintf(fp,"%s;\n", query);
 	fclose(fp);
 }
 
