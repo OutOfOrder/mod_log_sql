@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 2002/11/17 04:23:57 helios Exp $
+# $Id: Makefile,v 1.16 2002/11/19 02:59:43 helios Exp $
 
 #####################################
 # Important:
@@ -66,7 +66,7 @@ statinstall: static
 
 clean:
 	$(RM) -rf *.o *.so
-	$(RM) -f Documentation/HTML/*.html Documentation/HTML/*.css
+	$(RM) -f Documentation/HTML/*.html Documentation/HTML/*.css Documentation/HTML/*.png
 	$(RM) -f Documentation/*.tex
 	$(RM) -f Documentation/*.dvi
 	$(RM) -f Documentation/*.ps
@@ -76,6 +76,7 @@ distro: documentation
 	@scp CHANGELOG $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs
 	@scp Documentation/*.ps $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs
 	@scp Documentation/HTML/*.html $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs/
+	@scp Documentation/HTML/*.png $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs/
 	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
 	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz"
 
@@ -96,5 +97,8 @@ documentation: Documentation/documentation.lyx
 	@$(L2H) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
 	@$(LINKS) -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
 	@echo "Cleaning up..."
-	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log
-	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl
+	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log Documentation/*.old Documentation/*.png Documentation/images.tex
+	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl Documentation/HTML/*.log Documentation/HTML/*.aux Documentation/HTML/*.tex Documentation/HTML/*.old Documentation/HTML/index.html
+
+
+
