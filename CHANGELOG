@@ -1,12 +1,26 @@
-$Id: CHANGELOG,v 1.4 2001/12/07 03:52:56 helios Exp $
+$Id: CHANGELOG,v 1.5 2002/01/15 18:40:14 helios Exp $
 
 
 TODO:
 * Full commenting of the code.
 * Rethink documentation flow and rewrite?
+* Message queueing during server downtime?
 
 
 CHANGES:
+
+1.13:
+
+* Now use ap_get_server_name() in extract_virtual_host() to fix the
+  instances where mass-virtual-hosting sites were getting the wrong
+  server-name written to the log.
+* Now use mysql_real_connect() instead of mysql_connect().  The
+  latter's use was deprecated and did not work in MySQL 4.
+* There is now a DEFINE for the socket name.  This is used by the 
+  mysql_real_connect() function and is relevant only if the db resides
+  on localhost.  It is irrelevant if the db resides on a networked
+  machine and is ignored in that case (although it still must be defined
+  for the connect to work).
 
 1.12:
 

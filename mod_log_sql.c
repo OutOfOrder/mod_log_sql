@@ -1,11 +1,11 @@
-/* $Id: mod_log_sql.c,v 1.4 2001/12/07 03:52:56 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.5 2002/01/15 18:40:14 helios Exp $ */
 
 
 /* DEFINES */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
 #define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
 #define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
-/* (DEBUG and WANT_SSL_LOGGING are defined in the Makefile DEFS line.) */
+/* (MYSQLSOCKET, DEBUG and WANT_SSL_LOGGING are defined in the Makefile DEFS line.) */
 
 
 
@@ -245,7 +245,7 @@ static const char *extract_request_duration(request_rec *r, char *a)
 
 static const char *extract_virtual_host(request_rec *r, char *a)
 {
-	return pstrdup(r->pool, r->server->server_hostname);
+    return ap_get_server_name(r);
 }
 
 static const char *extract_server_port(request_rec *r, char *a)
@@ -469,13 +469,8 @@ void open_logdb_link()
 		return;
 	}
 	if (db_name) {			 /* open an SQL link */
-		mysql_log = mysql_connect(&sql_server, db_host, db_user, db_pwd);
-		if (mysql_log) {		 /* link opened */
-			if (mysql_select_db(mysql_log, db_name) != 0) {	/* unable to select database */
-				mysql_close(mysql_log);
-				mysql_log = NULL;
-			}
-		}
+		mysql_init(&sql_server);
+		mysql_log = mysql_real_connect(&sql_server, db_host, db_user, db_pwd, db_name, 0, MYSQLSOCKET, 0);
 	}
 }
 

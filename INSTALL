@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.3 2002/01/02 20:47:44 helios Exp $
+$Id: INSTALL,v 1.4 2002/01/15 18:40:14 helios Exp $
 
 
 Requirements
@@ -31,10 +31,7 @@ Requirements
 Installation (as an Apache DSO)
 ===============================
 
-For folks interested in using this module as an Apache DSO, these
-instructions are currently UNTESTED but should work.  (I would be
-grateful to hear back from a DSO user as to my accuracy with these
-instructions.)
+For folks interested in using this module as an Apache DSO:
 
 0) Perform all the following steps as root so that you have install
    privs, etc.
@@ -44,7 +41,10 @@ instructions.)
    # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
    # cd /usr/local/src/mod_log_mysql
 
-2) Instruct apxs to compile and install the module as a DSO.  You need
+2) Edit Makefile and make any adjustments for your system.  These are
+   fully explained in the Makefile.
+
+3) Instruct apxs to compile and install the module as a DSO.  You need
    to know two things before you run apxs:
    - The location of the apxs binary, find using 'locate apxs'
    - The location of your MySQL libraries, find using 'locate libmysqlclient'
@@ -57,13 +57,14 @@ instructions.)
 	ld -Bshareable -o mod_log_mysql.so mod_log_mysql.o
 	cp mod_log_mysql.so <your path to Apache libexec>/mod_log_mysql.so
 	chmod 755 <your path to Apache libexec>/mod_log_mysql.so
-	[activating module foo' in /path/to/apache/etc/httpd.conf]
+	[activating module blah in /path/to/apache/etc/httpd.conf]
 
-3) Now go to step (9) in the instructions below to configure httpd.conf...
+4) Now go to step (9) in the instructions below to configure httpd.conf...
 
 
 Installation (as a static module compiled into httpd)
 =====================================================
+
 [This is what I do, FYI.]
 
 0) Perform all the following steps as root so that you have install
@@ -74,10 +75,8 @@ Installation (as a static module compiled into httpd)
    # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
    # cd /usr/local/src/mod_log_mysql
 
-2) Edit Makefile and make any adjustments for your system:  make sure
-   that APACHEDIR points to the location of your Apache source code,
-   and that CFLAGS points to the location of your Apache installation
-   directory (where your httpd binary lives).
+2) Edit Makefile and make any adjustments for your system.  These are
+   fully explained in the Makefile.
 
 3) # make all 
    (You should receive NO warnings or errors of any kind. 
@@ -133,8 +132,8 @@ Installation (as a static module compiled into httpd)
    # cp -f ./httpd /usr/local/Apache/bin/
 
 9) Configure your apache daemon to log to your database.  Here's a very
-   basic set of config lines to start you off.  Full docs on them are
-   included after this section.
+   basic set of config lines to start you off.  Full documentation is
+   available here: http://www.grubbybaby.com/mod_log_mysql/directives.html
 
    EXAMPLE: Connect to the MySQL database called "apache" running
    on "dbmachine.foo.com".  The module uses username "loguser" and
@@ -157,7 +156,7 @@ Installation (as a static module compiled into httpd)
    </VirtualHost>
 
 
-   9a) For users who have a DSO-enabled httpd:
+   9a) Special step for users who have a DSO-enabled httpd:
 
 	  If you you are building mod_log_mysql as a static module BUT
 	  your httpd is enabled for DSOs, add the following line to your
@@ -186,9 +185,9 @@ Installation (as a static module compiled into httpd)
     mysql> source access_log.sql
 
 
-11) Create a specific mysql userid that httpd will use to authenticate
+11) Create a specific MySQL userid that httpd will use to authenticate
     and enter data.  This userid need not be an actual Unix user.  It
-    is a userid specific to mysql with specific privileges. To create a
+    is a userid internal to MySQL with specific privileges. To create a
     user called "loguser" with the password "l0gger" with only the
     capability of INSERT to "access_log":
 
