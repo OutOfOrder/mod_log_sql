@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.2 2001/11/30 08:29:04 helios Stab $
+/* $Id: mod_log_sql.c,v 1.3 2001/12/03 19:54:02 helios Exp $
  *
  * mod_log_mysql.c
  * Release v 1.10
@@ -71,22 +71,41 @@
  */
 
 
+/* DEFINES */
+#define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
+
+#define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
+
+#undef DEBUG
+#ifdef DEBUG
+	#define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
+#endif
+
+
+
+/* INCLUDES */
 #include <time.h>
 #include <mysql/mysql.h>
+#include <stdio.h>
 
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
 #include "http_core.h"
 #if MODULE_MAGIC_NUMBER >= 19980324
- #include "ap_compat.h"
+	#include "ap_compat.h"
 #endif
 
+#ifdef WANT_SSL_LOGGING
+	#include "/usr/local/src/apache_1.3.22/src/modules/ssl/mod_ssl.h"
+#endif
+
+
+
+/* DECLARATIONS */
 module mysql_log_module;
 MYSQL log_sql_server, *mysql_log = NULL;
-char *log_db_name = NULL, *db_host = NULL, *db_user = NULL, *db_pwd = NULL;
-
-#define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
+char *log_db_name = NULL, *db_host = NULL, *db_user = NULL, *db_pwd = NULL, *cookie_name = NULL;
 
 typedef const char *(*item_key_func) (request_rec *, char *);
 typedef struct {
@@ -97,8 +116,11 @@ typedef struct {
 	char *transfer_log_format;
 } log_mysql_state;
 
-/* Defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
-#if MODULE_MAGIC_NUMBER < 19970103
+
+
+#if MODULE_MAGIC_NUMBER < 19970103  /* Defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
+extern const char *log_request_protocol(request_rec *r, char *a);
+extern const char *log_request_method(request_rec *r, char *a);
 extern const char *log_remote_host(request_rec *r, char *a);
 extern const char *log_remote_logname(request_rec *r, char *a);
 extern const char *log_remote_user(request_rec *r, char *a);
@@ -118,6 +140,7 @@ extern const char *log_virtual_host(request_rec *r, char *a);
 extern const char *log_server_port(request_rec *r, char *a);
 extern const char *log_child_pid(request_rec *r, char *a);
 #else
+
 static char *format_integer(pool *p, int i)
 {
 	char dummy[40];
@@ -159,6 +182,69 @@ static const char *log_remote_user(request_rec *r, char *a)
 		rvalue = "\"\"";
 	}
 	return rvalue;
+}
+
+#ifdef WANT_SSL_LOGGING
+static const char *log_ssl_keysize(request_rec *r, char *a)
+{
+	char *result = NULL;
+	
+	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_USEKEYSIZE");
+		#ifdef DEBUG
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_KEYSIZE: %s", result);
+		#endif
+		if (result != NULL && result[0] == '\0')
+	      result = NULL;
+		return result;
+	} else {
+		return "0";
+	}
+}
+
+static const char *log_ssl_maxkeysize(request_rec *r, char *a)
+{
+	char *result = NULL;
+	
+	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
+		#ifdef DEBUG
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_ALGKEYSIZE: %s", result);
+		#endif
+		if (result != NULL && result[0] == '\0')
+	      result = NULL;
+		return result;
+	} else {
+		return "0";
+	}
+}
+
+static const char *log_ssl_cipher(request_rec *r, char *a)
+{
+	char *result = NULL;
+	
+	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
+	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER");
+		#ifdef DEBUG
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_CIPHER: %s", result);
+		#endif
+		if (result != NULL && result[0] == '\0')
+	      result = NULL;
+		return result;
+	} else {
+		return "0";
+	}
+}
+#endif /* WANT_SSL_LOGGING */
+
+static const char *log_request_method(request_rec *r, char *a)
+{
+	return r->method;
+}
+
+static const char *log_request_protocol(request_rec *r, char *a)
+{
+	return r->protocol;
 }
 
 static const char *log_request_line(request_rec *r, char *a)
@@ -292,49 +378,63 @@ static const char *log_cookie(request_rec *r, char *a)
 {
     const char *cookiestr;
     char *cookieend;
+	char *isvalid;
+	char *cookiebuf;
     
-	cookiestr  = table_get(r->headers_in,  "cookie");
-
-	/* First look for Cookie2: header */
-    if ( (cookiestr = table_get(r->headers_in,  "cookie2")) ) {
-    	cookieend = strchr(cookiestr, ';');
-    	if (cookieend)
-       		*cookieend = '\0';      /* Ignore anything after a ; */
-    	return cookiestr;
+ 	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
+    if (cookiestr != NULL) {
+		#ifdef DEBUG
+			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Cookie2: [%s]", cookiestr);
+		#endif
+		isvalid = strstr(cookiestr, cookie_name);
+		if (isvalid != NULL) {
+			isvalid += strlen(cookie_name) + 1;
+		    cookiebuf = ap_pstrdup(r->pool, isvalid);
+		    cookieend = strchr(cookiebuf, ';');
+		    if (cookieend != NULL)
+		       *cookieend = '\0';
+		  	return cookiebuf;
+		}
 	}
 	
-	/* Then try a Cookie: header */
-    else if ( (cookiestr = table_get(r->headers_in,  "cookie")) ) {
-    	cookieend = strchr(cookiestr, ';');
-    	if (cookieend)
-       		*cookieend = '\0';
-    	return cookiestr;
+
+ 	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
+    if (cookiestr != NULL) {
+		#ifdef DEBUG
+			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Cookie: [%s]", cookiestr);
+		#endif
+		isvalid = strstr(cookiestr, cookie_name);
+		if (isvalid != NULL) {
+			isvalid += strlen(cookie_name) + 1;
+		    cookiebuf = ap_pstrdup(r->pool, isvalid);
+		    cookieend = strchr(cookiebuf, ';');
+		    if (cookieend != NULL)
+		       *cookieend = '\0';
+		  	return cookiebuf;
+		}
 	}
 	
-	/* Still none?  Use the Set-Cookie: header.  I feel a little
-	 * guilty about this, because some clients refuse cookies.  The
-	 * log will in their cases log a ton of different Set-Cookie requests
-	 * that aren't being honored.  However, it's necessary to insert this
-	 * check so that the first request of a series doesn't log a - ...
-	 */
-    else if ( (cookiestr  = table_get(r->headers_out,  "set-cookie")) ) {
-		cookieend = strchr(cookiestr, ';');
-		if (cookieend)
-	    	*cookieend = '\0';
-		return cookiestr;
-	}
 
-	/* Okay, fine, no eligible headers.  Return a - instead.
-	 * I /could/ insert a look for the Set-Cookie2: header here, but I think
-	 * it would be imprudent.  It's apparent that the current browsers don't
-	 * support Cookie2 cookies, so why bother logging a bunch of Set-Cookie2:
-	 * requests that aren't even going to be honored?
-	 */
-	else {    
-		return "-"; 
-    }
+ 	cookiestr = table_get(r->headers_out,  "set-cookie");
+    if (cookiestr != NULL) {
+		#ifdef DEBUG
+		     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Set-Cookie: [%s]", cookiestr);
+		#endif
+		isvalid = strstr(cookiestr, cookie_name);
+		if (isvalid != NULL) {
+		    isvalid += strlen(cookie_name) + 1;
+		    cookiebuf = ap_pstrdup(r->pool, isvalid);
+		    cookieend = strchr(cookiebuf, ';');
+		    if (cookieend != NULL)
+		       *cookieend = '\0';
+		  	return cookiebuf;
+		}
+	}
+		
+	return "-"; 
 }
-	   
+
+
 const char *log_request_timestamp(request_rec *r, char *a)
 {
 	char tstr[32];
@@ -352,7 +452,7 @@ static const char *log_env_var(request_rec *r, char *a)
 {
 	return table_get(r->subprocess_env, a);
 }
-#endif
+#endif /* MODULE_MAGIC_NUMBER */
 
 
 /* End declarations of various log_ functions */
@@ -371,10 +471,12 @@ struct log_mysql_item_list {
     {   'c', log_cookie,            "cookie",           0, 1    },
     {   'e', log_env_var,           "env_var",          0, 1    },
     {   'f', log_request_file,      "request_file",     0, 1    },
-    {   'h', log_remote_host,       "remote_host",      0, 1    },
+	{   'H', log_request_protocol,  "request_protocol", 0, 1    },
+	{   'h', log_remote_host,       "remote_host",      0, 1    },
     {   'i', log_header_in,         "header_in",        0, 1    },
     {   'l', log_remote_logname,    "remote_logname",   0, 1    },
-    {   'n', log_note,              "note",             0, 1    },
+	{	'm', log_request_method,    "request_method",   0, 1    },
+	{   'n', log_note,              "note",             0, 1    },
     {   'o', log_header_out,        "header_out",       0, 1    },
     {   'P', log_child_pid,         "child_pid",        0, 0    },
     {   'p', log_server_port,       "server_port",      0, 0    },
@@ -387,6 +489,11 @@ struct log_mysql_item_list {
     {   'u', log_remote_user,       "remote_user",      0, 1    },
     {   'U', log_request_uri,       "request_uri",      1, 1    },
     {   'v', log_virtual_host,      "virtual_host",     0, 1    },
+	#ifdef WANT_SSL_LOGGING
+    {   'q', log_ssl_keysize,       "ssl_keysize",      0, 1    },
+    {   'Q', log_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
+    {   'z', log_ssl_cipher,        "ssl_cipher",       0, 1    },
+	#endif
 	{'\0'}
 };
 
@@ -521,6 +628,12 @@ const char *set_log_mysql_db(cmd_parms *parms, void *dummy, char *arg)
 	return NULL;
 }
 
+const char *set_log_mysql_cookie(cmd_parms *parms, void *dummy, char *arg)
+{
+	cookie_name = arg;
+	return NULL;
+}
+
 const char *set_log_mysql_info(cmd_parms *parms, void *dummy, char *host, char *user, char *pwd)
 {
 	if (*host != '.') {
@@ -570,32 +683,35 @@ const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 }
 
 command_rec log_mysql_cmds[] = {
-	{"RefererLogMySQLTable", set_referer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
-	 "the table of the referer log"}
+	{"MySQLRefererLogTable", set_referer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	 "The MySQL table that holds the referer log"}
 	,
-	{"AgentLogMySQLTable", set_agent_log_mysql_table, NULL, RSRC_CONF, TAKE1,
-	 "the table of the agent log"}
+	{"MySQLAgentLogTable", set_agent_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	 "The MySQL table that holds the agent log"}
 	,
-	{"TransferLogMySQLTable", set_transfer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
-	 "the table of the transfer log"}
+	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	 "The MySQL table that holds the transfer log"}
 	,
-	{"TransferLogMySQLFormat", set_transfer_log_format, NULL, RSRC_CONF, TAKE1,
-	 "specific format for the MySQL transfer log"}
+	{"MySQLTransferLogFormat", set_transfer_log_format, NULL, RSRC_CONF, TAKE1,
+	 "Instruct the module what information to log to the MySQL transfer log"}
 	,
-	{"RefererIgnore", add_referer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "referer hostnames to ignore"}
+	{"MySQLRefererIgnore", add_referer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
+	 "List of referers to ignore, accesses that match will not be logged to MySQL"}
 	,
-	{"RequestIgnore", add_transfer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "transfer log URIs to ignore"}
+	{"MySQLRequestIgnore", add_transfer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
+	 "List of URIs to ignore, accesses that match will not be logged to MySQL"}
 	,
-	{"RemhostIgnore", add_remhost_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "transfer log remote hosts to ignore"}
+	{"MySQLRemhostIgnore", add_remhost_mysql_ignore, NULL, RSRC_CONF, ITERATE,
+	 "List of remote hosts to ignore, accesses that match will not be logged to MySQL"}
 	,
-	{"LogMySQLDB", set_log_mysql_db, NULL, RSRC_CONF, TAKE1,
-	 "the database of the referer log"}
+	{"MySQLDatabase", set_log_mysql_db, NULL, RSRC_CONF, TAKE1,
+	 "The name of the MySQL database for logging"}
 	,
-	{"LogMySQLInfo", set_log_mysql_info, NULL, RSRC_CONF, TAKE3,
-	 "host, user and password for MySQL link"}
+	{"MySQLWhichCookie", set_log_mysql_cookie, NULL, RSRC_CONF, TAKE1,
+	 "The CookieName that you want logged when using the 'c' config directive"}
+	,
+	{"MySQLLoginInfo", set_log_mysql_info, NULL, RSRC_CONF, TAKE3,
+	 "The MySQL host, user-id and password for logging"}
 	,
 	{NULL}
 };
@@ -622,17 +738,17 @@ int safe_mysql_query(request_rec *r, const char *query)
 	   
 	   {    /* We need to restart the server link */
 		    mysql_log = NULL;
-		    log_error("MySQL:  connection lost, attempting reconnect", r->server);
+		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: connection lost, attempting reconnect");
 
     		open_log_dblink();
 
     		if (mysql_log == NULL) {	 /* still unable to link */
     			signal(SIGPIPE, handler);
-    			log_error("MySQL:  reconnect failed.", r->server);
+    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect failed.");
     			return error;
     		}
 
-    		log_error("MySQL:  reconnect successful.", r->server);
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL:  reconnect successful.");
     		error = mysql_query(mysql_log, query);
 	}
 
@@ -652,11 +768,11 @@ int safe_mysql_query(request_rec *r, const char *query)
 
 	    if (error) {
     		str = pstrcat(r->pool, "MySQL query failed:  ", query, NULL);
-    		log_error(str, r->server);
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
     		str = pstrcat(r->pool, "MySQL failure reason:  ", MYSQL_ERROR(mysql_log), NULL);
-    		log_error(str, r->server);
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
     	} else {
-    	    log_error("MySQL:  INSERT successful after a delayed retry.", r->server);
+    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
     	}
 	}
 	return error;
@@ -775,7 +891,7 @@ int log_mysql_transaction(request_rec *orig)
 
 		/* If not specified by the user, use the default format */
 		if (cls->transfer_log_format[0] == '\0') {	
-			cls->transfer_log_format = "huSUsbTvRA";
+			cls->transfer_log_format = "AbHhmRSsTUuv";
 		}
 		length = strlen(cls->transfer_log_format);
 

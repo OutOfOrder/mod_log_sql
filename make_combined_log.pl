@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: make_combined_log.pl,v 1.1 2001/11/28 05:26:54 helios Exp $
+# $Id: make_combined_log.pl,v 1.2 2001/12/03 19:54:02 helios Exp $
 #
 # make_combined_log.pl
 #
@@ -45,7 +45,7 @@ $virthost = $ARGV[1];
 #
 # Set up the proper variables to permit database access
 #
-$serverName = "your.dbmachine.com";
+$serverName = "your.dbhost.com";
 $serverPort = "3306";
 $serverUser = "someuser";
 $serverPass = "somepass";
@@ -57,8 +57,6 @@ $serverDb   = "apache";
 #
 $st_tz = "-0800";
 $dt_tz = "-0700";
-$type = "GET";
-$http = "HTTP/1.1";
 
 $now = time();
 $start = $now - (86400 * $days);
@@ -71,7 +69,7 @@ if (not $dbh) {
 	die "Unable to connect to the database.  Please check your connection variables. (Bad password? Incorrect perms?)";
 }
 
-$records = $dbh->prepare("select remote_host,remote_user,request_uri,request_duration,time_stamp,status,bytes_sent,referer,agent from $serverTbl where virtual_host='$virthost' and time_stamp >= $start");
+$records = $dbh->prepare("select remote_host,remote_user,request_uri,time_stamp,status,bytes_sent,referer,agent,request_method,request_protocol from $serverTbl where virtual_host='$virthost' and time_stamp >= $start");
 $records->execute;
 if (not $records) {
 	die "No such table or the select returned no records."
@@ -94,7 +92,7 @@ while (@data = $records->fetchrow_array) {
 	$year=$year+1900;
 
 	# Create format for leading-zero formatting
-	if ($day < 10) { $day = "0$day"; }
+	if ($mday < 10) { $mday = "0$mday"; }
 	if ($month < 10) { $month = "0$month"; }	
 	if ($hour < 10) { $hour = "0$hour"; }
 	if ($min < 10) { $min = "0$min"; }
@@ -123,7 +121,7 @@ while (@data = $records->fetchrow_array) {
 	} else {
 		print "$st_tz\] ";
 	}
-	print "\"$type $data[2] $http\" $data[5] $data[6] \"$data[7]\" \"$data[8]\"\n";
+	print "\"$data[9] $data[2] $data[10]\" $data[5] $data[6] \"$data[7]\" \"$data[8]\"\n";
 }
 
 #

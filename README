@@ -1,4 +1,4 @@
-$Id: README,v 1.1 2001/11/28 05:26:54 helios Exp $
+$Id: README,v 1.2 2001/12/03 19:54:02 helios Exp $
 
 
 Homepage
@@ -51,8 +51,11 @@ Supported directives
 Please see the web-based documentation for full explanation of all
 supported run-time directives.
 
-http://www.grubbybaby.com/mod_log_mysql/directives.html
+ http://www.grubbybaby.com/mod_log_mysql/directives.html
 
+See the FAQ for some handy examples:
+
+ http://www.grubbybaby.com/mod_log_mysql/faq.html
 
 
 What gets logged by default?
@@ -64,7 +67,8 @@ accept this default and employ the enclosed access_log.sql to
 format your table.  Customize your logging format after you've
 had a chance to experiment with the default first.
 
-The MySQL table looks like this if you use the enclosed access_log.sql:
+If you just want to log enough data to be able to reconstruct
+a Combined Log Format log, log these:
 
 +------------------+------------------+
 | Field            | Type             |
@@ -72,13 +76,14 @@ The MySQL table looks like this if you use the enclosed access_log.sql:
 | remote_host      | varchar(50)      |
 | remote_user      | varchar(50)      |
 | request_uri      | varchar(50)      |
-| request_duration | smallint(6)      |
 | virtual_host     | varchar(50)      |
 | time_stamp       | int(10) unsigned |
 | status           | smallint(6)      |
 | bytes_sent       | int(11)          |
 | referer          | varchar(255)     |
 | agent            | varchar(255)     |
+| request_method   | varchar(6)       |
+| request_protocol | varchar(10)      |
 +------------------+------------------+
 
 remote_host: corresponds to the Apache %h directive.  Contains the remote
@@ -129,7 +134,15 @@ agent: corresponds to the Apache "%{User-Agent}" directive.  Contains the
   broswer type (user agent) of the software that made the request.
   Example: Mozilla/3.0 (Slurp/si; slurp@inktomi.com; http://www.inktomi.com/slurp.html)
 
-
+request_method: corresponds to the Apache %m directive.  Contains the type
+  of request sent: GET, PUT, etc.
+  Example: GET
+  
+request_protocol: corresponds to the Apache %H directive.  Contains the HTTP
+  protocol that was used.
+  Example: HTTP/1.1
+  
+  
 Notes
 -----
 

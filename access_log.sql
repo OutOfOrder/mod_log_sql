@@ -1,13 +1,25 @@
 create table access_log (
-	remote_host varchar(50) not null,
-	remote_user varchar(50) not null,
-	request_uri varchar(50) not null,
-	request_duration smallint not null,
-	virtual_host varchar(50) not null,
-	time_stamp int unsigned not null,
-	status smallint not null,
+	agent varchar(255) not null,
 	bytes_sent int not null,
+	child_pid smallint unsigned,
+	cookie varchar(255),
+	request_file varchar(255),
 	referer varchar(255) not null,
-	agent varchar(255) not null
+	remote_host varchar(50) not null,
+	remote_logname varchar(50) not null,
+	remote_user varchar(50) not null,
+	request_duration smallint not null,
+	request_line varchar(255),
+	request_method not null,
+	request_protocol not null,
+	request_time char(28),
+	request_uri varchar(50) not null,
+	server_port smallint unsigned,
+	ssl_cipher varchar(25),
+	ssl_keysize smallint
+	ssl_maxkeysize smallint,
+	status smallint not null,
+	time_stamp int unsigned not null,
+	virtual_host varchar(50) not null,
 )
 

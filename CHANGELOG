@@ -1,16 +1,69 @@
-$Id: CHANGELOG,v 1.2 2001/11/30 08:29:04 helios Stab $
+$Id: CHANGELOG,v 1.3 2001/12/03 19:54:02 helios Exp $
 
 
 TODO:
 * Full commenting of the code.
-* Bounds checking on all data prior to INSERT
+* Rethink documentation flow and rewrite?
 
 
 CHANGES:
 
+1.11:
+
+* Completely re-worked the cookie code.  Now the user can instruct
+  mod_log_mysql which cookie (out of many available) to log.  (See
+  the online directives documentation and FAQ.)
+* New config capability: 'H' to log the request protocol 
+  (e.g. HTTP/1.1)
+* New config capability: 'm' to log the request method
+  (e.g. GET, PUT, etc.)
+* New config capabilities: 'z' 'q' & 'Q' to log SSL_CIPHER,
+  SSL_CIPHER_USEKEYSIZE and SSL_CIPHER_ALGKEYSIZE.  These require
+  openssl and glibc-devel to be installed.  (See the online 
+  directives documentation and FAQ.)
+* Fixed a bug in make_combined_log.pl that caused it to generate
+  incorrect output on single-digit days.
+* Fixed make_combined_log.pl to use the data logged by 'H' and 'm'.
+* Migrated all log_error calls to the newer ap_log_error call.
+* Added a DEBUG define to activate certain debugging/informational
+  error-log messages (for devel purposes).
+* I apologize for the inconvenience this may cause:  I decided to
+  rename the runtime configuration directives so that they would
+  make more sense and group together with a "MySQL" prefix.  They
+  are now:
+	MySQLRefererLogTable
+        The MySQL table that holds the referer log
+	MySQLAgentLogTable 
+        The MySQL table that holds the agent log
+	MySQLTransferLogTable 
+        The MySQL table that holds the transfer log
+	MySQLTransferLogFormat 
+        Instruct the module what information to log to the MySQL transfer log
+	MySQLRefererIgnore 
+        List of referers to ignore, accesses that match will not be logged to MySQL
+	MySQLRequestIgnore 
+        List of URIs to ignore, accesses that match will not be logged to MySQL
+	MySQLRemhostIgnore 
+        List of remote hosts to ignore, accesses that match will not be logged to MySQL
+	MySQLDatabase 
+        The name of the MySQL database for logging
+	MySQLWhichCookie 
+        The CookieName that you want logged when using the 'c' config directive
+	MySQLLoginInfo 
+        The MySQL host, user-id and password for logging
+  You'll need to just do a search-and-replace in your httpd.conf...
+  Again, I'm sorry, but it really is better this way.
+* Cleaned up the summaries that get output on "httpd -L"
+* Expanded the enclosed access_log.sql file to support every column type
+  that mod_log_mysql provides -- delete the ones that you don't need.
+* Some cleanup of the Makefile - pay attention to the settings
+* Made the MySQLTransferLogFormat default "AbHhmRSsTUuv" to incorporate the
+  new column types and sort the characters alphabetically for reading ease.
+  
+  
 1.10:
 
-* New capability:  log mod_usertrack cookies.
+* New config directive/capability: 'c' to log mod_usertrack cookies.
 * Some code cleanup and commenting.
 * Referer and User-Agent now set to want_orig=1 ( a very minor detail )
 * Corrected mysql_escape_log to properly check for and escape strings
