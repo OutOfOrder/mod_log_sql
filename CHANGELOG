@@ -1,8 +1,11 @@
-$Id: CHANGELOG,v 1.22 2003/07/22 04:17:53 helios Exp $
+$Id: CHANGELOG,v 1.1 2003/12/20 07:16:05 urkle Exp $
 
 TODO:
-* Port connection portion to other DBMS?  Genericize the module?  Start with
+* Rethink documentation flow and rewrite?
+* Port connection portion to other DBMS?  Genericize the module?  Start with 
   PostgreSQL.
+* GNU autoconf
+* merge server config into vh config
 * port to Apache 2.x
 * does determining table name in massvirtual mode upon every request
   cause performance degradation?  If so fix.
@@ -10,40 +13,8 @@ TODO:
 * new format char: IP as bigint?
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
 * ignore by cookie
-* tool to import logs into SQL
-* Directive to yes/no create ancillary tables (or just access table)
-* break module into separate code files for maintenance ease
 
 CHANGES:
-
-1.19b1:
-* Hostnames are now converted to lowercase in the mass-virtual naming section.
-  The loop that converts dots to underscores has been optimized as well.
-* Migration to autoconf
-* New directive LogSQLTableType allows one to specify the kind of table that
-  the module makes during table creation (e.g. InnoDB, MyISAM).  Thanks to Jim
-  Turner for the suggestion and patch.  If your MySQL server does not support
-  the specified type, it will create a MyISAM table instead.
-* Directives can now be placed in the 'main' server config and will be
-  inherited by the virtual hosts.  This means a LOT less repetition: you only
-  specify the item once to have it inherited, but it can still be overridden
-  on a virtualhost level.  These can be specified in this manner:
-
-		LogSQLTransferLogTable
-		LogSQLTransferLogFormat
-		LogSQLPreserveFile
-		LogSQLNotesLogTable
-		LogSQLHeadersInLogTable
-		LogSQLHeadersOutLogTable
-		LogSQLCookieLogTable
-		LogSQLRemhostIgnore
-		LogSQLRequestIgnore
-		LogSQLRequestAccept
-		LogSQLWhichNotes
-		LogSQLWhichHeadersOut
-		LogSQLWhichHeadersIn
-		LogSQLWhichCookies
-		LogSQLWhichCookie
 
 1.18:
 * Delayed inserts (a MySQL extension) are now available at compile-time.

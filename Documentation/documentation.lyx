@@ -1,5 +1,5 @@
-#LyX 1.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 221
+#LyX 1.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 220
 \textclass article
 \language english
 \inputencoding default
@@ -162,7 +162,7 @@ Note which directives go in the 'main server config' and which directives
  This is made clear in the directive documentation.
 \layout Itemize
 
-The 'time_stamp' field is stored in an UNSIGNED INTEGER format, in the standard
+The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the standard
  unix 
 \begin_inset Quotes eld
 \end_inset 
@@ -173,9 +173,9 @@ seconds since the epoch
 
  format.
  This is superior to storing the access time as a string due to size requirement
-s: an UNSIGNED INT requires 4 bytes, whereas an Apache date string (e.g.
- "18/Nov/2001:13:59:52 -0800") requires 26 bytes: those extra 22 bytes become
- significant when multiplied by thousands of accesses on a busy server.
+s: an UNSIGNED INT requires 4 bytes, whereas an Apache date string -- e.g.
+ "18/Nov/2001:13:59:52 -0800" -- requires 26 bytes: those extra 22 bytes
+ become significant when multiplied by thousands of accesses on a busy server.
  Besides, an INT type is far more flexible for comparisons, etc.
 \begin_deeper 
 \layout Standard
@@ -301,11 +301,6 @@ These installation documents assume a relatively modern GNU/Linux scenario.
  compiling the module for those platforms.
 \layout Subsubsection
 
-
-\begin_inset LatexCommand \label{sub:Solaris}
-
-\end_inset 
-
 Solaris
 \layout Standard
 
@@ -392,143 +387,6 @@ contact
 \end_inset 
 
  and help fill in this section.
-\layout Subsubsection
-
-OS X
-\layout Standard
-
-mod_log_sql should compile and work out-of-the-box on this platform.
- Here are some notes from a user successfully running the module on OS X:
-\layout Quote
-
-
-\emph on 
-The only changes I had to make were to where I had the various libraries
- installed.
-\layout Quote
-
-
-\emph on 
-Here are the changes I made to the head of the Makefile:
-\layout LyX-Code
-
-APACHESOURCE    = /usr/local/src/apache_1.3.27 
-\layout Quote
-
-
-\emph on 
-(Wasn't sure if this was really needed or not, so I downloaded the Apache
- source just in case)
-\layout LyX-Code
-
-APACHEINSTALLED = /usr/sbin 
-\layout LyX-Code
-
-APACHEHEADERS   = /usr/include/httpd 
-\layout LyX-Code
-
-APXS            = $(APACHEINSTALLED)/apxs
-\layout LyX-Code
-
-MYSQLLIBRARIES  = /usr/local/mysql/lib 
-\layout LyX-Code
-
-MYSQLHEADERS    = /usr/local/mysql/include
-\layout Quote
-
-
-\emph on 
-I'm using a binary installation of MySQL and the default apache installation
- on OS X Client 10.2.3, the locations of these files may vary depending on
- how you've installed MySQL and will almost certainly be different if you're
- using OS X Server.
-\layout Standard
-
-My thanks to Tom Wiebe for being the first (to my knowlege) mod_log_sql
- user on OS X and for providing these notes.
-\layout Subsubsection
-
-Digital Unix
-\layout Standard
-
-Digital Unix, like Solaris, needs to be linked against librt; see section
- 
-\begin_inset LatexCommand \ref{sub:Solaris}
-
-\end_inset 
-
-.
- Here are further notes from a user successfully running the module on Digital
- Unix:
-\layout Quote
-
-
-\emph on 
-Instead of trying to get the module to remember where the MySQL libraries
- were, I instead compiled apache with the information:
-\layout Quote
-
-
-\emph on 
-LDFLAGS='-rpath /isp/mysql/lib/mysql' ./configure ...
-\layout Quote
-
-
-\emph on 
-Everything worked as expected after that.
- (The error I got without this was "/sbin/loader: Fatal Error: cannot map
- libmysqlclient.so" )
-\layout Quote
-
-
-\emph on 
-Digital Unix (v4.0f, at least ) appears to follow the same requirements needed
- by Solaris, so simply adding librt to the module made it compile without
- errors.
-\layout Quote
-
-
-\emph on 
-As for the warnings, here's the text:
-\layout LyX-Code
-
-
-\emph on 
-mod_log_sql.c: In function `extract_request_duration': 
-\layout LyX-Code
-
-
-\emph on 
-mod_log_sql.c:292: warning: long int format, different type arg (arg 4)
-\layout LyX-Code
-
-
-\emph on 
-mod_log_sql.c: In function `extract_request_timestamp': 
-\layout LyX-Code
-
-
-\emph on 
-mod_log_sql.c:497: warning: long int format, different type arg (arg 4)
-\layout Quote
-
-
-\emph on 
-Poking around in the code, it looks like the compiler was complaining that
- what time() is returning doesn't play nicely with %ld by default.
- I just typecast them as (long)'s and the warnings went away ( not that
- the module wasn't working correctly without them ).
-\layout Quote
-
-
-\emph on 
-The module works very well so far in testing...
- hasn't dropped a single log entry yet.
- 
-\layout Standard
-
-My thanks to Jim Turner for permitting me to quote him here, and for being
- the first known user of mod_log_sql on Digital Unix.
 \layout Subsection
 
 Do I want a DSO or a static module?
@@ -1061,22 +919,8 @@ mysql> create database apachelogs;
 \end_inset 
 
 If you want to hand-create the tables, run the enclosed 'create-tables'
- SQL script as follows (
-\begin_inset Quotes eld
-\end_inset 
-
-create_tables.sql
-\begin_inset Quotes erd
-\end_inset 
-
- needs to be in your current working directory).
+ SQL script as follows:
 \begin_deeper 
-\layout LyX-Code
-
-mysql> use apachelogs
-\layout LyX-Code
-
-Database changed
 \layout LyX-Code
 
 mysql> source create_tables.sql
@@ -1095,7 +939,9 @@ Create a specific MySQL userid that httpd will use to authenticate and enter
 \layout LyX-Code
 
 mysql> grant insert,create on apachelogs.* to loguser@my.apachemachine.com
- identified by 'l0gger';
+\layout LyX-Code
+
+identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
 
@@ -4971,29 +4817,24 @@ Context: virtual host
 In HTTP, cookies have names to distinguish them from each other.
  Using mod_usertrack, for example, you can give your user-tracking cookies
  a name with the CookieName directive.
- 
-\layout Standard
-
-mod_log_sql allows you to log cookie information.
-
-\noun on 
- LogSQLWhichCookie
-\noun default 
- tells mod_log_sql which cookie to log.
- This is necessary because you will usually be setting and receiving more
- than one cookie from a client.
 \layout Standard
 
 You must include a 'c' character in 
 \noun on 
 LogSQLTransferLogFormat
 \noun default 
- for this directive to take effect.
+ for this directive to take effect; once you specify 'c', 
+\noun on 
+LogSQLWhichCookie
+\noun default 
+ tells mod_log_sql which cookie to log.
+ This is necessary because you will usually be setting and receiving more
+ than one cookie from a client; this cookie designates which one to log.
 \layout Standard
 
-Note: although this was origintally intended for people using mod_usertrack
- to create user-tracking cookies, you aren't restricted in any way.
- You can choose which cookie you wish to log to the database -- any cookie
+Note: although this was intended for people who are using mod_usertrack
+ to set user-tracking cookies, you aren't restricted in any way.
+ You can choose which cookie you wish to log to the database --any cookie
  at all -- and it doesn't necessarily have to have anything to do with mod_usert
 rack.
 \layout Subsubsection
@@ -5901,7 +5742,7 @@ Please contact
 Problems
 \layout Subsubsection
 
-Apache segfaults or has other problems when using PHP and mod_log_sql
+Apache segfaults when using PHP and mod_log_sql
 \layout Standard
 
 This occurs if you compiled PHP with MySQL database support.
@@ -5918,9 +5759,8 @@ real
  
 \layout Standard
 
-PHP and mod_log_sql can be configured to happily coexist.
- The solution is to configure PHP to link against the real MySQL libraries:
- recompile PHP using --with-mysql=/your/path.
+The solution is to configure PHP to link against the real MySQL libraries
+ and recompile mod_php.
  Apache will run properly once the modules are all using the same version
  of the MySQL libraries.
 \layout Subsubsection
@@ -6143,83 +5983,6 @@ Reference:
 \end_inset 
 
 
-\layout Subsubsection
-
-Sometimes a single VirtualHost gets logged to two different tables (e.g.
- access_foo_com, access_www_foo_com).
- Or, accesses to an unqualified hostname (e.g.
- 
-\begin_inset Quotes eld
-\end_inset 
-
-http://intranet/index.html
-\begin_inset Quotes erd
-\end_inset 
-
-) get logged in separate tables.
-\layout Standard
-
-Proper usage of the Apache runtime 
-\noun on 
-ServerName
-\noun default 
- directive and the directive 
-\noun on 
-UseCanonicalName On 
-\noun default 
-(or 
-\noun on 
-DNS
-\noun default 
-) are necessary to prevent this problem.
- 
-\begin_inset Quotes eld
-\end_inset 
-
-On
-\begin_inset Quotes erd
-\end_inset 
-
- is the default for 
-\noun on 
-UseCanonicalName
-\noun default 
-, and specifies that self-referential URLs are generated from the 
-\noun on 
-ServerName 
-\noun default 
-part of your VirtualHost:
-\layout Quote
-
-With UseCanonicalName on (and in all versions prior to 1.3) Apache will use
- the ServerName and Port directives to construct the canonical name for
- the server.
- With UseCanonicalName off Apache will form self-referential URLs using
- the hostname and port supplied by the client if any are supplied (otherwise
- it will use the canonical name, as defined above).
- [From 
-\begin_inset LatexCommand \url[the Apache documentation]{http://httpd.apache.org/docs/mod/core.html#usecanonicalname}
-
-\end_inset 
-
-]
-\layout Standard
-
-The module inherits Apache's 
-\begin_inset Quotes eld
-\end_inset 
-
-knowledge
-\begin_inset Quotes erd
-\end_inset 
-
- about the server name being accessed.
- As long as those two directives are properly configured, mod_log_sql will
- log to only one table per virtual host while using 
-\noun on 
-LogSQLMassVirtualHosting
-\noun default 
-.
 \layout Subsection
 
 Performance and Tuning
@@ -6473,7 +6236,7 @@ not
 correct
 \series default 
  to assume that 20 Apache children with a VSZ of 7MB each equals 
-\begin_inset Formula $(20\times7MB)$
+\begin_inset Formula $(20\times 7MB)$
 \end_inset 
 
  of memory consumption -- the real answer is much, much lower.
@@ -6594,6 +6357,74 @@ How do I...?
 \end_inset 
 
  -- accomplishing certain tasks
+\layout Subsubsection
+
+I am using LogSQLMassVirtualHosting, and sometimes a single VirtualHost
+ gets logged to two different tables.
+ How do I prevent that?
+\layout Standard
+
+Proper usage of the Apache runtime 
+\noun on 
+ServerName
+\noun default 
+ directive and the directive 
+\noun on 
+UseCanonicalName On 
+\noun default 
+(or 
+\noun on 
+DNS
+\noun default 
+) are necessary to prevent this problem.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+On
+\begin_inset Quotes erd
+\end_inset 
+
+ is the default for 
+\noun on 
+UseCanonicalName
+\noun default 
+, and specifies that self-referential URLs are generated from the 
+\noun on 
+ServerName 
+\noun default 
+part of your VirtualHost:
+\layout Quote
+
+With UseCanonicalName on (and in all versions prior to 1.3) Apache will use
+ the ServerName and Port directives to construct the canonical name for
+ the server.
+ With UseCanonicalName off Apache will form self-referential URLs using
+ the hostname and port supplied by the client if any are supplied (otherwise
+ it will use the canonical name, as defined above).
+ [From 
+\begin_inset LatexCommand \url[the Apache documentation]{http://httpd.apache.org/docs/mod/core.html#usecanonicalname}
+
+\end_inset 
+
+]
+\layout Standard
+
+The module inherits Apache's 
+\begin_inset Quotes eld
+\end_inset 
+
+knowledge
+\begin_inset Quotes erd
+\end_inset 
+
+ about the server name being accessed.
+ As long as those two directives are properly configured, mod_log_sql will
+ log to only one table per virtual host while using 
+\noun on 
+LogSQLMassVirtualHosting
+\noun default 
+.
 \layout Subsubsection
 
 How do I extract the data in a format that my analysis tool can understand?
