@@ -93,7 +93,7 @@ STD_DIST = install-sh \
 	config.h.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
-    $(sslSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbsqlSOURCES)
+    $(sslSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES)
 
 all: $(TARGETS) all-subdirs
 
