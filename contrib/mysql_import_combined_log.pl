@@ -1,8 +1,8 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 use strict;
-use Getopt::Std;
+use Getopt::Long qw(:config bundling);
 use DBI;
-use Time::ParseDate;
+use Date::Parse;
 
 my %options = ();
 my $i = 0;
@@ -17,14 +17,15 @@ my $TIMESTAMP = 3;
 my $REQUEST_LINE = 4;
 my @cols = (
 	'remote_host',			## 0
-	'remote_user',			## 1
-	'',						## 2
-	'time_stamp',			## 4
-	'request_line',		## 5
+	'remote_logname',		## 1
+	'remote_user',			## 2
+	'request_time',			## 3.string
+	'time_stamp',			## 3.posix
+	'request_line',			## 5
 	'request_method',		## 6
 	'request_uri',			## 7
-	'request_args',		## 8
-	'request_protocol',	## 9
+	'request_args',			## 8
+	'request_protocol',		## 9
 	'status',				## 10
 	'bytes_sent',			## 11
 	'referer',				## 12
@@ -32,9 +33,18 @@ my @cols = (
 );
 my $col = '';
 
-$Getopt::Std::STANDARD_HELP_VERSION = 1;	## if we show the help, exit afterwards.
-getopts('h:u:p:d:t:f:', \%options);
+%options = (
+	"version" => sub { VERSION_MESSAGE(); exit 0; },
+	"help|?" => sub { HELP_MESSAGE(); exit 0; },
+	);
 
+GetOptions (\%options,
+		"h|host=s",
+		"d|database=s",
+		"t|table=s",
+		"u|username=s",
+		"p|password=s",
+		"f|logfile=s");
 
 $options{h} ||= 'localhost';
 $options{d} ||= '';
@@ -44,12 +54,14 @@ $options{f} ||= '';
 
 if( ! $options{d} )
 {
+	HELP_MESSAGE();
 	print "Must supply a database to connect to.\n";
 	exit 1;
 }
 
 if( ! $options{t} )
 {
+	HELP_MESSAGE();
 	print "Must supply table name.\n";
 	exit 1;
 }
@@ -65,6 +77,9 @@ if( $options{f} )
 }
 
 $dbh = Connect();
+if (! $dbh) {
+	exit 1;
+}
 
 $sql = "INSERT INTO $options{t} (";
 foreach $col (@cols)
@@ -73,11 +88,12 @@ foreach $col (@cols)
 }
 chop($sql);
 $sql .= ') VALUES (';
-
+my ($linecount,$insertcount) = (0,0);
 while($line = <STDIN>)
 {
+	$linecount++;
 	@parts = SplitLogLine( $line );
-	next if( $parts[$TIMESTAMP] == 0 );
+	next if( $parts[$TIMESTAMP+1] == 0 );
 	$valuesSql = '';
 	for( $i = 0; $i < @cols; ++$i )
 	{
@@ -91,10 +107,14 @@ while($line = <STDIN>)
 	if( ! $sth->execute() )
 	{
 		print "Unable to perform specified query.\n$sql$valuesSql\n" . $sth->errstr() . "\n";
+	} else {
+		$insertcount++;
 	}
 	$sth->finish();
 }
-
+print "Parsed $linecount Log lines\n";
+print "Inserted $insertcount records\n";
+print "to table '$options{t}' in database '$options{d}' on '$options{h}'\n";
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Connects to a MySQL database and returns the connection.
@@ -117,7 +137,7 @@ sub SplitLogLine
 	my $char = '';
 	my $part = '';
 	my @parts = ();
-	my $count;
+	my $count = 0;
 	chomp($line);
 	for( $i = 0; $i < length($line); ++$i )
 	{
@@ -127,7 +147,8 @@ sub SplitLogLine
 			## print "Found part $part.\n";
 			if( $count == $TIMESTAMP )
 			{
-				$part = parsedate($part, WHOLE => 1, DATE_REQUIRED => 1, TIME_REQUIRED => 2);
+				push(@parts, "[".$part."]");
+				$part = str2time($part);
 			}
 			push(@parts, $part);
 			if( $count == $REQUEST_LINE )
@@ -176,14 +197,14 @@ sub HELP_MESSAGE
 	print<<EOF;
 Imports an Apache combined log into a MySQL database.
 Usage: mysql_import_combined_log.pl -d <database name> -t <table name> [-h <hostname>] [-u <username>] [-p <password>] [-f <filename]
- -h <host name>      The host to connect to.  Default is localhost.
- -d <database name>  The database to use.  Required.
- -u <username>       The user to connect as.
- -p <password>       The user's password.
- -t <table name>     The name of the table in which to insert data.
- -f <file name>      The file to read from.  If not given, data is read from stdin.
- --help              Print out this help message.
- --version           Print out the version of this software.
+ --host|-h <host name>         The host to connect to.  Default is localhost.
+ --database|-d <database name> The database to use.  Required.
+ --username|-u <username>      The user to connect as.
+ --password|-p <password>      The user's password.
+ --table|-t <table name>       The name of the table in which to insert data.
+ --logfile|-f <file name>      The file to read from.  If not given, data is read from stdin.
+ --help|-?                     Print out this help message.
+ --version                     Print out the version of this software.
 EOF
 }
 
@@ -194,10 +215,7 @@ EOF
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 sub VERSION_MESSAGE
 {
-	print "mysql_import_combined_log.pl version 1.0\n";
+	print "mysql_import_combined_log.pl version 1.1\n";
 }
 
 1;
-
-1;
-
