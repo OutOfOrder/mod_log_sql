@@ -1,11 +1,11 @@
-The Apache Foundation
-	standard apache logging module for which this module is based on
-
-Zeev Suraski <bourbon at netvision.net dot il>
-	Adding the mysql routines (intial revisions)
+Edward Rudd <eddie at omegaware dot com>
+	Apache 2.0 port. Current Maintainer as of February, 2004
 
 Christopher B. Powell <chris at grubbybaby dot com>
 	Maintainer since version 1.06
 
-Edward Rudd <eddie at omegaware dot com>
-	Apache 2.0 port.
+Zeev Suraski <bourbon at netvision.net dot il>
+	Adding the mysql routines (intial revisions)
+
+The Apache Foundation
+	standard apache logging module for which this module is based on

@@ -1,7 +1,7 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = Documentation
+SUBDIRS = Documentation contrib
 SOURCES = \
 	@PACKAGE_NAME@.c
 
@@ -18,7 +18,7 @@ INCLUDES = @MYSQL_CFLAGS@
 
 LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 
-EXTRA_DIST = AUTHORS INSTALL LICENSE CHANGELOG make_combined_log.pl
+EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG make_combined_log.pl
 
 TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
 

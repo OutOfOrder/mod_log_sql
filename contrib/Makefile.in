@@ -3,7 +3,7 @@
 # Modify these top variables.
 SUBDIRS = 
 
-EXTRA_DIST = README mysql_import_combined_log.pl
+EXTRA_DIST = README create_tables.sql make_combined_log.pl
 
 #Don't modify anything below here
 

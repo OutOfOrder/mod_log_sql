@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.95)
+AC_INIT(mod_log_sql, 1.96)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
 
@@ -36,7 +36,9 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
 dnl Write config.status and the Makefile
 
-AC_OUTPUT(Makefile Documentation/Makefile)
+AC_OUTPUT(Makefile
+Documentation/Makefile
+contrib/Makefile)
 
 AC_MSG_RESULT([------------------------------------])
 AC_MSG_RESULT([Apache version	: $APACHE_VERSION])

@@ -5,19 +5,20 @@
   <articleinfo>
     <title>mod_log_sql Manual</title>
     <author>
-      <firstname>Christopher</firstname>
-      <othername>B.</othername>
-      <surname>Powell</surname>
+      <firstname>Edward</firstname>
+      <surname>Rudd</surname>
+      <contrib>Conversion from Lyx to DocBook</contrib>
+      <contrib>Current Maintainer</contrib>
       <affiliation>
-        <address format="linespecific"><email>chris &lt;at&gt; grubbybaby &lt;dot&gt; com</email></address>
+        <address format="linespecific"><email>eddie &lt;at&gt; omegaware &lt;dot&gt; com</email></address>
       </affiliation>
     </author>
     <author>
-      <firstname>Edward</firstname>
-      <surname>Rudd</surname>
-      <contrib>Porting from Lyx to DocBook</contrib>
+      <firstname>Christopher</firstname>
+      <othername>B.</othername>
+      <contrib>Original documentation author.</contrib>
       <affiliation>
-        <address format="linespecific"><email>eddie &lt;at&gt; omegaware &lt;dot&gt; com</email></address>
+        <address format="linespecific"><email>chris &lt;at&gt; grubbybaby &lt;dot&gt; com</email></address>
       </affiliation>
     </author>
     <copyright>
