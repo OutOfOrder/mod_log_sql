@@ -55,7 +55,7 @@ STD_DIST = install-sh \
 	stamp-h.in \
 	config.h.in
 
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(sslSOURCES) $(HEADERS)
 
 all: $(TARGETS) all-subdirs
 
