@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.20 2002/12/10 19:43:21 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.21 2002/12/10 20:37:28 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -1677,46 +1677,3 @@ module sql_log_module = {
 #endif
 
 };
-
-
-
-/* Make the tables if we're supposed to. */
-/*
-if ((cls->table_made != 1) && (create_tables != 0)) {
-	result = safe_create_tables(cls, orig);
-	if (result != 0)
-		ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: child attempted but failed to create one or more tables for %s", ap_get_server_name(orig));
-	else
-		ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"mod_log_sql: no problems creating tables for %s", ap_get_server_name(orig));
-}
-*/
-
-/* It failed, but NOT because table didn't exist */
-/*
-if ( (result) && (result != ER_NO_SUCH_TABLE) )
-	preserve_entry(orig,access_query);
-*/
-
-/* It failed because table didn't exist */
-/*
-if (result == ER_NO_SUCH_TABLE)
-	if (create_tables) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: access table doesn't exist...creating now");
-		if ((result = safe_create_tables(cls, orig))) {
-			ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(orig));
-			preserve_entry(orig,access_query);
-		} else {
-			ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: table(s) successfully created - retrying insert");
-			if ((result = safe_mysql_query(orig, access_query))) {
-				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: giving up, preserving query");
-				preserve_entry(orig,access_query);
-				return OK;
-			} else
-				ap_log_error(APLOG_MARK_ERRLEVEL,orig->server,"mod_log_sql: insert successful after table creation");
-		}
-	} else {
-		ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: access table doesn't exist...not allowed to create, giving up, preserving query");
-		preserve_entry(orig,access_query);
-		return OK;
-	}
-*/

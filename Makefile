@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 2002/12/10 19:43:21 helios Exp $
+# $Id: Makefile,v 1.19 2002/12/10 20:37:28 helios Exp $
 
 ###########################################################################
 # Important:
@@ -12,19 +12,19 @@ APXS         = $(APACHEINST)/bin/apxs
 MYSQLLIBS  = /usr/lib
 MYSQLHDRS  = /usr/include/mysql
 
-#MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
-#DB1HDRS    = /usr/include/db1
+MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
+DB1HDRS    = /usr/include/db1
 
 ###########################################################################
 # Don't uncomment this without reading the "Optimizing for a busy database"
 # section in the documentation (under "Advanced logging scenarios").
 
-MYSQLDELAYED = -DWANT_DELAYED_MYSQL_INSERT
+#MYSQLDELAYED = -DWANT_DELAYED_MYSQL_INSERT
 
 ###########################################################################
 # Rarely if ever have to touch below here.
 
-MLMVERS  = 1.18
+MLMVERS  = 1.18pre1
 #APXSGDB  = -Wc,-g
 APXSOPTS = -Wc,-O2 -Wc,-Wall
 STATOPTS = -fpic -O2 -Wall
@@ -34,8 +34,8 @@ RM       = /bin/rm
 LYX      = /usr/bin/lyx
 LATEX    = /usr/bin/latex
 DVIPS    = /usr/bin/dvips
-LINKS    = /usr/bin/links
-L2H      = /usr/local/bin/latex2html
+LINKS    = /usr/bin/lynx
+L2H      = /usr/bin/latex2html
 WEBSERV  = gw0.corp
 
 STATFLAGS = -I$(APACHEINST)/include
@@ -87,6 +87,9 @@ distro: documentation
 	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
 	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz"
 
+pre-distro: documentation
+	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+
 documentation: Documentation/documentation.lyx
 	@echo "Creating LaTeX docs..."
 	@$(LYX) --export latex Documentation/documentation.lyx 2>/dev/null
@@ -102,7 +105,7 @@ documentation: Documentation/documentation.lyx
 	@$(L2H) -local_icons -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
 	@echo "Creating plain text docs..."
 	@$(L2H) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
-	@$(LINKS) -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
+	@$(LINKS) -dump -nolist -width=120 -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
 	@echo "Cleaning up..."
 	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log Documentation/*.old Documentation/*.png Documentation/images.tex
 	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl Documentation/HTML/*.log Documentation/HTML/*.aux Documentation/HTML/*.tex Documentation/HTML/*.old Documentation/HTML/index.html
