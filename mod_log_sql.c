@@ -1366,7 +1366,6 @@ int log_sql_transaction(request_rec *orig)
 
 	/* Do we have enough info to log? */
 	if (!cls->transfer_table_name) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: configuration info is insufficient to log (hint: LogSQLTransferLogTable)");
 		return DECLINED;
 	} else {
 		const char *thehost;

@@ -675,15 +675,15 @@ sources
 , find using 'locate ABOUT_APACHE' 
 \layout Description
 
-APACHEHEADERS: The location of your Apache header files, find using 'locate
+APACHEHEADERS: the location of your Apache header files, find using 'locate
  httpd.h'
 \layout Description
 
-MYSQLLIBRARIES: The location of your MySQL libraries, find using 'locate
+MYSQLLIBRARIES: the location of your MySQL libraries, find using 'locate
  libmysqlclient.so'
 \layout Description
 
-MYSQLHEADERS: The location of your MySQL header files, find using 'locate
+MYSQLHEADERS: the location of your MySQL header files, find using 'locate
  mysql.h'
 \end_deeper 
 \layout Enumerate
@@ -5856,27 +5856,6 @@ LogLevel debug
 \layout LyX-Code
 
 ErrorLog /var/log/httpd/server-messages 
-\layout Subsubsection
-
-Why do I get the message 
-\begin_inset Quotes eld
-\end_inset 
-
-configuration info is insufficient to log
-\begin_inset Quotes erd
-\end_inset 
-
- in my Apache error log?
-\layout Standard
-
-At a minimum, 
-\noun on 
-LogSQLTransferLogTable
-\noun default 
- must be defined for the module to even attempt logging.
- If this directive is not defined for the server (or virtual server) you
- will receive this error message.
- 
 \layout Subsubsection
 
 Why do I get the message 

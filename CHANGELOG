@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.19 2002/12/18 01:06:32 helios Exp $
+$Id: CHANGELOG,v 1.20 2002/12/18 01:39:28 helios Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
@@ -43,7 +43,6 @@ CHANGES:
 * Renamed safe_mysql_query() to safe_sql_query().
 * Now check for minimum configuration info to establish db link and
   log an error if it's insufficient.
-* Log a message if the config is insufficient for logging.
 
 
 1.17:
