@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.14 2004/02/05 21:59:46 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.15 2004/02/12 03:18:18 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -1266,7 +1266,7 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
 	 "Forces logging to preserve file and bypasses database")
 	,
-	AP_INIT_TAKE1("LogSQLPreserveFile", set_global_string_slot,
+	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
 	 "Name of the file to use for data preservation during database downtime")
 	,
