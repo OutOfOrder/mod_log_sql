@@ -528,11 +528,20 @@ in your httpd.conf file.
 /usr/local/apache/bin/apachectl startssl: httpd could not be started
 \layout Standard
 
-(This is because mod_log_sql doesn't yet have the required symbols that
- mod_ssl provides.)
+(If the statements are out of order, mod_log_sql doesn't recognize the SSL
+ symbols that mod_ssl provides.)
 \layout Standard
 
-Now skip below to the "Configuration" section.
+Now skip below to section 
+\begin_inset LatexCommand \ref{sec:Configuration}
+
+\end_inset 
+
+, 
+\series bold 
+Configuration
+\series default 
+.
 \end_deeper 
 \layout Subsection
 
@@ -740,6 +749,11 @@ Install your httpd binary.
 \end_deeper 
 \layout Section
 
+
+\begin_inset LatexCommand \label{sec:Configuration}
+
+\end_inset 
+
 Configuration
 \layout Subsection
 
@@ -774,11 +788,6 @@ mod_log_sql can make its own tables on-the-fly, or you can pre-make the
  In this basic setup we'll just let the module create tables for us.
 \layout Enumerate
 
-
-\begin_inset LatexCommand \label{part:CrTbl}
-
-\end_inset 
-
 We still need to have a logging database created and ready, so run the MySQL
  command line client and create a database:
 \begin_deeper 
@@ -793,6 +802,11 @@ Enter password:
 mysql> create database apachelogs;
 \end_deeper 
 \layout Enumerate
+
+
+\begin_inset LatexCommand \label{part:CrTbl}
+
+\end_inset 
 
 If you want to hand-create the tables, run the enclosed 'create-tables'
  SQL script as follows:
@@ -969,6 +983,9 @@ Restart apache.
 \begin_deeper 
 \layout LyX-Code
 
+# /etc/rc.d/init.d/httpd stop
+\layout LyX-Code
+
 # /etc/rc.d/init.d/httpd start
 \end_deeper 
 \layout Subsection
@@ -1029,7 +1046,7 @@ So, first examine the MySQL log that you established in step
 
 .
  Ensure that the INSERT statements are not being rejected because of a malformed
- table entry or other clerical error.
+ table name or other typographical error.
  By enabling that log, you instructed MySQL to log every connection and
  command it receives -- if you see no INSERT attempts in the log, the module
  isn't successfully connecting to the database.
@@ -2800,7 +2817,7 @@ Each character in the format-string defines an attribute of the request
 \size footnotesize 
 
 \begin_inset  Tabular
-<lyxtabular version="3" rows="20" columns="5">
+<lyxtabular version="3" rows="21" columns="5">
 <features>
 <column alignment="center" valignment="top" leftline="true" rightline="true" width="0pt">
 <column alignment="left" valignment="top" width="0pt">
@@ -2982,7 +2999,11 @@ c
 
 
 \size footnotesize 
-Text of cookie
+Text of cookie 
+\begin_inset Formula $^{\textrm{1}}$
+\end_inset 
+
+
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -3221,6 +3242,62 @@ varchar(50)
 
 \size footnotesize 
 bobby
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\size footnotesize 
+M
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\size footnotesize 
+Machine ID 
+\begin_inset Formula $^{\textrm{2}}$
+\end_inset 
+
+
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\size footnotesize 
+machine_id
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\size footnotesize 
+varchar(25)
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\size footnotesize 
+web01
 \end_inset 
 </cell>
 </row>
@@ -3855,7 +3932,30 @@ www.foobar.com
 
 \layout Quote
 
-If you have compiled mod_log_sql with WANT_SSL_LOGGING, you also get these:
+
+\begin_inset Formula $^{\textrm{1}}$
+\end_inset 
+
+ You must also specify 
+\noun on 
+LogSQLWhichCookie 
+\noun default 
+for this to take effect.
+\layout Quote
+
+
+\begin_inset Formula $^{\textrm{2}}$
+\end_inset 
+
+ You must also specify 
+\noun on 
+LogSQLMachineID
+\noun default 
+ for this to take effect.
+\layout Quote
+
+If you have compiled mod_log_sql with SSL logging capability, you also can
+ use these:
 \layout Quote
 
 
@@ -4078,9 +4178,8 @@ LogSQLTransferLogFormat
 LogSQLWhichCookie
 \noun default 
  tells mod_log_sql which cookie to log.
- This is necessary because many times you will be setting and receiving
- more than one cookie from a client; without this directive you'd be unable
- to choose which cookie is your mod_usertrack cookie.
+ This is necessary because you will usually be setting and receiving more
+ than one cookie from a client; this cookie designates which one to log.
 \layout Quote
 
 Note: although this was intended for people who are using mod_usertrack
