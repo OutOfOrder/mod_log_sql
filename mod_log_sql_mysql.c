@@ -67,6 +67,8 @@ static logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnectio
 static void log_sql_mysql_close(logsql_dbconnection *db)
 {
 	mysql_close((MYSQL *)db->handle);
+        /* mysql_close frees this data so NULL it out incase we reconnect later */
+        db->handle=NULL;
 }
 
 /* Routine to escape the 'dangerous' characters that would otherwise
@@ -75,8 +77,9 @@ static void log_sql_mysql_close(logsql_dbconnection *db)
 static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
 								logsql_dbconnection *db)
 {
-	if (!from_str)
-		return NULL;
+        /* Return "NULL" for empty strings */
+	if (!from_str || strlen(from_str) == 0)
+		return "NULL";
 	else {
 	  	char *to_str;
 		unsigned long length = strlen(from_str);
@@ -141,9 +144,11 @@ static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *
 
 	/* Run the query */
 	if (!(retval = mysql_query(dblink, query))) {
-	    SIGNAL_RELEASE
+	        SIGNAL_RELEASE
 		return LOGSQL_QUERY_SUCCESS;
 	}
+        log_error(APLOG_MARK, APLOG_ERR, 0, r->server,
+            "mysql_query returned (%d)", retval);
 	/* Check to see if the error is "nonexistent table" */
 	real_error = mysql_errno(dblink);
 
@@ -186,7 +191,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
        bytes_sent int unsigned,\
        child_pid smallint unsigned,\
        cookie varchar(255),\
-	   machine_id varchar(25),\
+       machine_id varchar(25),\
        request_file varchar(255),\
        referer varchar(255),\
        remote_host varchar(50),\
@@ -198,7 +203,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
        request_protocol varchar(10),\
        request_time char(28),\
        request_uri varchar(255),\
-	   request_args varchar(255),\
+       request_args varchar(255),\
        server_port smallint unsigned,\
        ssl_cipher varchar(25),\
        ssl_keysize smallint unsigned,\
