@@ -8,7 +8,8 @@ HEADERS = mod_log_sql.h \
 		functions13.h \
 		functions20.h \
 		apache13.h \
-		apache20.h
+		apache20.h \
+		winconfig.h
 
 CFLAGS = -Wc,-Wall -Wc,-fno-strict-aliasing
 
