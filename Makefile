@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 2001/12/03 19:54:02 helios Exp $
+# $Id: Makefile,v 1.3 2001/12/03 19:56:58 helios Exp $
 
 # Verify that this points to the right place...
 APACHEDIR = /usr/local/src/apache_1.3.22
@@ -46,6 +46,9 @@ install: all
 	$(INSTALL) mod_log_mysql.o ${APACHEDIR}/src/mod_log_mysql.o
 
 distro: all
+	cp -f INSTALL /usr/local/Apache/html/mod_log_mysql/
+	cp -f README /usr/local/Apache/html/mod_log_mysql/
+	cp -f CHANGELOG /usr/local/Apache/html/mod_log_mysql/
 	cd ..; tar zcf mod_log_mysql.tar.gz mod_log_mysql/; $(INSTALL) mod_log_mysql.tar.gz /usr/local/Apache/html/mod_log_mysql/; rm -f mod_log_mysql.tar.gz
 	
 clean:
