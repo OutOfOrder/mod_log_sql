@@ -8,7 +8,7 @@
 #include "http_core.h"
 
 /* Defines */
-#define AP_MODULE_DECLARE_DATA
+#define AP_MODULE_DECLARE_DATA MODULE_VAR_EXPORT
 #define APR_OFF_T_FMT "ld"
 #define APR_PID_T_FMT "d"
 #define APR_SUCCESS 0
@@ -72,9 +72,13 @@
 
 #define apr_tolower ap_tolower
 
-static void log_error(char *file, int line, int level, apr_status_t status, 
+void log_error(char *file, int line, int level, apr_status_t status, 
 	const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 6,7)));
-static inline void log_error(char *file, int line, int level, 
+	
+#ifndef WIN32
+inline
+#endif
+void log_error(char *file, int line, int level, 
 	apr_status_t status, const server_rec *s, const char *fmt, ...)
 {
 	static char buff[MAX_STRING_LEN];

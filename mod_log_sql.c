@@ -288,7 +288,7 @@ static const char *set_server_file_slot(cmd_parms *cmd,
 	int offset = (int)(long)cmd->info;
     const char *path;
 
-    path = ap_server_root_relative(cmd->pool, arg);
+    path = ap_server_root_relative(cmd->pool, (char *)arg);
                             
     if (!path) {
         return apr_pstrcat(cmd->pool, "Invalid file path ",
@@ -1246,7 +1246,7 @@ module AP_MODULE_DECLARE_DATA log_sql_module = {
     register_hooks	/* register hooks */
 };
 #elif defined(WITH_APACHE13)
-module log_sql_module = {
+module MODULE_VAR_EXPORT log_sql_module = {
 	STANDARD_MODULE_STUFF,
 	log_sql_module_init,	 /* module initializer 				*/
 	NULL,					 /* create per-dir config 			*/

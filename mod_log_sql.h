@@ -113,7 +113,7 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 #elif defined(WITH_APACHE13)
 #	define LOGSQL_REGISTER(driver) \
 	static void module_init(server_rec *s, apr_pool_t *p); \
-	module log_sql_##driver##_module = { \
+	module MODULE_VAR_EXPORT log_sql_##driver##_module = { \
 		STANDARD_MODULE_STUFF, module_init }; \
 	static void module_init(server_rec *s, apr_pool_t *p)
 #endif

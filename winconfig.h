@@ -71,7 +71,7 @@
 /* #undef WITH_APACHE13 */
 
 /* Define to 1 if we are compiling with Apache 2.0.x */
-#define WITH_APACHE20 1
+/* #undef WITH_APACHE20 */
 
 /* Define to 1 if we are compiling with mysql */
 #define WITH_MYSQL 1
