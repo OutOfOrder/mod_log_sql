@@ -1,10 +1,9 @@
-$Id: CHANGELOG,v 1.7 2002/04/02 20:19:30 helios Exp $
+$Id: CHANGELOG,v 1.8 2002/04/08 06:35:04 helios Exp $
 
 
 TODO:
 * Full commenting of the code.
 * Rethink documentation flow and rewrite?
-* Config directives for proxy clients
 * Port connection portion to other DBMS?  Genericize the module?
 
 

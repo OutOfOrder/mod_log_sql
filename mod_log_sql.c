@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.6 2002/04/02 20:19:30 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.7 2002/04/08 06:35:04 helios Exp $ */
 
 
 /* DEFINES */
@@ -350,6 +350,23 @@ static const char *extract_cookie(request_rec *r, char *a)
 	return "-"; 
 }
 
+/*
+static const char *extract_forwarded(request_rec *r, char *a)
+{
+	return table_get(r->subprocess_env, "HTTP_FORWARDED");
+}
+
+static const char *extract_via(request_rec *r, char *a)
+{
+	return table_get(r->subprocess_env, "HTTP_VIA");
+}
+
+static const char *extract_forwarded_for(request_rec *r, char *a)
+{
+	return table_get(r->subprocess_env, "HTTP_X_FORWARDED_FOR");
+}
+*/
+
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
 	char tstr[32];
@@ -365,7 +382,7 @@ static const char *extract_note(request_rec *r, char *a)
 
 static const char *extract_env_var(request_rec *r, char *a)
 {
-	return table_get(r->subprocess_env, a);
+	return table_get(r->subprocess_env, "HTTP_USER_AGENT");
 }
 
 /* End declarations of various extract_ functions */
@@ -403,6 +420,10 @@ struct log_mysql_item_list {
     {   'u', extract_remote_user,       "remote_user",      0, 1    },
     {   'U', extract_request_uri,       "request_uri",      1, 1    },
     {   'v', extract_virtual_host,      "virtual_host",     0, 1    },
+/*    {   'V', extract_via,               "via",              0, 1    },
+    {   'w', extract_forwarded,         "forwarded",        0, 1    },
+    {   'W', extract_forwarded_for,     "forwarded_for",    0, 1    },
+ */ 
 	#ifdef WANT_SSL_LOGGING
     {   'q', extract_ssl_keysize,       "ssl_keysize",      0, 1    },
     {   'Q', extract_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
