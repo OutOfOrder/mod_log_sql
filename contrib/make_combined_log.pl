@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: make_combined_log.pl,v 1.1 2004/02/12 03:44:12 urkle Exp $
+# $Id: make_combined_log.pl,v 1.2 2004/02/12 23:32:55 urkle Exp $
 #
 # make_combined_log.pl
 #
@@ -34,14 +34,9 @@ $| = 1;
 
 use DBI;
 
-# Remember, $#ARGV is parameters minus one...
-if ($#ARGV != 1) {
-	die "Incorrect usage, please read the perl source code for correct usage."
-}
-
-$days     = $ARGV[0];
-$virthost = $ARGV[1];
-
+# Remove the # in front of this line when you have 
+# edited the variables below.
+#$has_edited_source = 1;
 #
 # Set up the proper variables to permit database access
 #
@@ -51,6 +46,20 @@ $serverUser = "someuser";
 $serverPass = "somepass";
 $serverTbl  = "acc_log_tbl";
 $serverDb   = "apache";
+
+if (!defined($has_edited_source)) {
+	print "Please edit this file and configure it first.\n";
+	print "This program is $0\n";
+	exit 1;
+}
+# Remember, $#ARGV is parameters minus one...
+if ($#ARGV != 1) {
+	print "Usage $0 days virtualhost\n";
+	exit 1;
+}
+
+$days     = $ARGV[0];
+$virthost = $ARGV[1];
 
 #
 # Other constants
@@ -128,4 +137,3 @@ while (@data = $records->fetchrow_array) {
 # Done
 #
 $records->finish;
-
