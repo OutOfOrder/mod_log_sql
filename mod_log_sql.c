@@ -548,6 +548,9 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 #			if defined(WITH_APACHE20)
 			apr_sleep(apr_time_from_sec(0.25)); /* pause for a quarter second */
 #			elif defined(WITH_APACHE13)
+#            if defined(WIN32)
+            Sleep((DWORD)0.25);
+#            else
 			{
 				struct timespec delay, remainder;
 				int nanoret;
@@ -558,6 +561,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 					log_error(APLOG_MARK,APLOG_ERR, errno, r->server,"nanosleep unsuccessful");
 				}
 			}
+#			 endif /* win32 */
 #			endif
 			result = global_config.driver->insert(r,&global_config.db,query);
 			if (result == LOGSQL_QUERY_SUCCESS) {
