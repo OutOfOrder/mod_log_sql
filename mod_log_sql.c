@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.4 2003/12/23 19:49:56 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.5 2003/12/30 21:05:30 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -785,7 +785,7 @@ static unsigned int safe_sql_query(request_rec *r, const char *query)
 	void (*handler) (int);
 	logsql_state *cls;
 	unsigned int real_error = 0;
-	char *real_error_str = NULL;
+	const char *real_error_str = NULL;
 
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
 	handler = signal(SIGPIPE, SIG_IGN);
