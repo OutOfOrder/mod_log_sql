@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet href="file://localhost/home/urkle/Documents/DocBook/docbook.css" type="text/css"?>
-<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "file:/usr/share/sgml/docbook/xml-dtd-4.1.2-1.0-8/docbookx.dtd" [
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" [
 <!ENTITY EmailContact "<email>urkle &lt;at&gt; outoforder &lt;dot&gt; cc</email>">
 ]>
 <article>
@@ -867,7 +867,222 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
               <simpara>Default: AbHhmRSsTUuv</simpara>
               <simpara>Context: virtual host</simpara>
               <para>Each character in the format-string defines an attribute of the request that you wish to log. The default logs the information required to create Combined Log Format logs, plus several extras. Here is the full list of allowable keys, which sometimes resemble their Apache counterparts, but do not always:</para>
-              <para>TODO: Insert Log Format Types Table</para>
+              <table>
+                <title>Core LogFormat parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1"/>
+                  <colspec colname="2" colnum="2"/>
+                  <colspec colname="3" colnum="3"/>
+                  <colspec colname="4" colnum="4"/>
+                  <colspec colname="5" colnum="5"/>
+                  <thead>
+                    <row>
+                      <entry colname="1">Symbol</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">DB Field</entry>
+                      <entry colname="4">Data Type</entry>
+                      <entry colname="5">Example</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">A</entry>
+                      <entry colname="2">User Agent</entry>
+                      <entry colname="3">agent</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">Mozilla/4.0 (compat; MSIE 6.0; Windows)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">a</entry>
+                      <entry colname="2">CGi request arguments</entry>
+                      <entry colname="3">request_args</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">user=Smith&amp;cart=1231&amp;item=532</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">b</entry>
+                      <entry colname="2">Bytes transfered</entry>
+                      <entry colname="3">bytes_sent</entry>
+                      <entry colname="4">int unsigned</entry>
+                      <entry colname="5">32561</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">c<xref linkend="Foot.LogCookie" xreflabel="[1]"/></entry>
+                      <entry colname="2">Text of cookie</entry>
+                      <entry colname="3">cookie</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">Apache=sdyn.fooonline.net 1300102700823</entry>
+                    </row>
+                    <row>
+                      <entry>f</entry>
+                      <entry>Local filename requested</entry>
+                      <entry>request_file</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>/var/www/html/books-cycroad.html</entry>
+                    </row>
+                    <row>
+                      <entry>H</entry>
+                      <entry>HTTP request_protocol</entry>
+                      <entry>request_protocol</entry>
+                      <entry>varchar(10)</entry>
+                      <entry>HTTP/1.1</entry>
+                    </row>
+                    <row>
+                      <entry>h</entry>
+                      <entry>Name of remote host</entry>
+                      <entry>remote_host</entry>
+                      <entry>varchar(50)</entry>
+                      <entry>blah.foobar.com</entry>
+                    </row>
+                    <row>
+                      <entry>I</entry>
+                      <entry>Request ID (from modd_unique_id)</entry>
+                      <entry>id</entry>
+                      <entry>char(19)</entry>
+                      <entry>POlFcUBRH30AAALdBG8</entry>
+                    </row>
+                    <row>
+                      <entry>l</entry>
+                      <entry>Ident user info</entry>
+                      <entry>remote_logname</entry>
+                      <entry>varcgar(50)</entry>
+                      <entry>bobby</entry>
+                    </row>
+                    <row>
+                      <entry>M</entry>
+                      <entry>Machine ID<xref linkend="Foot.MachineID" xreflabel="[2]"/></entry>
+                      <entry>machine_id</entry>
+                      <entry>varchar(25)</entry>
+                      <entry>web01</entry>
+                    </row>
+                    <row>
+                      <entry>m</entry>
+                      <entry>HTTP request method</entry>
+                      <entry>request_method</entry>
+                      <entry>varchar(10)</entry>
+                      <entry>GET</entry>
+                    </row>
+                    <row>
+                      <entry>P</entry>
+                      <entry>httpd cchild PID</entry>
+                      <entry>child_pid</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>3215</entry>
+                    </row>
+                    <row>
+                      <entry>p</entry>
+                      <entry>http port</entry>
+                      <entry>server_port</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>80</entry>
+                    </row>
+                    <row>
+                      <entry>R</entry>
+                      <entry>Referer</entry>
+                      <entry>referer</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>http://www.biglinks4u.com/linkpage.html</entry>
+                    </row>
+                    <row>
+                      <entry>r</entry>
+                      <entry>Request in full form</entry>
+                      <entry>request_line</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>GET /books-cycroad.html HTTP/1.1</entry>
+                    </row>
+                    <row>
+                      <entry>S</entry>
+                      <entry>Time of request in UNIX time_t format</entry>
+                      <entry>time_stamp</entry>
+                      <entry>int unsigned</entry>
+                      <entry>1005598029</entry>
+                    </row>
+                    <row>
+                      <entry>T</entry>
+                      <entry>Seconds to service request</entry>
+                      <entry>request_duration</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>2</entry>
+                    </row>
+                    <row>
+                      <entry>t</entry>
+                      <entry>Time of request in human format</entry>
+                      <entry>request_time</entry>
+                      <entry>char(28)</entry>
+                      <entry> [02/Dec/2001:15:01:26 -0800]</entry>
+                    </row>
+                    <row>
+                      <entry>U</entry>
+                      <entry>Request in simple form</entry>
+                      <entry>request_uri</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>/books-cycroad.html</entry>
+                    </row>
+                    <row>
+                      <entry>u</entry>
+                      <entry>User info from HTTP auth</entry>
+                      <entry>remote_user</entry>
+                      <entry>varchar(50)</entry>
+                      <entry>bobby</entry>
+                    </row>
+                    <row>
+                      <entry>v</entry>
+                      <entry>Virtual host servicing the request</entry>
+                      <entry>virtual_host</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>www.foobar.com</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
+              <note id="Foot.LogCookie">
+                <simpara>[1] You must also specify LogSQLWhichCookie for this to take effect.</simpara>
+              </note>
+              <note id="Foot.MachineID">
+                <simpara>[2] You must also specify LogSQLmachineID for this to take effect.</simpara>
+              </note>
+              <table>
+                <title>SSL LogFormat Parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1"/>
+                  <colspec colname="2" colnum="2"/>
+                  <colspec colname="3" colnum="3"/>
+                  <colspec colname="4" colnum="4"/>
+                  <colspec colname="5" colnum="5"/>
+                  <thead>
+                    <row>
+                      <entry colname="1">Symbol</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">DB Field</entry>
+                      <entry colname="4">Data Type</entry>
+                      <entry colname="5">Example</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">z</entry>
+                      <entry colname="2">SSL cipher used</entry>
+                      <entry colname="3">ssl_cipher</entry>
+                      <entry colname="4">varchar(25)</entry>
+                      <entry colname="5">RC4-MD5</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">q</entry>
+                      <entry colname="2">Keysize of the SSL connection</entry>
+                      <entry colname="3">ssl_keysize</entry>
+                      <entry colname="4">smallint unsigned</entry>
+                      <entry colname="5">56</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">Q</entry>
+                      <entry colname="2">maximum keysize supported</entry>
+                      <entry colname="3">ssl_maxkeysize</entry>
+                      <entry colname="4">smallint unsigned</entry>
+                      <entry colname="5">128</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
             </listitem>
           </varlistentry>
           <varlistentry>
