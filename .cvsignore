@@ -9,6 +9,7 @@ autom4te-2.53.cache
 Makefile
 configure
 config.cache
+config.nice
 config.log
 config.status
 configure
