@@ -1,16 +1,38 @@
-$Id: CHANGELOG,v 1.10 2002/04/23 03:46:20 helios Exp $
+$Id: CHANGELOG,v 1.11 2002/05/14 21:47:14 helios Exp $
 
 
 TODO:
 * Full commenting of the code.
 * Rethink documentation flow and rewrite?
 * Port connection portion to other DBMS?  Genericize the module?  Start with PostgreSQL.
-* Fully test create-table
-* Document new features
-* check for mandatory conf directives quit if not
+* check for mandatory conf directives / syntax quit if not
+* merge server config into vh config
+* port to Apache 2.x
 
 
 CHANGES:
+
+1.17:
+* Renamed the module mod_log_sql to conform to the project goal of
+  database-inspecificity.
+* Added capability of logging Notes field.  This is useful for folks using
+  custom modules that provide loggable info in the notes, e.g. mod_gzip.
+  A new directive MySQLWhichNotes configures which notes to log to the
+  notes_log table.
+* Fixed potential segfault in preserve file function due to silly pfclose
+  placement. (Only affected user if the preserve file couldn't
+  be opened.)
+* Changed default socket file to /tmp/mysql.sock because that's the
+  default on a compiled MySQL.
+* Also check for '-' when I'm creating the table when MySQLMassVirtualHosting
+  is on, and change it to underscore.  (Already did this with '.')
+* Took away the prepend of /tmp to the preserve filename.  Now the
+  user can specify whatever local path they want.  I figure that
+  filesystem permissions will prevent people from doing anything 
+  really dumb, and people have requested this change.
+* Better checking in the extract_cookie routine.  Before, it could
+  segfault if a person specified "c" but didn't define MySQLWhichCookie.
+
 
 1.16:
 * Moved all the user DEFINEs inside the .c file -- splitting them
@@ -25,7 +47,7 @@ CHANGES:
   version the name of the MySQL socket was hardcoded.  Now the user
   can configure this at Apache runtime.  However, it is a global
   setting (set once) just like the rest of the actual database info is.
-  It defaults ot a hardcoded value if the user does not define it.
+  It defaults to a hardcoded value if the user does not define it.
 * A new MySQLCreateTables runtime config directive.  Module can now
   create the access table on-the-fly.  Table creation takes place
   during the virtual server's first request and is flagged after that to

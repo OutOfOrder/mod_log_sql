@@ -1,5 +1,5 @@
-# $Id: Makefile,v 1.9 2002/04/21 23:01:52 helios Exp $
-MLMVERS = 1.16
+# $Id: Makefile,v 1.10 2002/05/14 21:47:14 helios Exp $
+MLMVERS = 1.17
 
 # Where you unpacked your Apache tarball -- the source.
 APACHESOURCE = /usr/local/src/apache_1.3.22
@@ -7,15 +7,27 @@ APACHESOURCE = /usr/local/src/apache_1.3.22
 # Where Apache [got|will get] installed
 APACHEINST   = /usr/local/Apache
 
-# Set the WANT_SSL_LOGGING define in mod_log_mysql.c if you want to log SSL
-# info, or #undef it if you don't.  Then use the first CFLAGS if you *do*
-# WANT_SSL_LOGGING, and confirm the paths.
+# Do you want to log SSL information?
+# Yes?
+#      - #define WANT_SSL_LOGGING in mod_log_sql.c
+#      - pick (A) below
+# No?
+#      - #undef WANT_SSL_LOGGING in mod_log_sql.c
+#      - pick (B) below
+
+
+# (A)
 #
+# Modify "/usr/include/mysql" to where YOUR mysql.h can be found,
 # Modify "/usr/local/ssl/include" to where YOUR openssl/*.h files are,
 # Modify "/usr/include/db1" to where YOUR ndbm.h can be found,
 # Modify "/usr/local/src/apache_1.3.22/src/modules/ssl" to where YOUR mod_ssl.h can be found.
 #
 # How to find your directories:
+#
+# $ locate mysql.h
+# /usr/include/mysql/mysql.h
+# ^^^^^^^^^^^^^^^^^^
 #
 # $ locate x509.h
 # /usr/local/ssl/include/openssl/x509.h
@@ -28,11 +40,23 @@ APACHEINST   = /usr/local/Apache
 # $ locate mod_ssl.h
 # /usr/local/src/apache_1.3.22/src/modules/ssl/mod_ssl.h
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Now uncomment this CFLAGS and comment out the one further down:
 
-CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/local/ssl/include -I/usr/include/db1 -I${APACHESOURCE}/src/modules/ssl
+CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/include/mysql -I/usr/local/ssl/include -I/usr/include/db1 -I${APACHESOURCE}/src/modules/ssl
 
-# Use this CFLAGS if you don't WANT_SSL_LOGGING:
-#CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include
+# (B)
+#
+# Modify "/usr/include/mysql" to where YOUR mysql.h can be found,
+#
+# How to find your directories:
+#
+# $ locate mysql.h
+# /usr/include/mysql/mysql.h
+# ^^^^^^^^^^^^^^^^^^
+#
+# Comment out CFLAGS above and uncomment CFLAGS below:
+
+#CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/include/mysql
 
 
 # ---------------------------------------------------------
@@ -41,24 +65,24 @@ CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/local/ssl/include -I/
 CC        = gcc
 INSTALL   = /usr/bin/install -m 664
 
-all: mod_log_mysql.o
+all: mod_log_sql.o
 
-mod_log_mysql.o:	mod_log_mysql.c Makefile
-	$(CC) ${CFLAGS} -c mod_log_mysql.c
+mod_log_sql.o:	mod_log_sql.c Makefile
+	$(CC) ${CFLAGS} -c mod_log_sql.c
 			
 install: all
 	$(INSTALL) -d -m 755 ${APACHESOURCE}/src/modules/sql
-	$(INSTALL) mod_log_mysql.c ${APACHESOURCE}/src/modules/sql/mod_log_mysql.c
+	$(INSTALL) mod_log_sql.c ${APACHESOURCE}/src/modules/sql/mod_log_sql.c
 	$(INSTALL) Makefile ${APACHESOURCE}/src/modules/sql/Makefile
-	$(INSTALL) mod_log_mysql.o ${APACHESOURCE}/src/modules/sql/mod_log_mysql.o
+	$(INSTALL) mod_log_sql.o ${APACHESOURCE}/src/modules/sql/mod_log_sql.o
 
 distro: all
-	cp -f INSTALL ${APACHEINST}/html/mod_log_mysql/
-	cp -f README ${APACHEINST}/html/mod_log_mysql/
-	cp -f CHANGELOG ${APACHEINST}/html/mod_log_mysql/
-	cd ..; tar zcf mod_log_mysql-${MLMVERS}.tar.gz --exclude mod_log_mysql/CVS mod_log_mysql/; $(INSTALL) mod_log_mysql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_mysql/; rm -f mod_log_mysql-${MLMVERS}.tar.gz
-	rm -f ${APACHEINST}/html/mod_log_mysql/mod_log_mysql.tar.gz 
-	ln -s mod_log_mysql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_mysql/mod_log_mysql.tar.gz
+	cp -f INSTALL ${APACHEINST}/html/mod_log_sql/
+	cp -f README ${APACHEINST}/html/mod_log_sql/
+	cp -f CHANGELOG ${APACHEINST}/html/mod_log_sql/
+	cd ..; tar zcf mod_log_sql-${MLMVERS}.tar.gz --exclude mod_log_sql/CVS mod_log_sql/; $(INSTALL) mod_log_sql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_sql/; rm -f mod_log_sql-${MLMVERS}.tar.gz
+	rm -f ${APACHEINST}/html/mod_log_sql/mod_log_sql.tar.gz 
+	ln -s mod_log_sql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_sql/mod_log_sql.tar.gz
 
 clean:
 	rm -f *.o *~

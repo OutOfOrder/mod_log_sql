@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.7 2002/04/21 23:01:52 helios Exp $
+$Id: INSTALL,v 1.8 2002/05/14 21:47:14 helios Exp $
 
 
 Requirements
@@ -48,8 +48,8 @@ For folks interested in using this module as an Apache DSO:
 
 1) Unpack the archive into a working directory.
 
-   # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
-   # cd /usr/local/src/mod_log_mysql
+   # tar zxf mod_log_sql.tar.gz -C /usr/local/src
+   # cd /usr/local/src/mod_log_sql
 
 2) Edit Makefile and make any adjustments for your system.  These are
    fully explained in the Makefile.
@@ -60,29 +60,29 @@ For folks interested in using this module as an Apache DSO:
    - The location of your MySQL libraries, find using 'locate libmysqlclient'
 
    FORMAT:
-   # <path>/apxs -i -c -L/path/to/mysqllibs -lmysqlclient -lz mod_log_mysql.c
+   # <path>/apxs -i -c -L/path/to/mysqllibs -lmysqlclient -lz mod_log_sql.c
 
    EXAMPLE:
-   # /usr/sbin/apxs -i -c -L/usr/lib/mysql -lmysqlclient -lz mod_log_mysql.c
+   # /usr/sbin/apxs -i -c -L/usr/lib/mysql -lmysqlclient -lz mod_log_sql.c
 
    You should see something like this:
 
-	gcc -fpic -DSHARED_MODULE -I/usr/local/Apache/include -c mod_log_mysql.c
-	ld -Bshareable -o mod_log_mysql.so mod_log_mysql.o
-	cp mod_log_mysql.so <your path to Apache libexec>/mod_log_mysql.so
-	chmod 755 <your path to Apache libexec>/mod_log_mysql.so
+	gcc -fpic -DSHARED_MODULE -I/usr/local/Apache/include -c mod_log_sql.c
+	ld -Bshareable -o mod_log_sql.so mod_log_sql.o
+	cp mod_log_sql.so <your path to Apache libexec>/mod_log_sql.so
+	chmod 755 <your path to Apache libexec>/mod_log_sql.so
 	[activating module blah in /path/to/apache/etc/httpd.conf]
 
 4) Add the following stanzas to your httpd.conf file.  Put the second stanza
    somewhere after the ClearModuleList directive.
 
 	<IfDefine HAVE_LOG_MYSQL>
-	   LoadModule mysql_log_module modules/mod_log_mysql.so
+	   LoadModule mysql_log_module modules/mod_log_sql.so
 	</IfDefine>
 
 
 	<IfDefine HAVE_LOG_MYSQL>
-	   AddModule mod_log_mysql.c
+	   AddModule mod_log_sql.c
 	</IfDefine>
 
 
@@ -99,16 +99,16 @@ Installation (as a static module compiled into httpd)
 
 1) Unpack the archive into a working directory.
 
-   # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
-   # cd /usr/local/src/mod_log_mysql
+   # tar zxf mod_log_sql.tar.gz -C /usr/local/src
+   # cd /usr/local/src/mod_log_sql
 
-2) Examine the DEFINEs at the top of mod_log_mysql.c and alter any that 
+2) Examine the DEFINEs at the top of mod_log_sql.c and alter any that 
    you choose.  Edit Makefile and make any adjustments for your system.  
    These are fully explained in the Makefile.
 
 3) # make all 
    (You should receive NO warnings or errors of any kind. 
-   If you see messages like this: "mod_log_mysql.c:69: httpd.h: No such
+   If you see messages like this: "mod_log_sql.c:69: httpd.h: No such
    file or directory" then you do not have your CFLAGS correctly
    pointing to the right include directory.)
 
@@ -126,7 +126,7 @@ Installation (as a static module compiled into httpd)
        -L/usr/lib/mysql -lmysqlclient -lm -lz
 
        * Find the mod_log_config.o line, and add this line immediately after it:
-	  AddModule modules/sql/mod_log_mysql.o
+	  AddModule modules/sql/mod_log_sql.o
 
    6b) # cp Configuration.apaci Configuration
 
@@ -144,7 +144,7 @@ Installation (as a static module compiled into httpd)
 
 	Compiled-in modules:
 	  http_core.c
-	  mod_log_mysql.c    <-- That's the line you're looking for.
+	  mod_log_sql.c    <-- That's the line you're looking for.
 	  mod_env.c
 	  mod_log_config.c
 	  mod_mime.c
@@ -161,7 +161,7 @@ Installation (as a static module compiled into httpd)
 
 9) Configure your apache daemon to log to your database.  Here's a very
    basic set of config lines to start you off.  Full documentation is
-   available here: http://www.grubbybaby.com/mod_log_mysql/directives.html
+   available here: http://www.grubbybaby.com/mod_log_sql/directives.html
 
    EXAMPLE: Connect to the MySQL database called "apache" running
    on "dbmachine.foo.com".  The module uses username "loguser" and
@@ -186,14 +186,14 @@ Installation (as a static module compiled into httpd)
 
    9a) Special step for users who have a DSO-enabled httpd:
 
-	  If you you are building mod_log_mysql as a static module BUT
+	  If you you are building mod_log_sql as a static module BUT
 	  your httpd is enabled for DSOs, add the following line to your
 	  httpd.conf:
 
-       AddModule mod_log_mysql.c 
+       AddModule mod_log_sql.c 
 
 
-10) If you compiled mod_log_mysql with the ability to make its own tables
+10) If you compiled mod_log_sql with the ability to make its own tables
     then you can skip this step.  Otherwise you need to do it by hand:
 
     Create a database and table to hold the new log data.  I log the
@@ -208,7 +208,7 @@ Installation (as a static module compiled into httpd)
     mysql> create database apache;
 
     Then create the table called "access_log".  I enclosed an SQL file
-    that will create every column type that mod_log_mysql supports. 
+    that will create every column type that mod_log_sql supports. 
     Unless you're just testing or playing around, this is probably NOT
     what you want, so edit the file first and delete the lines that
     don't pertain to you.  Then:
@@ -222,7 +222,7 @@ Installation (as a static module compiled into httpd)
 	
 	mysql> grant insert,create on apache.* to loguser@my.apachemachine.com identified by 'l0gger';
 	
-	Security is a very real concern.  mod_log_mysql by default is 
+	Security is a very real concern.  mod_log_sql by default is 
 	set up to create the SQL tables it needs.  If you have deactivated
 	this capability, then create a user called "loguser" with the password
 	"l0gger" with only the capability of INSERT to "access_log":

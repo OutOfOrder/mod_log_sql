@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.11 2002/04/23 17:26:15 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.12 2002/05/14 21:47:15 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -20,12 +20,12 @@
  * INCLUDES *
  * ---------*/
 #include <time.h>
-#include <mysql/mysql.h>
 #include <stdio.h>
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
 #include "http_core.h"
+#include "mysql.h"
 
 #if MODULE_MAGIC_NUMBER >= 19980324 /* M_M_N is defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
 	#include "ap_compat.h"
@@ -55,7 +55,7 @@ char *db_name = NULL;
 char *db_host = NULL;
 char *db_user = NULL;
 char *db_pwd  = NULL;
-char *socket_file = "/var/lib/mysql/mysql.sock";
+char *socket_file = "/tmp/mysql.sock";
 
 typedef const char *(*item_key_func) (request_rec *, char *);
 
@@ -67,10 +67,12 @@ typedef const char *(*item_key_func) (request_rec *, char *);
  */
 typedef struct {
 	int table_made;
-	char *transfer_table_name;
 	array_header *referer_ignore_list;
 	array_header *transfer_ignore_list;
 	array_header *remhost_ignore_list;
+	array_header *notes_list;
+	char *notes_table_name;
+	char *transfer_table_name;
 	char *transfer_log_format;
 	char *preserve_file;
 	char *cookie_name;
@@ -322,64 +324,66 @@ static const char *extract_cookie(request_rec *r, char *a)
     
 	log_mysql_state *cls = get_module_config(r->server->module_config, &mysql_log_module);
 	
-	#ifdef DEBUG
-	  	ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"watching for cookie '%s'", cls->cookie_name);
-	#endif
+	if (cls->cookie_name != NULL) {
+		#ifdef DEBUG
+		  	ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"watching for cookie '%s'", cls->cookie_name);
+		#endif
 	
-	/* Fetch out the cookie header */
- 	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
-    if (cookiestr != NULL) {
-		#ifdef DEBUG
-			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie2: [%s]", cookiestr);
-		#endif
-		/* Does the cookie string contain one with our name? */
-		isvalid = strstr(cookiestr, cls->cookie_name);
-		if (isvalid != NULL) {
-			/* Move past the cookie name and equal sign */
-			isvalid += strlen(cls->cookie_name) + 1;
-			/* Duplicate it into the pool */
-		    cookiebuf = ap_pstrdup(r->pool, isvalid);
-			/* Segregate just this cookie out of the string 
-			 * with a terminating nul at the first semicolon */
-		    cookieend = strchr(cookiebuf, ';');
-		    if (cookieend != NULL)
-		       *cookieend = '\0';
-		  	return cookiebuf;
+		/* Fetch out the cookie header */
+	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
+	    if (cookiestr != NULL) {
+			#ifdef DEBUG
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie2: [%s]", cookiestr);
+			#endif
+			/* Does the cookie string contain one with our name? */
+			isvalid = strstr(cookiestr, cls->cookie_name);
+			if (isvalid != NULL) {
+				/* Move past the cookie name and equal sign */
+				isvalid += strlen(cls->cookie_name) + 1;
+				/* Duplicate it into the pool */
+			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+				/* Segregate just this cookie out of the string 
+				 * with a terminating nul at the first semicolon */
+			    cookieend = strchr(cookiebuf, ';');
+			    if (cookieend != NULL)
+			       *cookieend = '\0';
+			  	return cookiebuf;
+			}
 		}
-	}
-
- 	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
-    if (cookiestr != NULL) {
-		#ifdef DEBUG
-			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie: [%s]", cookiestr);
-		#endif
-		isvalid = strstr(cookiestr, cls->cookie_name);
-		if (isvalid != NULL) {
-			isvalid += strlen(cls->cookie_name) + 1;
-		    cookiebuf = ap_pstrdup(r->pool, isvalid);
-		    cookieend = strchr(cookiebuf, ';');
-		    if (cookieend != NULL)
-		       *cookieend = '\0';
-		  	return cookiebuf;
-		}
-	}
 	
- 	cookiestr = table_get(r->headers_out,  "set-cookie");
-    if (cookiestr != NULL) {
-		#ifdef DEBUG
-		     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Set-Cookie: [%s]", cookiestr);
-		#endif
-		isvalid = strstr(cookiestr, cls->cookie_name);
-		if (isvalid != NULL) {
-		    isvalid += strlen(cls->cookie_name) + 1;
-		    cookiebuf = ap_pstrdup(r->pool, isvalid);
-		    cookieend = strchr(cookiebuf, ';');
-		    if (cookieend != NULL)
-		       *cookieend = '\0';
-		  	return cookiebuf;
+	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
+	    if (cookiestr != NULL) {
+			#ifdef DEBUG
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie: [%s]", cookiestr);
+			#endif
+			isvalid = strstr(cookiestr, cls->cookie_name);
+			if (isvalid != NULL) {
+				isvalid += strlen(cls->cookie_name) + 1;
+			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookieend = strchr(cookiebuf, ';');
+			    if (cookieend != NULL)
+			       *cookieend = '\0';
+			  	return cookiebuf;
+			}
 		}
-	}
 		
+	 	cookiestr = table_get(r->headers_out,  "set-cookie");
+	    if (cookiestr != NULL) {
+			#ifdef DEBUG
+			     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Set-Cookie: [%s]", cookiestr);
+			#endif
+			isvalid = strstr(cookiestr, cls->cookie_name);
+			if (isvalid != NULL) {
+			    isvalid += strlen(cls->cookie_name) + 1;
+			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookieend = strchr(cookiebuf, ';');
+			    if (cookieend != NULL)
+			       *cookieend = '\0';
+			  	return cookiebuf;
+			}
+		}
+	}
+	
 	return "-"; 
 }
 
@@ -393,12 +397,26 @@ static const char *extract_request_timestamp(request_rec *r, char *a)
 
 static const char *extract_note(request_rec *r, char *a)
 {
-	return table_get(r->notes, a);
+	return ap_table_get(r->notes, a);
+	
+	/*ap_table_do(extract_table, r, r->notes, NULL);*/
+	
 }
 
 static const char *extract_env_var(request_rec *r, char *a)
 {
-	return table_get(r->subprocess_env, "HTTP_USER_AGENT");
+	return ap_table_get(r->subprocess_env, a);
+}
+
+static const char *extract_unique_id(request_rec *r, char *a)
+{
+    const char *tempid;
+	
+	tempid = ap_table_get(r->subprocess_env, "UNIQUE_ID");
+	if (!tempid)
+	  return "-";
+	else
+	  return tempid;
 }
 
 /* End declarations of various extract_ functions */
@@ -421,7 +439,8 @@ struct log_mysql_item_list {
 	{   'H', extract_request_protocol,  "request_protocol", 0, 1    },
 	{   'h', extract_remote_host,       "remote_host",      0, 1    },
     {   'i', extract_header_in,         "header_in",        0, 1    },
-    {   'l', extract_remote_logname,    "remote_logname",   0, 1    },
+	{   'I', extract_unique_id,         "id",               0, 1    },
+	{   'l', extract_remote_logname,    "remote_logname",   0, 1    },
 	{	'm', extract_request_method,    "request_method",   0, 1    },
 	{   'n', extract_note,              "note",             0, 1    },
     {   'o', extract_header_out,        "header_out",       0, 1    },
@@ -506,6 +525,31 @@ int open_logdb_link()
 	return 0;
 }
 
+#ifdef DEBUG
+static int trace(void *data, const char *key, const char *val)
+{
+	FILE *fp;
+    request_rec *r = (request_rec *)data;
+
+	fp = pfopen(r->pool, "/tmp/trace", "a");
+	
+	if (fp) {
+	   fprintf(fp, "Field '%s' == '%s'\n", key, val);
+	}
+	
+	pfclose(r->pool, fp);
+	
+	return TRUE;
+}
+#endif
+
+const char *extract_table(void *data, const char *key, const char *val)
+{
+    request_rec *r = (request_rec *)data;
+	
+	return ap_pstrcat(r->pool, key, " = ", val, " ", NULL);
+}
+
 void preserve_entry(request_rec *r, const char *query)
 {
 	FILE *fp;
@@ -514,9 +558,10 @@ void preserve_entry(request_rec *r, const char *query)
 	fp = pfopen(r->pool, cls->preserve_file, "a");
 	if (fp == NULL)
 		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"attempted append of local offline file but failed.");
-	else 
+	else {
 		fprintf(fp,"%s;\n", query);
-	pfclose(r->pool, fp);
+		pfclose(r->pool, fp);
+	}
 }
 
 /*-----------------------------------------------------*/
@@ -629,11 +674,11 @@ const char *set_log_mysql_cookie(cmd_parms *parms, void *dummy, char *arg)
 
 const char *set_log_mysql_preserve_file(cmd_parms *parms, void *dummy, char *arg)
 {
-	char *pfile;
+	/* char *pfile; */
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
-	pfile = ap_pstrcat(parms->pool, "/tmp/", arg, NULL);
-	cls->preserve_file = pfile;
+	/* pfile = ap_pstrcat(parms->pool, "/tmp/", arg, NULL); */
+	cls->preserve_file = arg;
 	return NULL;
 }
 
@@ -662,6 +707,17 @@ const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *ar
 	return NULL;
 }
 
+const char *set_notes_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	if (massvirtual != 0)
+		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"do not set MySQLNotesLogTable when MySQLMassVirtualHosting is On. Ignoring.");
+	else
+		cls->notes_table_name = arg;
+	return NULL;
+}
+
 const char *set_mysql_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
@@ -676,6 +732,7 @@ const char *set_mysql_socket_file(cmd_parms *parms, void *dummy, char *arg)
 
 	return NULL;
 }
+
 
 const char *add_referer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
@@ -705,6 +762,16 @@ const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 	addme = push_array(cls->remhost_ignore_list);
 	*addme = pstrdup(cls->remhost_ignore_list->pool, arg);
 	return NULL;
+}
+
+const char *add_mysql_note(cmd_parms *parms, void *dummy, char *arg)
+{
+    char **addme;
+    log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+    addme = push_array(cls->notes_list);
+    *addme = pstrdup(cls->notes_list->pool, arg);
+    return NULL;
 }
 
 
@@ -780,17 +847,18 @@ void *log_mysql_make_state(pool *p, server_rec *s)
 	
 	log_mysql_state *cls = (log_mysql_state *) ap_palloc(p, sizeof(log_mysql_state));
 
-
 	cls->transfer_table_name = NULL;
 	cls->transfer_log_format = NULL;
+	cls->notes_table_name    = "notes";
 	
 	cls->referer_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
 	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
-	
+	cls->notes_list           = make_array(p, 1, sizeof(char *));
 	cls->table_made    = 0;
 	
 	cls->preserve_file = "/tmp/mysql-preserve";
+	cls->cookie_name = NULL;
 	
 	return (void *) cls;
 }
@@ -802,6 +870,9 @@ void *log_mysql_make_state(pool *p, server_rec *s)
 command_rec log_mysql_cmds[] = {
 	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the transfer log"}
+	,
+	{"MySQLNotesLogTable", set_notes_log_mysql_table,	    NULL, 	RSRC_CONF, 	TAKE1,
+	 "The MySQL table that holds the notes"}
 	,
 	{"MySQLTransferLogFormat", set_mysql_transfer_log_format,	NULL, 	RSRC_CONF, 	TAKE1,
 	 "Instruct the module what information to log to the MySQL transfer log"}
@@ -836,6 +907,9 @@ command_rec log_mysql_cmds[] = {
 	{"MySQLSocketFile", set_mysql_socket_file,				NULL, 	RSRC_CONF, 	TAKE1,
 	 "Name of the file to employ for socket connections to MySQL"}
 	,
+	{"MySQLWhichNotes", add_mysql_note,						NULL,	RSRC_CONF,	ITERATE,
+	 "Members of the 'notes' table that you would like to log"}
+	,
 	{NULL}
 };
 
@@ -848,30 +922,38 @@ int log_mysql_transaction(request_rec *orig)
 {
 	char **ptrptr, **ptrptr2;
 	log_mysql_state *cls = get_module_config(orig->server->module_config, &mysql_log_module);
-	const char *str;
+	const char *access_query;
 	request_rec *r;
 
 	/* We handle mass virtual hosting differently.  Dynamically determine the name
 	 * of the table from the virtual server's name, and flag it for creation.
 	 */
 	if (massvirtual == 1) {
-		char *base = "access_";
-		char *tablename;
+		char *access_base = "access_";
+		char *notes_base = "notes_";
+		char *a_tablename;
+		char *n_tablename;
 		int i;
 		
 		/* Find memory long enough to hold the table name + \0. */
-		tablename = ap_pstrcat(orig->pool, base, ap_get_server_name(orig), NULL);
+		a_tablename = ap_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
+		n_tablename = ap_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
 	
-		/* Transform any dots to underscores */
-		for (i = 0; i < strlen(tablename); i++) {
-			if (tablename[i] == '.')
-			  tablename[i] = '_';
+		/* Transform any dots or dashes to underscores */
+		for (i = 0; i < strlen(a_tablename); i++) {
+			if ( (a_tablename[i] == '.') || (a_tablename[i] == '-') )
+			  a_tablename[i] = '_';
+		}
+		for (i = 0; i < strlen(n_tablename); i++) {
+			if ( (n_tablename[i] == '.') || (n_tablename[i] == '-') )
+			  n_tablename[i] = '_';
 		}
 		
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
 		 */
-		cls->transfer_table_name = tablename;
+		cls->transfer_table_name = a_tablename;
+		cls->notes_table_name = n_tablename;
 		create_tables = 1;
 	}
 		
@@ -880,19 +962,27 @@ int log_mysql_transaction(request_rec *orig)
 		return DECLINED;
 	} else {
 		const char *thehost;
+		const char *thenote;
 		char *fields = "", *values = "";
+		char *notesets = "";
+		char *note_query = "";
+		const char *unique_id;
 		const char *formatted_item;
 		int i, j, length;
-		char *createstring = NULL;
+		char *create_access = NULL;
+		char *create_notes = NULL;
 
 		for (r = orig; r->next; r = r->next) {
 			continue;
 		}
 
+		#ifdef DEBUG
+		 /*ap_table_do(trace, orig, orig->subprocess_env, NULL);*/
+		#endif
 		
-		/* The following is a stolen upsetting mess of pointers, I'm sorry
+		/* The following is a stolen upsetting mess of pointers, I'm sorry.
 		 * Anyone with the motiviation and/or the time should feel free
-		 * to make this cleaner, and while at it, clean the same mess at the RefererLog part :) */
+		 * to make this cleaner. :) */
 		ptrptr2 = (char **) (cls->transfer_ignore_list->elts + (cls->transfer_ignore_list->nelts * cls->transfer_ignore_list->elt_size));
 
 		/* Go through each element of the ignore list and compare it to the
@@ -960,14 +1050,52 @@ int log_mysql_transaction(request_rec *orig)
 		}
 
 		
+		/*
+	    fields = pstrcat(r->pool, fields, ",note", NULL);
+		values = pstrcat(r->pool, values, ",'", NULL);
+		*/
+		
+		/* Work through the list of notes defined by MySQLNotesToLog */
+		i = 0;
+		unique_id = extract_unique_id(r, "");
+		
+		ptrptr2 = (char **) (cls->notes_list->elts + (cls->notes_list->nelts * cls->notes_list->elt_size));
+		for (ptrptr = (char **) cls->notes_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->notes_list->elt_size)) {
+			/* If the specified note (*ptrptr) exists for the current request... */
+		    if ((thenote = ap_table_get(r->notes, *ptrptr))) {
+				notesets = ap_pstrcat(r->pool, notesets, 
+									  (i > 0 ? "," : ""),
+									  "('",
+									  unique_id,
+									  "','",
+									  escape_query(*ptrptr, r->pool), 
+									  "','", 
+									  escape_query(thenote, r->pool),
+									  "')", 
+									  NULL);
+				i++;					
+			}
+		}
+		note_query = ap_pstrcat(r->pool, note_query, "insert into ", cls->notes_table_name, " (id, item, val) values ", notesets, NULL);
+		#ifdef DEBUG
+			ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"note string: %s", note_query);
+	   	#endif
+		
+		/*
+		values = pstrcat(r->pool, values, "'", NULL);
+		 */
+		
+		
+		
 		/* Is this virtual server's table flagged as made?  We flag it as such in order
 		 * to avoid extra processing with each request.  If it's not flagged as made,
 		 * set up the CREATE string.
 		 */													  
 		if ((cls->table_made != 1) && (create_tables != 0)) {		
 			char *createprefix = "create table if not exists ";
-			char *createsuffix =
-			 " (agent varchar(255),\
+			char *access_suffix =
+			 " (id char(19),\
+			   agent varchar(255),\
 			   bytes_sent int unsigned,\
 	           child_pid smallint unsigned,\
 	           cookie varchar(255),\
@@ -989,21 +1117,28 @@ int log_mysql_transaction(request_rec *orig)
 	           status smallint unsigned,\
 	           time_stamp int unsigned,\
 	           virtual_host varchar(50))";
-
+			
+			char *notes_suffix = 
+			 " (id char(19),\
+			   item varchar(80),\
+			   val varchar(80))";
+			
 			/* Find memory long enough to hold the whole CREATE string + \0 */
-			createstring = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, createsuffix, NULL);			
+			create_access = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);			
+			create_notes  = ap_pstrcat(orig->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);			
 			
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", createstring);
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_access);
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_notes);
 			#endif
 
 		}
 		  
-		/* Set up the actual INSERT statement and escape it. */
-		str = ap_pstrcat(r->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
+		/* Set up the actual INSERT statement */
+		access_query = ap_pstrcat(r->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
 
 		#ifdef DEBUG
-	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"insert string: %s", str);
+	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"insert string: %s", access_query);
 	    #endif
 		  
 		
@@ -1017,7 +1152,8 @@ int log_mysql_transaction(request_rec *orig)
 				/* Unable to re-establish a DB link, so assume that it's really
 				 * gone and send the entry to the preserve file instead. 
 				 * Note that we don't keep logging the db error over and over. */
-				preserve_entry(orig, str);
+				preserve_entry(orig, access_query);
+				preserve_entry(orig, note_query);
 				return OK;
 			} else {
 				/* Whew, we got the DB link back */
@@ -1027,13 +1163,15 @@ int log_mysql_transaction(request_rec *orig)
 
 		/* Make the table if we're supposed to */
 		if ((cls->table_made != 1) && (create_tables != 0)) {
-		  	mysql_query(mysql_log,createstring);
+		  	mysql_query(mysql_log, create_access);
+		  	mysql_query(mysql_log, create_notes);
 		  	cls->table_made = 1;
 		}
 
   	    /* Make the insert */
-		safe_mysql_query(orig, str);
-
+		safe_mysql_query(orig, access_query);
+		safe_mysql_query(orig, note_query);
+		
 		return OK;
 	}
 }

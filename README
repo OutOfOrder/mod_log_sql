@@ -1,35 +1,42 @@
-$Id: README,v 1.5 2002/04/21 23:01:53 helios Exp $
+$Id: README,v 1.6 2002/05/14 21:47:15 helios Exp $
 
 
 Homepage
 --------
-http://www.grubbybaby.com/mod_log_mysql/
-
+http://www.grubbybaby.com/mod_log_sql/
 
 
 Approach
 --------
+This project was formerly known as mod_log_mysql. It has been renamed
+to mod_log_sql in order to reflect the project goal of
+database-inspecificity. The module currently supports MySQL, and
+development for other database backends is underway.
 
 In order to save speed and overhead, links are kept alive in between
 queries.  This module uses one SQL link per httpd process.  Among other
 things, this means that this module supports logging into only one
-MySQL server, and for now, also, only one SQL database.
+MySQL server, and for now, also, only one SQL database.  But that's a
+small tradeoff compared to the blinding speed of this module.
 
 Virtual hosts are supported in the same manner they are in the regular
-logging modules.  If you specify a different table for a virtual
-host it will be used, otherwise the 'general' would be used.
+logging modules.  You define some basic 'global' directives in the 
+main server config, then you define more specific 'local' directives
+inside each virtualhost stanza.  
 
 SQL links are opened by each child process when it is born.  Error reporting
 is robust throughout and will let you know about database issues
 in the standard Apache error-log for the server or virtual server. 
 
-A robust "preserve" capability has now been implemented as well.  This
-permits the module to preserve any failed INSERT commands to a local
-file on its machine.  In any situation that the database is unavailable --
-e.g. the network fails, you reboot the machine, etc. -- mod_log_mysql
-will note this in the error log and begin appending its log entries to
-the preserve file.  At the time that your MySQL server returns to service,
-each of these preserve files is easily imported because it is stored in SQL:
+A robust "preserve" capability has now been implemented.  This permits
+the module to preserve any failed INSERT commands to a local file on
+its machine.  In any situation that the database is unavailable -- e.g.
+the network fails, you reboot the db host, etc. -- mod_log_sql will
+note this in the error log and begin appending its log entries to the
+preserve file (which is created with the user & group ID of the running
+Apache process, e.g. "nobody" on many Linux installations).  At the time
+that your MySQL server returns to service, each of these preserve files
+is easily imported because it is simply a series of SQL insert statements:
 
   # mysql -uadminuser -p mydbname < /tmp/mysql-preserve
 
@@ -41,11 +48,11 @@ Supported directives
 Please see the web-based documentation for full explanation of all
 supported run-time directives.
 
- http://www.grubbybaby.com/mod_log_mysql/directives.html
+ http://www.grubbybaby.com/mod_log_sql/directives.html
 
 See the FAQ for some handy examples:
 
- http://www.grubbybaby.com/mod_log_mysql/faq.html
+ http://www.grubbybaby.com/mod_log_sql/faq.html
 
 
 What gets logged by default?
@@ -65,8 +72,9 @@ Notes
 
 * You will customarily set most of your run-time configuration directives
   on a per-virtualserver basis, with only MySQLMassVirtualHosting,
-  MySQLLoginInfo and MySQLDatabase 'outside' in the main server config.
-  Any directives other than those in the main config do NOT get inherited
+  MySQLLoginInfo, MySQLDatabase, MySQLSocketFile, MySQLCreateTables,
+  and MySQLMassVirtualHosting 'outside' in the main server config.  Any
+  directives other than those in the main config do NOT get inherited
   by the virutal servers.
 
 * The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the
