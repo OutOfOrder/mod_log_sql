@@ -1,19 +1,20 @@
-# $Id: Makefile,v 1.19 2002/12/10 20:37:28 helios Exp $
+# $Id: Makefile,v 1.20 2002/12/18 01:06:33 helios Exp $
 
 ###########################################################################
 # Important:
 # Adjust these values as outlined in section "Installation" in the docs.
 # Not all are needed at all times.
 
-APACHESOURCE = /usr/local/src/apache_1.3.27-dso
-APACHEINST   = /usr/local/Apache
-APXS         = $(APACHEINST)/bin/apxs
+APACHESOURCE    = /usr/local/src/apache_1.3.27-dso
+APACHEINSTALLED = /usr/local/Apache
+APACHEHEADERS   = /usr/local/Apache/include
+APXS            = $(APACHEINSTALLED)/bin/apxs
 
-MYSQLLIBS  = /usr/lib
-MYSQLHDRS  = /usr/include/mysql
+MYSQLLIBRARIES  = /usr/lib
+MYSQLHEADERS    = /usr/include/mysql
 
-MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
-DB1HDRS    = /usr/include/db1
+#MODSSLHEADERS   = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
+#DB1HEADERS      = /usr/include/db1
 
 ###########################################################################
 # Don't uncomment this without reading the "Optimizing for a busy database"
@@ -24,7 +25,7 @@ DB1HDRS    = /usr/include/db1
 ###########################################################################
 # Rarely if ever have to touch below here.
 
-MLMVERS  = 1.18pre1
+MLMVERS  = 1.18
 #APXSGDB  = -Wc,-g
 APXSOPTS = -Wc,-O2 -Wc,-Wall
 STATOPTS = -fpic -O2 -Wall
@@ -38,12 +39,12 @@ LINKS    = /usr/bin/lynx
 L2H      = /usr/bin/latex2html
 WEBSERV  = gw0.corp
 
-STATFLAGS = -I$(APACHEINST)/include
-SOFLAGS   = -L$(MYSQLLIBS) -lmysqlclient -lz
-ifdef MODSSLHDRS
-   FLAGS     = -DEAPI -I$(MYSQLHDRS) $(MYSQLDELAYED) -I$(MODSSLHDRS) -I$(DB1HDRS) -DWANT_SSL_LOGGING
+STATFLAGS = -I$(APACHEHEADERS)
+SOFLAGS   = -L$(MYSQLLIBRARIES) -lmysqlclient -lz
+ifdef MODSSLHEADERS
+   FLAGS     = -DEAPI -I$(MYSQLHEADERS) $(MYSQLDELAYED) -I$(MODSSLHEADERS) -I$(DB1HEADERS) -DWANT_SSL_LOGGING
 else
-   FLAGS     = -DEAPI -I$(MYSQLHDRS) $(MYSQLDELAYED)
+   FLAGS     = -DEAPI -I$(MYSQLHEADERS) $(MYSQLDELAYED)
 endif
 
 all:
@@ -80,15 +81,15 @@ clean:
 	$(RM) -f Documentation/*.txt
 
 distro: documentation
-	@scp CHANGELOG $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs
-	@scp Documentation/*.ps $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs
-	@scp Documentation/HTML/*.html $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs/
-	@scp Documentation/HTML/*.png $(WEBSERV):$(APACHEINST)/html/mod_log_sql/docs/
-	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
-	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz"
+	@scp CHANGELOG $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs
+	@scp Documentation/*.ps $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs
+	@scp Documentation/HTML/*.html $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
+	@scp Documentation/HTML/*.png $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
+	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.gz $(APACHEINSTALLED)/html/mod_log_sql/mod_log_sql.tar.gz"
 
 pre-distro: documentation
-	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
 
 documentation: Documentation/documentation.lyx
 	@echo "Creating LaTeX docs..."

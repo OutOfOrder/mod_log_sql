@@ -422,24 +422,31 @@ Perform all the following steps as root so that you have install privs,
 \end_deeper 
 \layout Enumerate
 
-You must know the paths to some installed software before continuing.
+Edit Makefile and change the values of the variables in the first section.
+ 
 \begin_deeper 
 \layout Enumerate
 
-These are 
+These paths are 
 \series bold 
 necessary:
 \begin_deeper 
-\layout Itemize
+\layout Description
 
-The location where you installed Apache -- usually /usr/local/apache, 'locate
- apxs' can help you find it.
-\layout Itemize
+APACHEINSTALLED: the location where you installed Apache -- usually /usr/local/a
+pache, 'locate apxs' can help you find it.
+\layout Description
 
-The location of your MySQL libraries, find using 'locate libmysqlclient.so'
-\layout Itemize
+APACHEHEADERS: The location of your Apache header files, find using 'locate
+ httpd.h'
+\layout Description
 
-The location of your MySQL header files, find using 'locate mysql.h'
+MYSQLLIBRARIES: The location of your MySQL libraries, find using 'locate
+ libmysqlclient.so'
+\layout Description
+
+MYSQLHEADERS: The location of your MySQL header files, find using 'locate
+ mysql.h'
 \end_deeper 
 \layout Enumerate
 
@@ -450,12 +457,13 @@ Optional
 : if you compiled mod_ssl for Apache and want to log SSL data such as 'keysize'
  and 'cipher type': 
 \begin_deeper 
-\layout Itemize
+\layout Description
 
-The location of your SSL header files, find using 'locate mod_ssl.h'
-\layout Itemize
+MODSSLHEADERS: the location of your mod_ssl header files, find using 'locate
+ mod_ssl.h'
+\layout Description
 
-The location of your db1 header files, find using 'locate ndbm.h'
+DB1HEADERS: the location of your db1 header files, find using 'locate ndbm.h'
 \end_deeper 
 \layout Standard
 
@@ -473,13 +481,9 @@ such as the cipher type.
 \end_deeper 
 \layout Enumerate
 
-Now that you know these things, edit Makefile and replace the stock values
- with your own.
-\begin_deeper 
-\layout Standard
-
 IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS by putting
  a # character in front of it:
+\begin_deeper 
 \layout LyX-Code
 
 #MODSSLHDRS=/usr/include/...
@@ -496,15 +500,14 @@ Instruct apxs to compile the module as a DSO.
 You should see output similar to the following:
 \layout LyX-Code
 
-/usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/incl...
+/usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/...
+\layout LyX-Code
+
+gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HS...
  
 \layout LyX-Code
 
-gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HSREGEX -DEAPI...
- 
-\layout LyX-Code
-
-gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc,-DEAPI...
+gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc...
 \layout Standard
 
 You should see no errors and have a new file called "mod_log_sql.so" in your
@@ -650,7 +653,8 @@ Unpack the archive into a working directory.
 
 \end_inset 
 
-You must know the paths to some installed software before continuing.
+Edit Makefile and change the values of the variables in the first section.
+ 
 \begin_deeper 
 \layout Enumerate
 
@@ -658,21 +662,29 @@ These are
 \series bold 
 necessary:
 \begin_deeper 
-\layout Itemize
+\layout Description
 
-The location where you installed Apache -- usually /usr/local/apache, 'locate
- apxs' can help you find it.
- 
-\layout Itemize
+APACHEINSTALLED: the location where you installed Apache -- usually /usr/local/a
+pache, 'locate apxs' can help you find it.
+\layout Description
 
-The location of your Apache *sources*, find using 'locate ABOUT_APACHE'
- 
-\layout Itemize
+APACHESOURCE: the location of your Apache 
+\series bold 
+sources
+\series default 
+, find using 'locate ABOUT_APACHE' 
+\layout Description
 
-The location of your MySQL header files, find using 'locate mysql.h'
-\layout Itemize
+APACHEHEADERS: The location of your Apache header files, find using 'locate
+ httpd.h'
+\layout Description
 
-The location of your MySQL libraries, find using 'locate libmysqlclient.so'
+MYSQLLIBRARIES: The location of your MySQL libraries, find using 'locate
+ libmysqlclient.so'
+\layout Description
+
+MYSQLHEADERS: The location of your MySQL header files, find using 'locate
+ mysql.h'
 \end_deeper 
 \layout Enumerate
 
@@ -683,12 +695,13 @@ Optional
 : if you compiled mod_ssl for Apache and want to log SSL data such as 'keysize'
  and 'cipher type': 
 \begin_deeper 
-\layout Itemize
+\layout Description
 
-The location of your mod_ssl header files, find using 'locate mod_ssl.h'
-\layout Itemize
+MODSSLHEADERS: the location of your mod_ssl header files, find using 'locate
+ mod_ssl.h'
+\layout Description
 
-The location of your db1 header files, find using 'locate ndbm.h'
+DB1HEADERS: the location of your db1 header files, find using 'locate ndbm.h'
 \end_deeper 
 \layout Standard
 
@@ -706,13 +719,9 @@ if you want to log SSL-specific data
 \end_deeper 
 \layout Enumerate
 
-Now that you know these things, edit Makefile and replace the stock values
- with your own.
-\begin_deeper 
-\layout Standard
-
 IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS by putting
  a # character in front of it:
+\begin_deeper 
 \layout LyX-Code
 
 #MODSSLHDRS=/usr/include/...
@@ -987,15 +996,6 @@ A very basic logging setup in Apache
 Tell the module what database to use and the appropriate authentication
  information.
 \begin_deeper 
-\layout Quote
-
-
-\series bold 
-Example:
-\series default 
- Use the MySQL database called "apachelogs" running on "dbmachine.foo.com".
- Use username "loguser" and password "l0gger" to authenticate to the database.
- Let the module create tables for us.
 \layout Standard
 
 So, edit httpd.conf and insert the following lines somewhere after any LoadModule
@@ -1014,9 +1014,29 @@ global,
  not inside any VirtualHost stanza
 \emph default 
 .
+ You will also note that you are embedding a password in the file.
+ Therefore you are advised to 
+\begin_inset Quotes eld
+\end_inset 
+
+chmod 660 httpd.conf
+\begin_inset Quotes erd
+\end_inset 
+
+ to prevent unauthorized regular users from viewing your database user and
+ password.
+\layout Standard
+
+
+\series bold 
+Example
+\series default 
+: Use the MySQL database called "apachelogs" running on "dbmachine.foo.com".
+ Use username "loguser" and password "l0gg3r" to authenticate to the database.
+ Permit the module create tables for us.
 \layout LyX-Code
 
-LogSQLLoginInfo dbmachine.foo.com loguser l0gger 
+LogSQLLoginInfo dbmachine.foo.com loguser l0gg3r 
 \layout LyX-Code
 
 LogSQLDatabase apachelogs
@@ -1111,74 +1131,18 @@ Several lines of output should follow, corresponding to your hits on the
  You now have basic functionality.
  Don't disable your regular Apache logs until you feel comfortable that
  the database is behaving as you'd like and that things are going well.
+ If you do not see any entries in the access_log, please consult section
+ 
+\begin_inset LatexCommand \ref{faq:NothingLogged}
+
+\end_inset 
+
+ of the FAQ on how to debug and fix the situation.
 \end_deeper 
 \layout Enumerate
 
 You can now activate the advanced features of mod_log_sql, which are described
  in the next section.
- If you do not see any entries in the access_log, then something is preventing
- the inserts from happening.
- This could be caused by several things:
-\begin_deeper 
-\layout Itemize
-
-Improper privileges set up in the MySQL database 
-\layout Itemize
-
-You aren't hitting a VirtualHost that has a 
-\noun on 
-LogSQLTransferLogTable
-\noun default 
- entry 
-\layout Itemize
-
-You didn't specify the right database host or login information
-\layout Standard
-
-So, first examine the MySQL log that you established in step 
-\begin_inset LatexCommand \ref{step:EnaLog}
-
-\end_inset 
-
- of section 
-\begin_inset LatexCommand \ref{sub:PrepDb}
-
-\end_inset 
-
-.
- Ensure that the INSERT statements are not being rejected because of a malformed
- table name or other typographical error.
- By enabling that log, you instructed MySQL to log every connection and
- command it receives -- if you see no INSERT attempts in the log, the module
- isn't successfully connecting to the database.
- If you see nothing at all in the log -- not even a record of your administrativ
-e connection attempts, then you did not enable the log correctly.
- If you do see INSERT attempts but they are failing, the log should tell
- you why.
-\layout Standard
-
-Second, confirm that your 
-\noun on 
-LogSQL*
-\noun default 
- directives are all correct.
-\layout Standard
-
-Third, examine the Apache
-\noun on 
- 
-\noun default 
-error logs for messages from mod_log_sql; the module will offer hints as
- to why it cannot connect, etc.
- 
-\layout Standard
-
-The next thing to do is recompile the module with debugging output activated.
- change the "#undef DEBUG" on line 8 of mod_log_sql.c to "#define DEBUG"
- and recompile/reinstall.
- The module will now output copious notes about what it is doing, and this
- will help you (and the maintainer) solve the problem.
-\end_deeper 
 \layout Subsection
 
 How to tune logging with run-time directives
@@ -2537,8 +2501,9 @@ Optimizing for a busy database
 
 A busy MySQL database will have SELECT statements running concurrently with
  INSERT and UPDATE statements.
- A long-running SELECT can block INSERTs, therefore will block mod_log_sql.
- This may be solved by compiling mod_log_sql for 
+ A long-running SELECT can in certain circumstances block INSERTs and therefore
+ block mod_log_sql.
+ A workaround is to compile mod_log_sql for 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -2907,7 +2872,15 @@ host
 \begin_inset Quotes erd
 \end_inset 
 
- is the hostname or IP address of the MySQL machine.
+ is the hostname or IP address of the MySQL machine, and is simply 
+\begin_inset Quotes eld
+\end_inset 
+
+localhost
+\begin_inset Quotes erd
+\end_inset 
+
+ if the database lives on the same machine as Apache.
  
 \begin_inset Quotes eld
 \end_inset 
@@ -3397,7 +3370,7 @@ Each character in the format-string defines an attribute of the request
 \size footnotesize 
 
 \begin_inset  Tabular
-<lyxtabular version="3" rows="21" columns="5">
+<lyxtabular version="3" rows="22" columns="5">
 <features>
 <column alignment="center" valignment="top" leftline="true" rightline="true" width="0pt">
 <column alignment="left" valignment="top" width="0pt">
@@ -3506,6 +3479,48 @@ varchar(255)
 
 \size footnotesize 
 Mozilla/4.0 (compat; MSIE 6.0; Windows)
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+a
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+CGI request arguments
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+request_args
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+user=Smith&cart=1231&item=532
 \end_inset 
 </cell>
 </row>
@@ -5724,6 +5739,273 @@ Please contact
  course.
 \layout Subsection
 
+Problems
+\layout Subsubsection
+
+Apache segfaults when using PHP and mod_log_sql
+\layout Standard
+
+This occurs if you compiled PHP with MySQL database support.
+ PHP utilizes its internal, bundled MySQL libraries by default.
+ These conflict with the 
+\begin_inset Quotes eld
+\end_inset 
+
+real
+\begin_inset Quotes erd
+\end_inset 
+
+ MySQL libraries linked by mod_log_sql, causing the segmentation fault.
+ 
+\layout Standard
+
+The solution is to configure PHP to link against the real MySQL libraries
+ and recompile mod_php.
+ Apache will run properly once the modules are all using the same version
+ of the MySQL libraries.
+\layout Subsubsection
+
+
+\begin_inset LatexCommand \label{faq:NothingLogged}
+
+\end_inset 
+
+Apache appears to start up fine, but nothing is getting logged in the database
+\layout Standard
+
+If you do not see any entries in the access_log, then something is preventing
+ the inserts from happening.
+ This could be caused by several things:
+\layout Itemize
+
+Improper privileges set up in the MySQL database 
+\layout Itemize
+
+You aren't hitting a VirtualHost that has a LogSQLTransferLogTable entry
+ 
+\layout Itemize
+
+You didn't specify the right database host or login information
+\layout Itemize
+
+Another factor is preventing a connection to the database
+\layout Standard
+
+Important: it is improper to ask for help before you have followed these
+ steps.
+\layout Standard
+
+First examine the MySQL log that you established in step 
+\begin_inset LatexCommand \ref{step:EnaLog}
+
+\end_inset 
+
+ of section 
+\begin_inset LatexCommand \ref{sub:PrepDb}
+
+\end_inset 
+
+.
+ Ensure that the INSERT statements are not being rejected because of a malformed
+ table name or other typographical error.
+ By enabling that log, you instructed MySQL to log every connection and
+ command it receives -- if you see no INSERT attempts in the log, the module
+ isn't successfully connecting to the database.
+ If you see nothing at all in the log -- not even a record of your administrativ
+e connection attempts, then you did not enable the log correctly.
+ If you do see INSERT attempts but they are failing, the log should tell
+ you why.
+\layout Standard
+
+Second, confirm that your 
+\noun on 
+LogSQL*
+\noun default 
+ directives are all correct.
+\layout Standard
+
+Third, examine the Apache
+\noun on 
+ 
+\noun default 
+error logs for messages from mod_log_sql; the module will offer hints as
+ to why it cannot connect, etc.
+ 
+\layout Standard
+
+The next thing to do is recompile the module with debugging output activated.
+ change the "#undef DEBUG" on line 8 of mod_log_sql.c to "#define DEBUG"
+ and recompile/reinstall.
+ The module will now output copious notes about what it is doing, and this
+ will help you (and the maintainer) solve the problem.
+ In order to see the debugging messages, ensure that you make them visible
+ using the 
+\noun on 
+LogLevel 
+\noun default 
+directive 
+\series bold 
+in the main server config as well as in each 
+\noun on 
+VirtualHost 
+\noun default 
+config:
+\layout LyX-Code
+
+LogLevel debug
+\layout LyX-Code
+
+ErrorLog /var/log/httpd/server-messages 
+\layout Subsubsection
+
+Why do I get the message 
+\begin_inset Quotes eld
+\end_inset 
+
+configuration info is insufficient to log
+\begin_inset Quotes erd
+\end_inset 
+
+ in my Apache error log?
+\layout Standard
+
+At a minimum, 
+\noun on 
+LogSQLTransferLogTable
+\noun default 
+ must be defined for the module to even attempt logging.
+ If this directive is not defined for the server (or virtual server) you
+ will receive this error message.
+ 
+\layout Subsubsection
+
+Why do I get the message 
+\begin_inset Quotes eld
+\end_inset 
+
+insufficient configuration info to establish database link
+\begin_inset Quotes erd
+\end_inset 
+
+ in my Apache error log?
+\layout Standard
+
+At a minimum, 
+\noun on 
+LogSQLDatabase
+\noun default 
+ and 
+\noun on 
+LogSQLLoginInfo 
+\noun default 
+must be defined in order for the module to be able to establish a database
+ link.
+ If these are not defined or are incomplete you will receive this error
+ message.
+\layout Subsubsection
+
+My database cannot handle all the open connections from mod_log_sql, is
+ there anything I can do?
+\layout Standard
+
+The rule of thumb: if you have 
+\emph on 
+n 
+\emph default 
+webservers each configured to support 
+\emph on 
+y
+\emph default 
+ 
+\noun on 
+MaxClients
+\noun default 
+, then your database must be able to handle 
+\begin_inset Formula $n\times y$
+\end_inset 
+
+ simultenous connections 
+\emph on 
+in the worst case.
+ 
+\emph default 
+Certainly you must use common sense, consider reasonable traffic expectations
+ and structure things accordingly.
+\layout Standard
+
+Tweaking my.cnf to scale to high connection loads is imperative.
+ But if hardware limitations prevent your MySQL server from gracefully handling
+ the number of incoming connections, it would be beneficial to upgrade the
+ memory or CPU on that server in order to handle the load.
+ 
+\layout Standard
+
+Jeremy Zawodny, a highly respected MySQL user and contributor to Linux Magazine,
+ has this very helpful and highly appropriate article on tuning MySQL: 
+\begin_inset LatexCommand \url{http://jeremy.zawodny.com/blog/archives/000173.html}
+
+\end_inset 
+
+
+\layout Standard
+
+Please remember that mod_log_sql's overriding principle is 
+\series bold 
+performance
+\series default 
+ -- that is what the target audience demands and expects.
+ Other database logging solutions do not open and maintain many database
+ connections, but their performance suffers drastically.
+ For example, pgLOGd funnels all log connections through a separate daemon
+ that connects to the database, but that bottlenecks the entire process.
+ mod_log_sql achieves performance numbers an order of magnitude greater
+ than the alternatives because it dispenses with the overhead associated
+ with rapid connection cycling, and it doesn't attempt to shoehorn all the
+ database traffic through a single extra daemon or proxy process.
+\layout Subsubsection
+
+Why do I occasionally see a 
+\begin_inset Quotes eld
+\end_inset 
+
+lost connection to MySQL server
+\begin_inset Quotes erd
+\end_inset 
+
+ message in my Apache error log?
+\layout Standard
+
+This message may appear every now and then in your Apache error log, especially
+ on very lightly loaded servers.
+ This doesn't mean that anything is necessarily wrong.
+ Within each httpd child process, mod_log_sql will open (and keep open)
+ a connection to the MySQL server.
+ MySQL, however, will close connections that haven't been used in a while;
+ the default timeout is 8 hours.
+ When this occurs, mod_log_sql will notice and re-open the connection.
+ That event is what is being logged, and looks like this:
+\layout LyX-Code
+
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: first attempt failed, 
+\layout LyX-Code
+
+  API said: error 2013, Lost connection to MySQL server during query 
+\layout LyX-Code
+
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: reconnect successful
+\layout LyX-Code
+
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: second attempt successful
+\layout Standard
+
+Reference: 
+\begin_inset LatexCommand \url[MySQL documentation]{(http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away)}
+
+\end_inset 
+
+
+\layout Subsection
+
 Performance and Tuning
 \layout Subsubsection
 
@@ -6007,58 +6289,7 @@ ps
  would lead you to believe.
 \layout Subsubsection
 
-My database cannot handle all the open connections from mod_log_sql, is
- there anything I can do?
-\layout Standard
-
-The rule of thumb: if you have 
-\emph on 
-n 
-\emph default 
-webservers each configured to support 
-\emph on 
-y
-\emph default 
- 
-\noun on 
-MaxClients
-\noun default 
-, then your database must be able to handle 
-\begin_inset Formula $n\times y$
-\end_inset 
-
- simultenous connections 
-\emph on 
-in the worst case.
- 
-\emph default 
-Certainly you must use common sense, consider reasonable traffic expectations
- and structure things accordingly.
-\layout Standard
-
-Tweaking my.cnf to scale to high connection loads is imperative.
- But if hardware limitations prevent your MySQL server from gracefully handling
- the number of incoming connections, it would be beneficial to upgrade the
- memory or CPU on that server in order to handle the load.
- 
-\layout Standard
-
-Please remember that mod_log_sql's overriding principle is 
-\series bold 
-performance
-\series default 
- -- that is what the target audience demands and expects.
- Other database logging solutions do not open and maintain many database
- connections, but their performance suffers drastically.
- For example, pgLOGd funnels all log connections through a separate daemon
- that connects to the database, but that bottlenecks the entire process.
- mod_log_sql achieves performance numbers an order of magnitude greater
- than the alternatives because it dispenses with the overhead associated
- with rapid connection cycling, and it doesn't attempt to shoehorn all the
- database traffic through a single extra daemon or proxy process.
-\layout Subsubsection
-
-My webservers cannot handle all the traffic that my site receives, is there
+My webserver cannot handle all the traffic that my site receives, is there
  anything I can do?
 \layout Standard
 
@@ -6066,48 +6297,6 @@ If you have exhausted all the tuning possibilities on your existing server,
  it is probably time you evaluated the benefits of clustering two or more
  webservers together in a load-balanced fashion.
  In fact, users of such a setup are mod_log_sql's target audience!
-\layout Subsubsection
-
-Why do I occasionally see a 
-\begin_inset Quotes eld
-\end_inset 
-
-lost connection to MySQL server
-\begin_inset Quotes erd
-\end_inset 
-
- message in my error-log?
-\layout Standard
-
-This message may appear every now and then in your Apache error log, especially
- on very lightly loaded servers.
- This doesn't mean that anything is necessarily wrong.
- Within each httpd child process, mod_log_sql will open (and keep open)
- a connection to the MySQL server.
- MySQL, however, will close connections that haven't been used in a while;
- the default timeout is 8 hours.
- When this occurs, mod_log_sql will notice and re-open the connection.
- That event is what is being logged, and looks like this:
-\layout LyX-Code
-
-[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: first attempt failed, 
-\layout LyX-Code
-
-  API said: error 2013, Lost connection to MySQL server during query 
-\layout LyX-Code
-
-[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: reconnect successful
-\layout LyX-Code
-
-[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: second attempt successful
-\layout Standard
-
-Reference: 
-\begin_inset LatexCommand \url[MySQL documentation]{(http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away)}
-
-\end_inset 
-
-
 \layout Subsubsection
 
 
@@ -6163,6 +6352,12 @@ As of MySQL version 3.23.52, the error return functions disagree after a failed
  However, we have no way of knowing what solution they will adopt to fix
  this, and with the worst case solution mod_log_sql would not be able to
  tell if anything went wrong with a delayed insert.
+\layout Standard
+
+Instead of delayed inserts, you may wish to utilize InnoDB tables (instead
+ of the standard MyISAM tables).
+ InnoDB tables suppot row-level locking and are recommended for high-volume
+ databases.
 \layout Standard
 
 If after understanding these problems you still wish to enable delayed inserts,

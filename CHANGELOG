@@ -1,10 +1,9 @@
-$Id: CHANGELOG,v 1.18 2002/12/10 19:43:21 helios Exp $
+$Id: CHANGELOG,v 1.19 2002/12/18 01:06:32 helios Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
   PostgreSQL.
-* check for mandatory conf directives / syntax quit if not
 * GNU autoconf
 * merge server config into vh config
 * port to Apache 2.x
@@ -12,7 +11,7 @@ TODO:
   cause performance degradation?  If so fix.
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * new format char: IP as bigint?
-* socket-based middleman daemon with configurable conns?
+* socket-based middleman daemon with configurable conns, or connect/disconnect.
 * ignore by cookie
 
 CHANGES:
@@ -28,20 +27,31 @@ CHANGES:
   are made only on ER_NO_SUCH_TABLE.  This should solve all the multiple-
   creation-attempt issues as well as reduce overhead.
 * safe_mysql_query reworked; it now can be counted on to preserve_entry()
-  if the query doesn't succeed.  (Before, preserve_entry() was called
-  separately.)
-* Always return SIGPIPE to handler before leaving safe_mysql_query().
+  if the query doesn't succeed.  [Before, preserve_entry() was called
+  separately.]
+* Always reset SIGPIPE to handler before leaving safe_mysql_query().
 * New directive LogSQLRequestAccept, another filter for excluding things
   from being logged.
 * Alphabetized the directives in the reference section of the docs.
+* New format char 'a' lets one log the request arguments, i.e. the
+  part of a CGI request after the ? character.  Also put a column for
+  this in the create_tables.sql file.  Thanks to Dave Wilson for this.
 * Reorganized the FAQ by section.
+* Renamed global variables (e.g. tcp_port -> logsql_tcpport) throughout
+  the code in order to ensure against naming conflicts.  tcp_port, in
+  particular, seemed to be causing problems / segfaults on certain systems.
+* Renamed safe_mysql_query() to safe_sql_query().
+* Now check for minimum configuration info to establish db link and
+  log an error if it's insufficient.
+* Log a message if the config is insufficient for logging.
+
 
 1.17:
 * Renamed the module mod_log_sql to conform to the project goal of
   database-inspecificity.
 * Added capability of logging Notes field.  This is useful for folks using
   custom modules that provide loggable info in the notes, e.g. mod_gzip.
-  A new directive MySQLWhichNotes configures which notes to log to the
+  A new directive LogSQLWhichNotes configures which notes to log to the
   notes_log table.
 * Added capability of logging inbound and outbound headers. New directives
   LogSQLWhichHeadersIn and LogSQLWhichHeadersOut configure which headers to
