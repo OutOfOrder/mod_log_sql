@@ -33,15 +33,15 @@ AC_SUBST(WANT_SSL_MOD)
 case "$target" in
 	*-*-solaris* | *-*-osf* )
 		if test $APACHE_VERSION -eq 1.3; then
-			RTLIBS=-lrt
+			RT_LIBS=-lrt
 		fi
 		;;
 	*)
-		RTLIBS=""
+		RT_LIBS=""
 		;;
 esac
 
-AC_SUBST(RTLIBS)
+AC_SUBST(RT_LIBS)
 
 AC_CHECK_HEADERS(limits.h)
 

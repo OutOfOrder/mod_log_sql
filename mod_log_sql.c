@@ -312,14 +312,44 @@ static const char *set_dbparam_slot(cmd_parms *cmd,
 static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, 
 						const char *host, const char *user, const char *pwd)
 {
-	if (*host != '.') {
-		set_dbparam(cmd, NULL, "host", host);
-	}
-	if (*user != '.') {
-		set_dbparam(cmd, NULL, "user", user);
-	}
-	if (*pwd != '.') {
-		set_dbparam(cmd, NULL, "passwd", pwd);
+	ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, cmd->server,
+		"%s - %s - %s", host, user, pwd);
+	if (!user) { /* user is null, so only one arg passed */
+		apr_uri_t uri;
+		apr_uri_parse(cmd->pool, host, &uri);
+		if (uri.scheme) {
+			/* set DB plugin */
+		}
+		if (uri.hostname) {
+			set_dbparam(cmd, NULL, "host", uri.hostname);
+		}
+		if (uri.user) {
+			set_dbparam(cmd, NULL, "user", uri.user);
+		}
+		if (uri.password) {
+			set_dbparam(cmd, NULL, "passwd", uri.password);
+		}
+		if (uri.port_str) {
+			set_dbparam(cmd, NULL, "tcpport", uri.port_str);
+		}
+		if (uri.path) {
+			/* extract Database name */
+			char *off = strchr(++uri.path,'/');
+			if (off)
+				*off='\0';
+			set_dbparam(cmd, NULL, "database", uri.path);
+			
+		}
+	} else {
+		if (*host != '.') {
+			set_dbparam(cmd, NULL, "host", host);
+		}
+		if (*user != '.') {
+			set_dbparam(cmd, NULL, "user", user);
+		}
+		if (*pwd != '.') {
+			set_dbparam(cmd, NULL, "passwd", pwd);
+		}
 	}
 	return NULL;
 }
@@ -1048,7 +1078,7 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
 	 "Turn on module's capability to create its SQL tables on the fly")
 	,
-	AP_INIT_TAKE3("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
+	AP_INIT_TAKE13("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
 	 "The database host, user-id and password for logging")
 	,
 	AP_INIT_TAKE2("LogSQLDBParam", set_dbparam, NULL, RSRC_CONF,

@@ -16,7 +16,7 @@ CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
 INCLUDES = @MYSQL_CFLAGS@
 
-LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@ @RT_LIBS
+LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@ @RT_LIBS@
 
 EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG
 
@@ -96,7 +96,7 @@ install: $(TARGETS) install-subdirs
 	echo "*** Please edit your Apache configuration files and"; \
 	echo "*** add the appropriate LoadModule directives per the documentation"; \
 	echo "*** in docs/manual.html"; \
-	echo "*** If you have previously used 1.18 or lower then update you must change"; \
+	echo "*** If you have previously used 1.18 or lower then you must change"; \
 	echo "*** >LoadModule sql_log_module modules/mod_log_sql.so"; \
 	echo "***   to"; \
 	echo "*** >LoadModule log_sql_module modules/mod_log_sql.so"; \
