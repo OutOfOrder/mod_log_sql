@@ -1,5 +1,6 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.97)
+AC_INIT(mod_log_sql, 1.98)
+OOO_CONFIG_NICE(config.nice)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
 
@@ -10,7 +11,7 @@ AC_PROG_CC
 
 APACHE20_VERSION=2.0.40
 APACHE13_VERSION=1.3.20
-CHECK_PATH_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
+CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
 		:,
 		:,
 		AC_MSG_ERROR([*** The correct version Apache was not found!])
@@ -30,6 +31,13 @@ CHECK_PATH_MOD_SSL(
 
 AC_SUBST(WANT_SSL_MOD)
 
+WANT_MYSQL_MOD=1
+AC_SUBST(WANT_MYSQL_MOD)
+WANT_PGSQL_MOD=0
+AC_SUBST(WANT_PGSQL_MOD)
+WANT_DBI_MOD=0
+AC_SUBST(WANT_DBI_MOD)
+
 case "$target" in
 	*-*-solaris* | *-*-osf* )
 		if test $APACHE_VERSION -eq 1.3; then
@@ -43,24 +51,20 @@ esac
 
 AC_SUBST(RT_LIBS)
 
+
 AC_CHECK_HEADERS(limits.h)
 
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
-PGSQL_LIBS=-lpq
-
-AC_SUBST(PGSQL_LIBS)
-AC_SUBST(PGSQL_LDFLAGS)
-AC_SUBST(PGSQL_CFLAGS)
-
 dnl Write config.status and the Makefile
 
 AC_OUTPUT(Makefile
-Documentation/Makefile
+docs/Makefile
 contrib/Makefile)
 
+
 AC_MSG_RESULT([------------------------------------])
-AC_MSG_RESULT([Apache version	: $APACHE_VERSION])
+AC_MSG_RESULT([Apache version	: $AP_VERSION])
 if test $WANT_SSL_MOD -eq 1; then
 	AC_MSG_RESULT([SSL Support	: yes])
 else

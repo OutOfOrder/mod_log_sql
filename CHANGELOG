@@ -6,6 +6,10 @@
 * Changed default preserve file location to logs/mod_log_sql-preserve
   And made LogSQLPreserveFile root relative.
 * fixed bug where preserve file wouldn't be created in apache 2
+* finished TransferLog documentation
+* changed strstr to ap_strstr calls and strchr to ap_strchr calls to
+  stop warning when compiling with AP_DEBUG enabled in apache 2
+* Updated apache m4 to not pass for apache 1.3 if apache 2 is found
 
 1.97: 2004-04-08
 * fixed apache.m4 to work with apache 2 setups with different include

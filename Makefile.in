@@ -1,7 +1,7 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = Documentation contrib
+SUBDIRS = docs contrib
 SOURCES = @PACKAGE_NAME@.c
 
 HEADERS = mod_log_sql.h \
@@ -19,11 +19,17 @@ EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG
 
 TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
 
+TARGETS = $(TARGET)
+
 sslSOURCES = @PACKAGE_NAME@_ssl.c
 sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
 sslLDADD = 
 sslCFLAGS = @MOD_SSL_CFLAGS@ 
 sslNAME = log_sql_ssl
+
+ifeq (@WANT_SSL_MOD@,1)
+TARGETS += $(sslTARGET)
+endif
 
 mysqlSOURCES = @PACKAGE_NAME@_mysql.c
 mysqlTARGET = @PACKAGE_NAME@_mysql@APXS_EXTENSION@
@@ -31,21 +37,29 @@ mysqlLDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 mysqlCFLAGS = @MYSQL_CFLAGS@
 mysqlNAME = log_sql_mysql
 
+ifeq (@WANT_MYSQL_MOD@,1)
+TARGETS += $(mysqlTARGET)
+endif
+
 pgsqlSOURCES = @PACKAGE_NAME@_pgsql.c
 pgsqlTARGET = @PACKAGE_NAME@_pgsql@APXS_EXTENSION@
 pgsqlLDADD = @PGSQL_LDFLAGS@ @PGSQL_LIBS@
 pgsqlCFLAGS = @PGSQL_CFLAGS@
 pgsqlNAME = log_sql_pgsql
 
-TARGETS = $(TARGET)
-
-ifeq (@WANT_SSL_MOD@,1)
-TARGETS += $(sslTARGET)
+ifeq (@WANT_PGSQL_MOD@,1)
+TARGETS += $(pgsqlTARGET)
 endif
 
-TARGETS += $(mysqlTARGET)
+dbiSOURCES = @PACKAGE_NAME@_dbi.c
+dbiTARGET = @PACKAGE_NAME@_dbi@APXS_EXTENSION@
+dbiLDADD = @DBI_LDFLAGS@ @DBI_LIBS@
+dbiCFLAGS = @DBI_CFLAGS@
+dbiNAME = log_sql_dbi
 
-TARGETS += $(pgsqlTARGET)
+ifeq (@WANT_DBI_MOD@,1)
+TARGETS += $(dbiTARGET)
+endif
 
 #Don't modify anything below here
 
@@ -70,8 +84,8 @@ STD_DIST = install-sh \
 	stamp-h.in \
 	config.h.in
 
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(sslSOURCES) $(mysqlSOURCES) \
-	$(HEADERS)
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS) \
+    $(sslSOURCES) $(mysqlSOURCES)
 
 all: $(TARGETS) all-subdirs
 
@@ -95,23 +109,23 @@ TODO: TODO.in
 
 $(TARGET): $(SOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(TARGET) $(CFLAGS) \
-		@DEFS@ @APACHE_DEFS@ $(LDADD) $(SOURCES)
+		@DEFS@ @AP_DEFS@ $(LDADD) $(SOURCES)
 
 $(sslTARGET): $(sslSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
-		@DEFS@ @APACHE_DEFS@ $(sslLDADD) $(sslSOURCES)
+		@DEFS@ @AP_DEFS@ $(sslLDADD) $(sslSOURCES)
 
 $(mysqlTARGET): $(mysqlSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(mysqlTARGET) $(mysqlCFLAGS) $(CFLAGS) \
-		@DEFS@ @APACHE_DEFS@ $(mysqlLDADD) $(mysqlSOURCES)
+		@DEFS@ @AP_DEFS@ $(mysqlLDADD) $(mysqlSOURCES)
 
 $(pgsqlTARGET): $(pgsqlSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(pgsqlTARGET) $(pgsqlCFLAGS) $(CFLAGS) \
-		@DEFS@ @APACHE_DEFS@ $(pgsqlLDADD) $(pgsqlSOURCES)
+		@DEFS@ @AP_DEFS@ $(pgsqlLDADD) $(pgsqlSOURCES)
 
-include:
-	rm -rf include
-	ln -s @APACHE_INCDIR@ include
+$(dbiTARGET): $(dbiSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(dbiTARGET) $(dbiCFLAGS) $(CFLAGS) \
+		@DEFS@ @AP_DEFS@ $(dbiLDADD) $(dbiSOURCES)
 
 install: $(TARGETS) install-subdirs
 	@@APXS_BIN@ -i $(TARGET); \
