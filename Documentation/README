@@ -3,4 +3,5 @@ files here are derived from it.
 
 To read the HTML docs, open manual.html in your browser.
 
-To generate other formats of the documentation use xmlto to convert the xml file.
+To generate other formats of the documentation use xmlto or your favorite 
+xslt docbook converter to convert the xml file.

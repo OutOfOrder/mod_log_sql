@@ -1,5 +1,4 @@
-/* $Id: mod_log_sql_ssl.c,v 1.7 2004/03/05 00:30:58 urkle Exp $ */
-/* mod_log_sql_ssl */
+/* $Id$ */
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -23,6 +22,7 @@
 #endif
 
 #include "mod_log_sql.h"
+
 #include "mod_ssl.h"
 
 #if defined(WITH_APACHE20)

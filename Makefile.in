@@ -31,11 +31,21 @@ mysqlLDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 mysqlCFLAGS = @MYSQL_CFLAGS@
 mysqlNAME = log_sql_mysql
 
+pgsqlSOURCES = @PACKAGE_NAME@_pgsql.c
+pgsqlTARGET = @PACKAGE_NAME@_pgsql@APXS_EXTENSION@
+pgsqlLDADD = @PGSQL_LDFLAGS@ @PGSQL_LIBS@
+pgsqlCFLAGS = @PGSQL_CFLAGS@
+pgsqlNAME = log_sql_pgsql
+
+TARGETS = $(TARGET)
+
 ifeq (@WANT_SSL_MOD@,1)
-TARGETS = $(TARGET) $(mysqlTARGET) $(sslTARGET)
-else
-TARGETS = $(TARGET) $(mysqlTARGET)
+TARGETS += $(sslTARGET)
 endif
+
+TARGETS += $(mysqlTARGET)
+
+TARGETS += $(pgsqlTARGET)
 
 #Don't modify anything below here
 
@@ -85,7 +95,7 @@ TODO: TODO.in
 
 $(TARGET): $(SOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(TARGET) $(CFLAGS) \
-		$(LDADD) @DEFS@ @APACHE_DEFS@ $(SOURCES)
+		@DEFS@ @APACHE_DEFS@ $(LDADD) $(SOURCES)
 
 $(sslTARGET): $(sslSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
@@ -94,6 +104,10 @@ $(sslTARGET): $(sslSOURCES) $(HEADERS)
 $(mysqlTARGET): $(mysqlSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(mysqlTARGET) $(mysqlCFLAGS) $(CFLAGS) \
 		@DEFS@ @APACHE_DEFS@ $(mysqlLDADD) $(mysqlSOURCES)
+
+$(pgsqlTARGET): $(pgsqlSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(pgsqlTARGET) $(pgsqlCFLAGS) $(CFLAGS) \
+		@DEFS@ @APACHE_DEFS@ $(pgsqlLDADD) $(pgsqlSOURCES)
 
 include:
 	rm -rf include

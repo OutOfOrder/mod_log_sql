@@ -1,16 +1,11 @@
 TODO:
-* Port connection portion to other DBMS?  Genericize the module?  Start with 
-  PostgreSQL. (provider mechanism, and libDBI)
-* does determining table name in massvirtual mode upon every request
-  cause performance degradation?  If so fix. No other feasable way to fix this, 
-  unless you cache, but then for large amounts of hosts, this can be a waste.
+* write alternate DB driver (PostgreSQL, libDBI, mod_*_pool)
+* look at forcing table name to ServerName instead of on of the names in 
+  ServerAlias?
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
 * DBI connection pool when I switch to DBI.
 * ignore by cookie
-* break module into separate code files
-    SSL already separated.
-    separate DB implimentation into sub-modules via provider mechanism
 * investigate thread safety issues 
 	Use libmysqlclient_r for threaded MPM (or always?)
 	Add thread locks if using standard mysqlclient 

@@ -47,6 +47,12 @@ AC_CHECK_HEADERS(limits.h)
 
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
+PGSQL_LIBS=-lpq
+
+AC_SUBST(PGSQL_LIBS)
+AC_SUBST(PGSQL_LDFLAGS)
+AC_SUBST(PGSQL_CFLAGS)
+
 dnl Write config.status and the Makefile
 
 AC_OUTPUT(Makefile

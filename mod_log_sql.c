@@ -1,4 +1,12 @@
-/* $Id: mod_log_sql.c,v 1.20 2004/03/05 00:30:58 urkle Exp $ */
+/* $Id$ */
+
+#if defined(WITH_APACHE20)
+#	include "apache20.h"
+#elif defined(WITH_APACHE13)
+#	include "apache13.h"
+#else
+#	error Unsupported Apache version
+#endif
 
 #ifdef HAVE_CONFIG_H
 /* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
@@ -11,14 +19,6 @@
 #undef PACKAGE_VERSION
 
 #include "config.h"
-#endif
-
-#if defined(WITH_APACHE20)
-#	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
-#else
-#	error Unsupported Apache version
 #endif
 
 #if APR_HAVE_UNISTD_H

@@ -8,6 +8,7 @@
 #	error Unsupported Apache version
 #endif
 
+
 #ifdef HAVE_CONFIG_H
 /* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
@@ -23,6 +24,13 @@
 
 #include "mod_log_sql.h"
 
+#include "libpq-fe.h"
+
+typedef struct {
+	PGconn *PG;
+	char *connectioninfo;
+} pg_conn_rec;
+
 /* Connect to the MYSQL database */
 static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnection *db)
 {
@@ -33,7 +41,7 @@ static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnectio
 	const char *s_tcpport = apr_table_get(db->parms,"port");
 	unsigned int tcpport = (s_tcpport)?atoi(s_tcpport):3306;
 	const char *socketfile = apr_table_get(db->parms,"socketfile");
-	MYSQL *dblink = db->handle;
+	pg_conn_rec *dblink = db->handle;
 
 	dblink = mysql_init(dblink);
 	db->handle = (void *)dblink;
@@ -43,7 +51,7 @@ static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnectio
 		socketfile = "/var/lib/mysql/mysql.sock";
 	}
 
-	if (mysql_real_connect(dblink, host, user, passwd, database, tcpport,
+	if (PQconnectdb(dblink, host, user, passwd, database, tcpport,
 						socketfile, 0)) {
 		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
@@ -60,7 +68,7 @@ static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnectio
 /* Close the DB link */
 static void log_sql_pgsql_close(logsql_dbconnection *db)
 {
-	mysql_close((MYSQL *)db->handle);
+	PQfinish(((pg_conn_rec *)db->handle)->PG);
 }
 
 /* Routine to escape the 'dangerous' characters that would otherwise
@@ -113,7 +121,7 @@ static logsql_query_ret log_sql_pgsql_query(request_rec *r,logsql_dbconnection *
 	unsigned int real_error = 0;
 	/*const char *real_error_str = NULL;*/
 
-	MYSQL *dblink = (MYSQL *)db->handle;
+	pg_conn_rec *dblink = db->handle;
 
 	if (!dblink) {
 		return LOGSQL_QUERY_NOLINK;
@@ -154,7 +162,7 @@ static logsql_table_ret log_sql_pgsql_create(request_rec *r, logsql_dbconnection
 	char *create_suffix = NULL;
 	char *create_sql;
 
-	MYSQL *dblink = (MYSQL *)db->handle;
+	pg_conn_rec *dblink = db->handle;
 
 /*	if (!global_config.createtables) {
 		return APR_SUCCESS;
@@ -230,11 +238,11 @@ static logsql_table_ret log_sql_pgsql_create(request_rec *r, logsql_dbconnection
 static char *supported_drivers[] = {"pgsql",NULL};
 static logsql_dbdriver pgsql_driver = {
 	supported_drivers,
-	log_sql_mysql_connect,	/* open DB connection */
-	log_sql_mysql_close,	/* close DB connection */
-	log_sql_mysql_escape,	/* escape query */
-	log_sql_mysql_query,	/* insert query */
-	log_sql_mysql_create	/* create table */
+	log_sql_pgsql_connect,	/* open DB connection */
+	log_sql_pgsql_close,	/* close DB connection */
+	log_sql_pgsql_escape,	/* escape query */
+	log_sql_pgsql_query,	/* insert query */
+	log_sql_pgsql_create	/* create table */
 };
 
 LOGSQL_REGISTER(pgsql) {

@@ -1,5 +1,5 @@
 /* $Id$ */
-/* functions */
+
 static const char *extract_bytes_sent(request_rec *r, char *a)
 {
 	if (!r->sent_bodyct || !r->bytes_sent) {

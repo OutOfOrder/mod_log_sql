@@ -1,6 +1,4 @@
-/* $Id: mod_log_sql_mysql.c,v 1.4 2004/03/05 00:30:58 urkle Exp $ */
-#include "mysql.h"
-#include "mysqld_error.h"
+/* $Id$ */
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -24,6 +22,9 @@
 #endif
 
 #include "mod_log_sql.h"
+
+#include "mysql.h"
+#include "mysqld_error.h"
 
 /* The enduser won't modify these */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")

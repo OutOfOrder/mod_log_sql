@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet href="file://localhost/home/urkle/Documents/DocBook/docbook.css" type="text/css"?>
+<?xml-stylesheet href="/xslt/docbook.css" type="text/css"?>
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "file:/usr/share/sgml/docbook/xml-dtd-4.1.2-1.0-8/docbookx.dtd" [
-<!ENTITY MaintainerContact "the maintainer, Edward Rudd at <email>eddie &lt;at&gt; omegaware &lt;dot&gt; com</email>">
+<!ENTITY EmailContact "<email>urkle &lt;at&gt; outoforder &lt;dot&gt; cc</email>">
 ]>
 <article>
   <articleinfo>
@@ -12,7 +12,7 @@
       <contrib>Conversion from Lyx to DocBook</contrib>
       <contrib>Current Maintainer</contrib>
       <affiliation>
-        <address format="linespecific"><email>eddie &lt;at&gt; omegaware &lt;dot&gt; com</email></address>
+        <address format="linespecific">&EmailContact;</address>
       </affiliation>
     </author>
     <author>
@@ -98,8 +98,12 @@
       <para>The actual logging code was taken from the already existing flat file text modules, so all that credit goes to the Apache Software Foundation.</para>
       <para>The MySQL routines and directives were added by Zeev Suraski &lt;bourbon@netvision.net.il&gt;. </para>
       <para>All changes from 1.06+ and the new documentation were added by Chris Powell <email>chris &lt;at&gt; grubbybaby &lt;dot&gt; com</email>. It seems that the module had fallen into the "un-maintained" category -- it had not been updated since 1998 -- so Chris adopted it as the new maintainer.</para>
-      <para>In December of 2003, Edward Rudd <email>eddie &lt;at&gt; omegaware &lt;dot&gt; com</email> porting the module to Apache 2.0, cleaning up the code, converting the documentation to DocBook, optimizing the main logging loop, and added the much anticipated database abstraction layer.</para>
+      <para>In December of 2003, Edward Rudd &EmailContact; porting the module to Apache 2.0, cleaning up the code, converting the documentation to DocBook, optimizing the main logging loop, and added the much anticipated database abstraction layer.</para>
       <para>As of February 2004, Chris Powell handed over maintenance of the module over to Edward Rudd. So you should contact Edward Rudd about the module from now on.</para>
+    </sect2>
+    <sect2 id="Sect.MailingLists">
+      <title id="Sect.MailingLists.title">Mailing Lists</title>
+      <para>A general discussion and support mailing list is provided for mod_log_sq at lists.outoforder.cc. To subscribe to the mailing list send a blank e-mail to mod_log_sql-subscribe@lists.outoforder.cc. The list archives can be accessed via Gmane.org's mailng list gateway via any new reader <ulink url="news://news.gmane.org/gmane.comp.apache.mod-log-sql">news://news.gmane.org/gmane.comp.apache.mod-log-sql</ulink>, or via a web browser at <ulink url="http://news.gmane.org/gmane.comp.apache.mod-log-sql">http://news.gmane.org/gmane.comp.apache.mod-log-sql</ulink>.</para>
     </sect2>
   </sect1>
   <sect1>
@@ -1227,7 +1231,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
             <para>Who's using mod_log_sql?</para>
           </question>
           <answer>
-            <para>Good question! It would be great to find out! If you are a production-level mod_log_sql user, please contact &MaintainerContact; so that you can be mentioned here.</para>
+            <para>Good question! It would be great to find out! If you are a production-level mod_log_sql user, please contact eddie at &EmailContact; so that you can be mentioned here.</para>
           </answer>
         </qandaentry>
         <qandaentry>
@@ -1277,7 +1281,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
             <para>I have discovered a bug. Who can I contact?</para>
           </question>
           <answer>
-            <para>Please contact &MaintainerContact;, or post a message to the mod_log_sql mailing list. Your comments, suggestions, bugfixes, bug catches, and usage testimonials are always welcome. As free software, mod_log_sql is intended to be a community effort -- any code contributions or other ideas will be fully and openly credited, of course.</para>
+            <para>Please contact Edward Rudd at &EmailContact;, or post a message to the mod_log_sql <xref endterm="Sect.MailingLists.title" linkend="Sect.MailingLists"/>. Your comments, suggestions, bugfixes, bug catches, and usage testimonials are always welcome. As free software, mod_log_sql is intended to be a community effort -- any code contributions or other ideas will be fully and openly credited, of course.</para>
           </answer>
         </qandaentry>
       </qandadiv>

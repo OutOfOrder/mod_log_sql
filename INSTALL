@@ -1,3 +1,20 @@
 This document has been superseded by the new documentation in the
 Documentation/ directory.  There you will find the docs in a variety of
 formats, including PostScript, plaintext, and HTML.
+
+Basic overview is..
+
+./configure --with-apxs=/path/to/apxs --enable-ssl
+
+gmake
+
+gmake install
+
+
+edit httpd.conf and add the following.
+
+LoadModule log_sql_module modules/mod_log_sql.so
+LoadModule log_sql_mysql_module modules/mod_log_sql_mysql.so
+<IfModule mod_ssl.c>
+LoadModule log_sql_ssl_module modules/mod_log_sql_ssl.so
+</IfModule>
