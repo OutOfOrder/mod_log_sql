@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-
+# $Id: mysql_import_combined_log.pl,v 1.4 2004/02/21 18:09:50 urkle Exp $
 # Written by Aaron Jenson.
 # Original source: http://www.visualprose.com/software.php
 # Updated to work under Perl 5.6.1 by Edward Rudd
@@ -37,47 +37,44 @@ my @cols = (
 );
 my $col = '';
 
-%options = (
-	"version" => sub { VERSION_MESSAGE(); exit 0; },
-	"help|?" => sub { HELP_MESSAGE(); exit 0; },
-	);
-
 GetOptions (\%options,
-		"h|host=s",
-		"d|database=s",
-		"t|table=s",
-		"u|username=s",
-		"p|password=s",
-		"f|logfile=s");
+		"version" => sub { VERSION_MESSAGE(); exit 0; },
+		"help|?" => sub { HELP_MESSAGE(); exit 0; },
+		"host|h=s",
+		"database|d=s",
+		"table|t=s",
+		"username|u=s",
+		"password|p=s",
+		"logfile|f=s");
 
-$options{h} ||= 'localhost';
-$options{d} ||= '';
-$options{u} ||= '';
-$options{p} ||= '';
-$options{f} ||= '';
+$options{host} ||= 'localhost';
+$options{database} ||= '';
+$options{username} ||= '';
+$options{password} ||= '';
+$options{logfile} ||= '';
 
-if( ! $options{d} )
+if( ! $options{database} )
 {
 	HELP_MESSAGE();
 	print "Must supply a database to connect to.\n";
 	exit 1;
 }
 
-if( ! $options{t} )
+if( ! $options{table} )
 {
 	HELP_MESSAGE();
 	print "Must supply table name.\n";
 	exit 1;
 }
 
-if( $options{f} )
+if( $options{logfile} )
 {
-	if( ! -e $options{f} )
+	if( ! -e $options{logfile} )
 	{
-		print  "File '$options{f}' doesn't exist.\n";
+		print  "File '$options{logfile}' doesn't exist.\n";
 		exit 1;
 	}
-	open(STDIN, "<$options{f}") || die "Can't open $options{f} for reading.";
+	open(STDIN, "<$options{logfile}") || die "Can't open $options{logfile} for reading.";
 }
 
 $dbh = Connect();
@@ -85,7 +82,7 @@ if (! $dbh) {
 	exit 1;
 }
 
-$sql = "INSERT INTO $options{t} (";
+$sql = "INSERT INTO $options{table} (";
 foreach $col (@cols)
 {
 	$sql .= "$col," if( $col );
@@ -118,15 +115,15 @@ while($line = <STDIN>)
 }
 print "Parsed $linecount Log lines\n";
 print "Inserted $insertcount records\n";
-print "to table '$options{t}' in database '$options{d}' on '$options{h}'\n";
+print "to table '$options{table}' in database '$options{database}' on '$options{host}'\n";
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Connects to a MySQL database and returns the connection.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 sub Connect
 {
-	my $dsn = "DBI:mysql:$options{d};hostname=$options{h}";
-	return DBI->connect( $dsn, $options{u}, $options{p} );
+	my $dsn = "DBI:mysql:$options{database};hostname=$options{host}";
+	return DBI->connect( $dsn, $options{username}, $options{password} );
 }
 
 
@@ -219,7 +216,7 @@ EOF
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 sub VERSION_MESSAGE
 {
-	print "mysql_import_combined_log.pl version 1.1\n";
+	print "mysql_import_combined_log.pl version 1.2\n";
 	print "Version 1.0 Written by Aaron Jenson.\n";
 	print "Update to work with perl 5.6.1 by Edward Rudd\n";
 }
