@@ -26,6 +26,7 @@ CHECK_MYSQL(
 		AC_MSG_WARN([*** Mysql client libraries not found!])
         WANT_MYSQL_MOD=0
 		)
+
 AC_SUBST(WANT_MYSQL_MOD)
 
 CHECK_LIBDBI(WANT_DBI_MOD=1,
@@ -41,9 +42,10 @@ AC_SUBST(WANT_PGSQL_MOD)
 
 CHECK_MOD_SSL(
 		WANT_SSL_MOD=1,
-        AC_MSG_ERROR([** mod_ssl.h not found or missing SSL headers!])
+        AC_MSG_WARN([** mod_ssl.h not found or missing SSL headers!])
 		WANT_SSL_MOD=0
 		)
+
 AC_SUBST(WANT_SSL_MOD)
 
 case "$target" in

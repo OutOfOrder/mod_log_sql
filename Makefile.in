@@ -73,13 +73,13 @@ PROVIDERS_SUBDIRS = @subdirs@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
+OBJ = $(coreSOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
 	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o)
 
-LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
+LO = $(coreSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
 	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo)
 
-SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
+SLO = $(coreSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
 	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo)
 
 STD_DIST = install-sh \

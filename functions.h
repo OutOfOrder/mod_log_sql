@@ -99,7 +99,12 @@ static const char *extract_status(request_rec *r, char *a)
 
 static const char *extract_virtual_host(request_rec *r, char *a)
 {
-    return apr_pstrdup(r->pool, r->server->server_hostname);
+    return r->server->server_hostname;
+}
+
+static const char *extract_server_name(request_rec *r, char *a)
+{
+    return ap_get_server_name(r);
 }
 
 static const char *extract_machine_id(request_rec *r, char *a)

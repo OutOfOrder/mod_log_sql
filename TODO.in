@@ -1,4 +1,6 @@
 TODO:
+* verify a db driver has been loaded.
+* validate table names before trying to log them.
 * write alternate DB driver (PostgreSQL, libDBI, mod_*_pool)
 * look at forcing table name to ServerName instead of on of the names in 
   ServerAlias?
@@ -9,7 +11,7 @@ TODO:
 * investigate thread safety issues 
 	Use libmysqlclient_r for threaded MPM (or always?)
 	Add thread locks if using standard mysqlclient 
-	Check locking issues with the preserve file?
+	Check locking issues with the preserve file
 * rewrite main core logging function to optimize for speed.
 * Clean up table creation code.
 	support DB independent way of defining the tables

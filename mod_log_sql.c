@@ -464,35 +464,36 @@ static int log_sql_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptem
 static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 {
-	/* TODO: Add local_address, remote_address, server_name, connection_status */
-	/* Register handlers */
-	log_sql_register_item(s,p,'A', extract_agent,             "agent",            1, 1);
-	log_sql_register_item(s,p,'a', extract_request_query,     "request_args",     1, 1);
-	log_sql_register_item(s,p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
+    /* TODO: Add local_address, remote_address, server_name, connection_status */
+    /* Register handlers */
+    log_sql_register_item(s,p,'A', extract_agent,             "agent",            1, 1);
+    log_sql_register_item(s,p,'a', extract_request_query,     "request_args",     1, 1);
+    log_sql_register_item(s,p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
     log_sql_register_item(s,p,'c', extract_cookie,            "cookie",           0, 1);
-	/* TODO: Document */
+    /* TODO: Document */
     log_sql_register_item(s,p,'f', extract_request_file,      "request_file",     0, 1);
-	log_sql_register_item(s,p,'H', extract_request_protocol,  "request_protocol", 0, 1);
-	log_sql_register_item(s,p,'h', extract_remote_host,       "remote_host",      0, 1);
-	log_sql_register_item(s,p,'I', extract_unique_id,         "id",               0, 1);
-	log_sql_register_item(s,p,'l', extract_remote_logname,    "remote_logname",   0, 1);
-	log_sql_register_item(s,p,'m', extract_request_method,    "request_method",   0, 1);
-	log_sql_register_item(s,p,'M', extract_machine_id,        "machine_id",       0, 1);
-	log_sql_register_item(s,p,'P', extract_child_pid,         "child_pid",        0, 0);
-	log_sql_register_item(s,p,'p', extract_server_port,       "server_port",      0, 0);
-	log_sql_register_item(s,p,'R', extract_referer,           "referer",          1, 1);
-	log_sql_register_item(s,p,'r', extract_request_line,      "request_line",     1, 1);
-	log_sql_register_item(s,p,'S', extract_request_timestamp, "time_stamp",       0, 0);
-	log_sql_register_item(s,p,'s', extract_status,            "status",           1, 0);
-	log_sql_register_item(s,p,'T', extract_request_duration,  "request_duration", 1, 0);
-	log_sql_register_item(s,p,'t', extract_request_time,      "request_time",     0, 1);
-	log_sql_register_item(s,p,'u', extract_remote_user,       "remote_user",      0, 1);
-	log_sql_register_item(s,p,'U', extract_request_uri,       "request_uri",      1, 1);
-	log_sql_register_item(s,p,'v', extract_virtual_host,      "virtual_host",     0, 1);
+    log_sql_register_item(s,p,'H', extract_request_protocol,  "request_protocol", 0, 1);
+    log_sql_register_item(s,p,'h', extract_remote_host,       "remote_host",      0, 1);
+    log_sql_register_item(s,p,'I', extract_unique_id,         "id",               0, 1);
+    log_sql_register_item(s,p,'l', extract_remote_logname,    "remote_logname",   0, 1);
+    log_sql_register_item(s,p,'m', extract_request_method,    "request_method",   0, 1);
+    log_sql_register_item(s,p,'M', extract_machine_id,        "machine_id",       0, 1);
+    log_sql_register_item(s,p,'P', extract_child_pid,         "child_pid",        0, 0);
+    log_sql_register_item(s,p,'p', extract_server_port,       "server_port",      0, 0);
+    log_sql_register_item(s,p,'R', extract_referer,           "referer",          1, 1);
+    log_sql_register_item(s,p,'r', extract_request_line,      "request_line",     1, 1);
+    log_sql_register_item(s,p,'S', extract_request_timestamp, "time_stamp",       0, 0);
+    log_sql_register_item(s,p,'s', extract_status,            "status",           1, 0);
+    log_sql_register_item(s,p,'T', extract_request_duration,  "request_duration", 1, 0);
+    log_sql_register_item(s,p,'t', extract_request_time,      "request_time",     0, 1);
+    log_sql_register_item(s,p,'u', extract_remote_user,       "remote_user",      0, 1);
+    log_sql_register_item(s,p,'U', extract_request_uri,       "request_uri",      1, 1);
+    log_sql_register_item(s,p,'v', extract_virtual_host,      "virtual_host",     0, 1);
+    log_sql_register_item(s,p,'V', extract_server_name,       "virtual_host",     0, 1);
 
-	if (global_config.announce) {
-		ap_add_version_component(p, PACKAGE_NAME"/"PACKAGE_VERSION);
-	}
+    if (global_config.announce) {
+        ap_add_version_component(p, PACKAGE_NAME"/"PACKAGE_VERSION);
+    }
 	/* ap_server_root_relative any default preserve file locations */
 	{
 	    server_rec *cur_s;
@@ -798,12 +799,14 @@ static int log_sql_transaction(request_rec *orig)
 		char *cookie_base = "cookies_";
 
 
-		/* Determint the hostname and convert it to all lower-case; */
+		/* Determine the hostname and convert it to all lower-case; */
 		char *servername = apr_pstrdup(orig->pool,(char *)ap_get_server_name(orig));
+
 		char *p=servername;
 		while (*p) {
 			*p = apr_tolower(*p);
 			if (*p == '.') *p = '_';
+			if (*p == '-') *p = '_';
 			++p;
 		}
 		
