@@ -128,7 +128,7 @@ LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 		char *pos;
 
 		if (cfg->transfer_log_format) {
-			if ( (pos = strchr(cfg->transfer_log_format,key))!=NULL) {
+			if ( (pos = ap_strchr_c(cfg->transfer_log_format,key))!=NULL) {
 				cfg->parsed_log_format[pos - cfg->transfer_log_format] = item;
 			}
 		}
@@ -373,7 +373,7 @@ static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 		}
 		if (uri.path) {
 			/* extract Database name */
-			char *off = strchr(++uri.path,'/');
+			char *off = ap_strchr(++uri.path,'/');
 			if (off)
 				*off='\0';
 			set_dbparam(cmd, NULL, "database", uri.path);
@@ -850,7 +850,7 @@ static int log_sql_transaction(request_rec *orig)
 		if ((r->uri) && (cls->transfer_accept_list->nelts)) {
 			proceed = 0;
 			for (ptrptr = (char **) cls->transfer_accept_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->transfer_accept_list->elt_size))
-				if (strstr(r->uri, *ptrptr)) {
+				if (ap_strstr(r->uri, *ptrptr)) {
 					proceed = 1;
 					break;
 				}
@@ -863,7 +863,7 @@ static int log_sql_transaction(request_rec *orig)
 		ptrptr2 = (char **) (cls->transfer_ignore_list->elts + (cls->transfer_ignore_list->nelts * cls->transfer_ignore_list->elt_size));
 		if (r->uri) {
 			for (ptrptr = (char **) cls->transfer_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->transfer_ignore_list->elt_size))
-				if (strstr(r->uri, *ptrptr)) {
+				if (ap_strstr(r->uri, *ptrptr)) {
 					return OK;
 				}
 		}
@@ -874,7 +874,7 @@ static int log_sql_transaction(request_rec *orig)
 		thehost = ap_get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME, NULL);
 		if (thehost) {
 			for (ptrptr = (char **) cls->remhost_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->remhost_ignore_list->elt_size))
-				if (strstr(thehost, *ptrptr)) {
+				if (ap_strstr(thehost, *ptrptr)) {
 					return OK;
 				}
 		}

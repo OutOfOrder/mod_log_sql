@@ -60,6 +60,8 @@
 #define apr_pstrcat ap_pstrcat
 #define apr_psprintf ap_psprintf
 #define apr_snprintf ap_snprintf
+#define ap_strchr strchr
+#define ap_strstr strstr
 
 #define apr_table_set ap_table_set
 #define apr_table_get ap_table_get

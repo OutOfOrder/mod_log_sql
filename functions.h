@@ -185,7 +185,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 			log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Cookie2: [%s]", cookiestr);
 			/* Does the cookie string contain one with our name? */
-			isvalid = strstr(cookiestr, a);
+			isvalid = ap_strstr_c(cookiestr, a);
 			if (isvalid != NULL) {
 				/* Move past the cookie name and equal sign */
 				isvalid += strlen(a) + 1;
@@ -193,7 +193,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 				/* Segregate just this cookie out of the string
 				 * with a terminating nul at the first semicolon */
-			    cookieend = strchr(cookiebuf, ';');
+			    cookieend = ap_strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
 			  	return cookiebuf;
@@ -204,11 +204,11 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	    if (cookiestr != NULL) {
 			log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Cookie: [%s]", cookiestr);
-			isvalid = strstr(cookiestr, a);
+			isvalid = ap_strstr_c(cookiestr, a);
 			if (isvalid != NULL) {
 				isvalid += strlen(a) + 1;
 			    cookiebuf = apr_pstrdup(r->pool, isvalid);
-			    cookieend = strchr(cookiebuf, ';');
+			    cookieend = ap_strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
 			  	return cookiebuf;
@@ -219,11 +219,11 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	    if (cookiestr != NULL) {
 		     log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Set-Cookie: [%s]", cookiestr);
-			isvalid = strstr(cookiestr, a);
+			isvalid = ap_strstr_c(cookiestr, a);
 			if (isvalid != NULL) {
 			    isvalid += strlen(a) + 1;
 			    cookiebuf = apr_pstrdup(r->pool, isvalid);
-			    cookieend = strchr(cookiebuf, ';');
+			    cookieend = ap_strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
 			  	return cookiebuf;
