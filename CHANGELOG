@@ -4,6 +4,7 @@
 * wrong hostname was logged when using mass virtual hosting
   Use, the new 'V' logformat
 * formatted massvirutalhosting tables to swap - with _.
+* included winconfig.h in makefile
 
 1.99: 2004-07-28
 * Added DBI support (not completed yet)
