@@ -585,7 +585,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</programlisting>
   LogSQLWhichCookies bluecookie redcookie greencookie 
   LogSQLWhichNotes mod_gzip_result mod_gzip_compression_ratio
   LogSQLWhichHeadersOut Expires Content-Type Cache-Control 
-  LogSQLWhichHeadersIn UserAgent Accept-Encoding Host
+  LogSQLWhichHeadersIn User-Agent Accept-Encoding Host
   (snip)
 &lt;/VirtualHost&gt;</programlisting>
           </listitem>
@@ -1216,7 +1216,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                 <command>LogSQLWhichHeadersIn</command>
                 <arg choice="req" rep="repeat"><replaceable>header-name</replaceable></arg>
               </cmdsynopsis>
-              <simpara>Example: LogSQLWhichHeadersIn UserAgent Accept-Encodeing Host</simpara>
+              <simpara>Example: LogSQLWhichHeadersIn User-Agent Accept-Encoding Host</simpara>
               <simpara>Context: virtual host</simpara>
               <para>Defines the list of inbound headers you would like logged. This works in conjunction with LogSQLHeadersInLogTable. This directive does not require any additional characters to be added to the LogSQLTransferLogFormat string. The feature is activated simply by including this directive, upon which you will begin populating the separate inbound-headers table with data.</para>
               <para>Each string may contain a + or - prefix in a &lt;VirtualHost&gt; context and will cause those strings to be added (+) or removed (-) from the global configuration. Otherwise the global is completely ignored and overridden if defined in a &lt;VirtualHost&gt;</para>
