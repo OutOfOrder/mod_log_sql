@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet href="/xslt/docbook.css" type="text/css"?>
+<?xml-stylesheet href="file://localhost/home/urkle/Documents/DocBook/docbook.css" type="text/css"?>
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "file:/usr/share/sgml/docbook/xml-dtd-4.1.2-1.0-8/docbookx.dtd" [
 <!ENTITY EmailContact "<email>urkle &lt;at&gt; outoforder &lt;dot&gt; cc</email>">
 ]>
@@ -282,7 +282,7 @@ mysql&gt; source create_tables.sql</screen>
           <para>Use the <application>MySQL</application> database called "apachelogs" running on "dbmachine.foo.com". Use username "loguser" and password "l0gg3r" to authenticate to the database. Permit the module create tables for us.</para>
           <example>
             <title>Basic Example</title>
-            <programlisting>LogSQLLoginInfo mysql://loguser;l0gg3r@dbmachine.foo.com/apachelogs 
+            <programlisting>LogSQLLoginInfo mysql://loguser:l0gg3r@dbmachine.foo.com/apachelogs 
 LogSQLCreateTables on</programlisting>
           </example>
           <para>If your database resides on localhost instead of another host, specify the MySQL server's socket file as follows:</para>
