@@ -4,6 +4,7 @@ aclocal.m4
 .deps
 *.lo
 *.slo
+*.so
 autom4te-2.53.cache
 Makefile
 configure
@@ -30,3 +31,4 @@ include
 include13
 include20
 TODO
+Release
