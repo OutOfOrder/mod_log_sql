@@ -1,11 +1,11 @@
-/* $Id: mod_log_sql.c,v 1.18 2002/11/14 22:52:54 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.19 2002/11/27 07:13:58 helios Exp $ */
 
 /* --------*
  * DEFINES *
  * --------*/
 
 /* The enduser may wish to modify this */
-#undef DEBUG
+#define DEBUG
 
 /* The enduser won't modify these */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
@@ -19,6 +19,7 @@
  * ---------*/
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
@@ -57,6 +58,11 @@ char *db_pwd  = NULL;
 char *mach_id = NULL;
 char *socket_file = "/tmp/mysql.sock";
 unsigned int tcp_port = 3306;
+#ifdef WANT_DELAYED_MYSQL_INSERT
+ char *insert_stmt = "insert delayed into ";
+#else
+ char *insert_stmt = "insert into ";
+#endif
 
 typedef const char *(*item_key_func) (request_rec *, char *);
 
@@ -601,7 +607,7 @@ int open_logdb_link(server_rec* s)
 	if (force_preserve)
 		return 3;
 
-	if (mysql_log != NULL)
+	if (mysql_log)
 		return 2;
 
 	if (db_name) {
@@ -609,6 +615,10 @@ int open_logdb_link(server_rec* s)
 		mysql_log = mysql_real_connect(&sql_server, db_host, db_user, db_pwd, db_name, tcp_port, socket_file, 0);
 
 		if (mysql_log) {
+			#ifdef DEBUG
+			  ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
+			  										db_host, tcp_port, db_name, db_user, socket_file);
+			#endif
 			return 1;
 		} else {
 			#ifdef DEBUG
@@ -623,28 +633,10 @@ int open_logdb_link(server_rec* s)
 	return 0;
 }
 
-#ifdef DEBUG
-static int trace(void *data, const char *key, const char *val)
-{
-	FILE *fp;
-    request_rec *r = (request_rec *)data;
-
-	fp = pfopen(r->pool, "/tmp/trace", "a");
-
-	if (fp) {
-	   fprintf(fp, "Field '%s' == '%s'\n", key, val);
-	}
-
-	pfclose(r->pool, fp);
-
-	return TRUE;
-}
-#endif
-
 const char *extract_table(void *data, const char *key, const char *val)
 {
     request_rec *r = (request_rec *)data;
-	
+
 	return ap_pstrcat(r->pool, key, " = ", val, " ", NULL);
 }
 
@@ -1409,7 +1401,7 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-			note_query = ap_pstrcat(r->pool, "insert into `", cls->notes_table_name, "` (id, item, val) values ", itemsets, NULL);
+			note_query = ap_pstrcat(r->pool, insert_stmt, "`", cls->notes_table_name, "` (id, item, val) values ", itemsets, NULL);
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: note string: %s", note_query);
 		   	#endif
@@ -1437,7 +1429,7 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-			hout_query = ap_pstrcat(r->pool, "insert into `", cls->hout_table_name, "` (id, item, val) values ", itemsets, NULL);
+		    hout_query = ap_pstrcat(r->pool, insert_stmt, "`", cls->hout_table_name, "` (id, item, val) values ", itemsets, NULL);
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_out string: %s", hout_query);
 		   	#endif
@@ -1466,7 +1458,7 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-			hin_query = ap_pstrcat(r->pool, "insert into `", cls->hin_table_name, "` (id, item, val) values ", itemsets, NULL);
+			hin_query = ap_pstrcat(r->pool, insert_stmt, "`", cls->hin_table_name, "` (id, item, val) values ", itemsets, NULL);
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_in string: %s", hin_query);
 		   	#endif
@@ -1496,7 +1488,7 @@ int log_sql_transaction(request_rec *orig)
 
 		}
 		if ( itemsets != "" ) {
-			cookie_query = ap_pstrcat(r->pool, "insert into `", cls->cookie_table_name, "` (id, item, val) values ", itemsets, NULL);
+			cookie_query = ap_pstrcat(r->pool, insert_stmt, "`", cls->cookie_table_name, "` (id, item, val) values ", itemsets, NULL);
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
 		   	#endif
@@ -1504,7 +1496,7 @@ int log_sql_transaction(request_rec *orig)
 
 
 		/* Set up the actual INSERT statement */
-		access_query = ap_pstrcat(r->pool, "insert into `", cls->transfer_table_name, "` (", fields, ") values (", values, ")", NULL);
+		access_query = ap_pstrcat(r->pool, insert_stmt, "`", cls->transfer_table_name, "` (", fields, ") values (", values, ")", NULL);
 
 		#ifdef DEBUG
 	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: access string: %s", access_query);

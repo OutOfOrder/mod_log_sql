@@ -422,7 +422,7 @@ Perform all the following steps as root so that you have install privs,
 \end_deeper 
 \layout Enumerate
 
-Edit Makefile for your system:
+You must know the paths to some installed software before continuing.
 \begin_deeper 
 \layout Enumerate
 
@@ -436,38 +436,46 @@ The location where you installed Apache -- usually /usr/local/apache, 'locate
  apxs' can help you find it.
 \layout Itemize
 
-The location of your MySQL libraries, find using 'locate libmysqlclient'
+The location of your MySQL libraries, find using 'locate libmysqlclient.so'
 \layout Itemize
 
 The location of your MySQL header files, find using 'locate mysql.h'
 \end_deeper 
 \layout Enumerate
 
-This is 
+
 \series bold 
-optional
+Optional
 \series default 
-: if you have included mod_ssl in Apache and want to log SSL data such as
- keysize and cipher type: 
+: if you compiled mod_ssl for Apache and want to log SSL data such as 'keysize'
+ and 'cipher type': 
 \begin_deeper 
 \layout Itemize
 
 The location of your SSL header files, find using 'locate mod_ssl.h'
+\layout Itemize
+
+The location of your db1 header files, find using 'locate ndbm.h'
 \end_deeper 
 \layout Standard
 
-Note: you do 
+You do 
 \series bold 
 not 
 \series default 
 need to compile SSL support into mod_log_sql in order to simply use it with
  a secure site.
- You only need to compile SSL support into mod_log_sql if you want to log
- SSL-specific data such as cipher type.
-\layout Standard
+ You only need to compile SSL support into mod_log_sql 
+\series bold 
+if you want to log SSL-specific data 
+\series default 
+such as the cipher type.
+\end_deeper 
+\layout Enumerate
 
 Now that you know these things, edit Makefile and replace the stock values
  with your own.
+\begin_deeper 
 \layout Standard
 
 IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS by putting
@@ -514,13 +522,52 @@ Instruct apxs to install the DSO.
 You should see output similar to the following:
 \layout LyX-Code
 
-/usr/local/Apache/bin/apxs -i mod_log_sql.so
+/usr/local/Apache/bin/apxs -i mod_log_sql.so 
 \layout LyX-Code
 
-cp mod_log_sql.so /usr/local/Apache/libexec/mod_log_sql.so
+cp mod_log_sql.so /usr/local/Apache/libexec/mod_log_sql.so 
 \layout LyX-Code
 
-chmod 755 /usr/local/Apache/libexec/mod_log_sql.so
+chmod 755 /usr/local/Apache/libexec/mod_log_sql.so 
+\end_deeper 
+\layout Enumerate
+
+Load and activate the module in httpd.conf:
+\begin_deeper 
+\layout Enumerate
+
+Insert this line in the same area as other logging modules, e.g.
+ near 
+\begin_inset Quotes eld
+\end_inset 
+
+LoadModule config_log_module
+\begin_inset Quotes erd
+\end_inset 
+
+:
+\begin_deeper 
+\layout LyX-Code
+
+LoadModule sql_log_module libexec/mod_log_sql.so
+\end_deeper 
+\layout Enumerate
+
+Insert this line in the same area as other logging modules, e.g.
+ near 
+\begin_inset Quotes eld
+\end_inset 
+
+AddModule mod_log_config.c
+\begin_inset Quotes erd
+\end_inset 
+
+:
+\begin_deeper 
+\layout LyX-Code
+
+AddModule mod_log_sql.c
+\end_deeper 
 \end_deeper 
 \layout Enumerate
 
@@ -539,6 +586,15 @@ LoadModule sql_log_module libexec/mod_log_sql.so
 \layout Standard
 
 in your httpd.conf file.
+ If they are out of order, simply cut-and-paste the 
+\begin_inset Quotes eld
+\end_inset 
+
+ssl_module
+\begin_inset Quotes erd
+\end_inset 
+
+ section so that it is at the top.
  If you do not, you will get this error when you start Apache:
 \layout LyX-Code
 
@@ -549,7 +605,8 @@ in your httpd.conf file.
 \layout Standard
 
 (mod_log_sql has a dependency on mod_ssl for SSL symbols.
- If the statements are out of order, mod_log_sql can't recognize those symbols.)
+ If the statements are out of order, mod_log_sql cannot recognize those
+ symbols.)
 \layout Standard
 
 Now skip below to section 
@@ -593,7 +650,7 @@ Unpack the archive into a working directory.
 
 \end_inset 
 
-Edit Makefile for your system.
+You must know the paths to some installed software before continuing.
 \begin_deeper 
 \layout Enumerate
 
@@ -615,46 +672,50 @@ The location of your Apache *sources*, find using 'locate ABOUT_APACHE'
 The location of your MySQL header files, find using 'locate mysql.h'
 \layout Itemize
 
-The location of your MySQL libraries, find using 'locate libmysqlclient'
+The location of your MySQL libraries, find using 'locate libmysqlclient.so'
 \end_deeper 
 \layout Enumerate
 
-This is 
+
 \series bold 
-optional
+Optional
 \series default 
-: if you have included mod_ssl in Apache and want to log SSL data such as
- keysize and cipher type: 
+: if you compiled mod_ssl for Apache and want to log SSL data such as 'keysize'
+ and 'cipher type': 
 \begin_deeper 
 \layout Itemize
 
 The location of your mod_ssl header files, find using 'locate mod_ssl.h'
 \layout Itemize
 
-The location of your OpenSSL header files, find using 'locate x509.h'
-\layout Itemize
-
-The location of your db1 header files, find using 'locate mpool.h'
+The location of your db1 header files, find using 'locate ndbm.h'
 \end_deeper 
 \layout Standard
 
-Note: you do 
+You do 
 \series bold 
 not 
 \series default 
 need to compile SSL support into mod_log_sql in order to simply use it with
  a secure site.
- You only need to compile SSL support into mod_log_sql if you want to log
- SSL-specific data such as cipher type.
-\layout Standard
+ You only need to compile SSL support into mod_log_sql 
+\series bold 
+if you want to log SSL-specific data
+\series default 
+ such as the cipher type.
+\end_deeper 
+\layout Enumerate
 
 Now that you know these things, edit Makefile and replace the stock values
  with your own.
+\begin_deeper 
 \layout Standard
 
-IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS, OPNSSLHDRS
- and DB1HDRS by putting a # character in front of each one, e.g.
- #OPNSSLHDRS=/usr/include/...
+IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS by putting
+ a # character in front of it:
+\layout LyX-Code
+
+#MODSSLHDRS=/usr/include/...
 \end_deeper 
 \layout Enumerate
 
@@ -668,7 +729,7 @@ Compile the module.
 You should see output similar to the following:
 \layout LyX-Code
 
-gcc -fPIC -O2 -Wall -I/usr/local/Apache/include -I/usr/include/mysql -I/usr/lo...
+gcc -fpic -O2 -Wall -I/usr/local/Apache/include -I/usr/include/mysql -I/usr/lo...
 \layout Standard
 
 You should see no errors and have a new file called "mod_log_sql.o" in your
@@ -1772,7 +1833,7 @@ zerberus.aiacs.net
 
 \layout Standard
 
-/index.html
+/mod_log_sql/index.html
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
@@ -2336,6 +2397,81 @@ LogSQLTransferLogTable.)
 \layout LyX-Code
 
 </VirtualHost>
+\layout Subsubsection
+
+Optimizing for a busy database
+\layout Standard
+
+A busy MySQL database will have SELECT statements running concurrently with
+ INSERT and UPDATE statements.
+ A long-running SELECT can block INSERTs, therefore will block mod_log_sql.
+ This can be solved by compiling mod_log_sql for 
+\begin_inset Quotes eld
+\end_inset 
+
+delayed inserts,
+\begin_inset Quotes erd
+\end_inset 
+
+ which are described as follows in the MySQL documentation:
+\layout Quote
+
+The DELAYED option for the INSERT statement is a MySQL-specific option that
+ is very useful if you have clients that can't wait for the INSERT to complete.
+ This is a common problem when you use MySQL for logging and you also periodical
+ly run SELECT and UPDATE statements that take a long time to complete.
+ DELAYED was introduced in MySQL Version 3.22.15.
+ It is a MySQL extension to ANSI SQL92.
+\layout Quote
+
+INSERT DELAYED only works with ISAM and MyISAM tables.
+ Note that as MyISAM tables supports concurrent SELECT and INSERT, if there
+ is no free blocks in the middle of the data file, you very seldom need
+ to use INSERT DELAYED with MyISAM.
+ 
+\layout Quote
+
+When you use INSERT DELAYED, the client will get an OK at once and the row
+ will be inserted when the table is not in use by any other thread.
+\layout Quote
+
+Another major benefit of using INSERT DELAYED is that inserts from many
+ clients are bundled together and written in one block.
+ This is much faster than doing many separate inserts.
+ 
+\layout Standard
+
+The general disadvantages of delayed inserts are:
+\layout Enumerate
+
+The queued rows are only stored in memory until they are inserted into the
+ table.
+ If mysqld dies unexpectedly, any queued rows that weren't written to disk
+ are lost.
+\layout Enumerate
+
+There is additional overhead for the server to handle a separate thread
+ for each table on which you use INSERT DELAYED.
+\layout Standard
+
+The MySQL documentation concludes, 
+\begin_inset Quotes eld
+\end_inset 
+
+This means that you should only use INSERT DELAYED when you are really sure
+ you need it!
+\begin_inset Quotes erd
+\end_inset 
+
+
+\layout Standard
+
+If you are experiencing issues which could be solved by delayed inserts,
+ uncomment the #MYSQLDELAYED line in the Makefile by removing the # that
+ is in front of it.
+ Recompile and reinstall your module.
+ All regular INSERT statements are now INSERT DELAYED, and you should see
+ no more blocking of the module.
 \layout Subsection
 
 
@@ -5389,6 +5525,199 @@ mysql> delete from access_log where agent like 'ApacheBench%';
 \layout LyX-Code
 
 mysql> optimize table access_log; 
+\layout Subsection
+
+Do I need to be worried about all the running MySQL children? Will holding
+ open 
+\emph on 
+n
+\emph default 
+ Apache -> MySQL connections consume a lot of memory? 
+\layout Standard
+
+Short answer: you shouldn't be worried.
+\layout Standard
+
+Long answer: you might be evaluating at the output of 
+\begin_inset Quotes eld
+\end_inset 
+
+ps -aufxw
+\begin_inset Quotes erd
+\end_inset 
+
+ and becoming alarmed at all the 7MB httpd processes or 22MB mysqld children
+ that you see.
+ Don't be alarmed
+\emph on 
+.
+
+\emph default 
+ It's true that mod_log_sql opens and holds open many MySQL connections:
+ each httpd child maintains one open database connection (and holds it open
+ for performance reasons).
+ Four webservers, each running 20 Apache children, will hold open 80 MySQL
+ connections, which means that your MySQL server needs to handle 80 simultaneous
+ connections.
+ In truth, your MySQL server needs to handle far more than that if traffic
+ to your website spikes and the Apache webservers spawn off an additional
+ 30 children each...
+\layout Standard
+
+Fortunately the cost reported by 'ps -aufxw' is indeed deceptive due to
+ an OS memory-management feature called 
+\begin_inset Quotes eld
+\end_inset 
+
+copy-on-write.
+\begin_inset Quotes erd
+\end_inset 
+
+ This is a memory-management technique used by Unix-based systems.
+ When you have a number of identical child processes (e.g.
+ Apache, MySQL), it would appear in 
+\begin_inset Quotes eld
+\end_inset 
+
+ps
+\begin_inset Quotes erd
+\end_inset 
+
+ as though each one occupies a great deal of RAM -- as much as 7MB per httpd
+ child! In actuality each additional child only occupies a small bit of
+ extra memory -- most of the memory pages are common to each child and therefore
+ shared in a 
+\begin_inset Quotes eld
+\end_inset 
+
+read-only
+\begin_inset Quotes erd
+\end_inset 
+
+ fashion.
+ The OS can get away with this because the majority of memory pages for
+ one child are identical across all children.
+ 
+\layout Standard
+
+A memory page is only duplicated when it needs to be written to, hence 
+\begin_inset Quotes eld
+\end_inset 
+
+copy-on-write.
+\begin_inset Quotes erd
+\end_inset 
+
+ The result is efficiency and decreased memory consumption.
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+ps
+\begin_inset Quotes erd
+\end_inset 
+
+ may report 7MB per child, but it might really only 
+\begin_inset Quotes eld
+\end_inset 
+
+cost
+\begin_inset Quotes erd
+\end_inset 
+
+ 900K of extra memory to add one more child.
+ It is 
+\series bold 
+not
+\emph on 
+ 
+\emph default 
+correct
+\series default 
+ to assume that 20 Apache children with a VSZ of 7MB each equals 
+\begin_inset Formula $(20\times 7MB)$
+\end_inset 
+
+ of memory consumption -- the real answer is much, much lower.
+ The same 
+\begin_inset Quotes eld
+\end_inset 
+
+copy-on-write
+\begin_inset Quotes erd
+\end_inset 
+
+ rules apply to all your MySQL children: 40 mysqld children @ 22MB each
+ 
+\series bold 
+do not
+\series default 
+ occupy 880MB of RAM.
+\layout Standard
+
+The bottom line: although tangible, there is not much memory cost associated
+ with spawning off extra httpd or mysqld children.
+\layout Subsection
+
+My database cannot handle all the open connections from mod_log_sql, is
+ there anything I can do?
+\layout Standard
+
+The rule of thumb: if you have 
+\emph on 
+n 
+\emph default 
+webservers each configured to support 
+\emph on 
+y
+\emph default 
+ 
+\noun on 
+MaxClients
+\noun default 
+, then your database must be able to handle 
+\begin_inset Formula $n\times y$
+\end_inset 
+
+ simultenous connections 
+\emph on 
+in the worst case.
+ 
+\emph default 
+Certainly you must use common sense, consider reasonable traffic expectations
+ and structure things accordingly.
+\layout Standard
+
+Tweaking my.cnf to scale to high connection loads is imperative.
+ But if hardware limitations prevent your MySQL server from gracefully handling
+ the number of incoming connections, it would be beneficial to upgrade the
+ memory or CPU on that server in order to handle the load.
+ 
+\layout Standard
+
+Please remember that mod_log_sql's overriding principle is 
+\series bold 
+performance
+\series default 
+ -- that is what the target audience demands and expects.
+ Other database logging solutions do not open and maintain many database
+ connections, but their performance suffers drastically.
+ For example, pgLOGd funnels all log connections through a separate daemon
+ that connects to the database, but that bottlenecks the entire process.
+ mod_log_sql achieves performance numbers an order of magnitude greater
+ than the alternatives because it dispenses with the overhead associated
+ with rapid connection cycling, and it doesn't attempt to shoehorn all the
+ database traffic through a single extra daemon or proxy process.
+\layout Subsection
+
+My webservers cannot handle all the traffic that my site receives, is there
+ anything I can do?
+\layout Standard
+
+If you have exhausted all the tuning possibilities on your existing server,
+ it is probably time you evaluated the benefits of clustering two or more
+ webservers together in a load-balanced fashion.
+ In fact, users of such a setup are mod_log_sql's target audience!
 \layout Subsection
 
 Who's using mod_log_sql?

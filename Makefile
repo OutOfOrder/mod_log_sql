@@ -1,27 +1,33 @@
-# $Id: Makefile,v 1.16 2002/11/19 02:59:43 helios Exp $
+# $Id: Makefile,v 1.17 2002/11/27 07:13:58 helios Exp $
 
-#####################################
+###########################################################################
 # Important:
-# Adjust these values as outlined in the INSTALL file.
+# Adjust these values as outlined in section "Installation" in the docs.
 # Not all are needed at all times.
 
-APACHEINST = /usr/local/Apache
+APACHESOURCE = /usr/local/src/apache_1.3.27-dso
+APACHEINST   = /usr/local/Apache
+APXS         = $(APACHEINST)/bin/apxs
+
 MYSQLLIBS  = /usr/lib
 MYSQLHDRS  = /usr/include/mysql
-MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
 
-APACHESOURCE = /usr/local/src/apache_1.3.27-dso
-OPNSSLHDRS   = /usr/include/openssl
-DB1HDRS      = /usr/include/db1
+#MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
+DB1HDRS    = /usr/include/db1
 
+###########################################################################
+# Don't uncomment this without reading the "Optimizing for a busy database"
+# section in the documentation (under "Advanced logging scenarios").
 
-#####################################
-# Shouldn't have to touch below here.
+MYSQLDELAYED = -DWANT_DELAYED_MYSQL_INSERT
 
-MLMVERS  = 1.17
-APXS     = $(APACHEINST)/bin/apxs
+###########################################################################
+# Rarely if ever have to touch below here.
+
+MLMVERS  = 1.18
 #APXSGDB  = -Wc,-g
-APXSOPTS = -Wc,-O2 -Wc,-Wall -Wc,-DEAPI
+APXSOPTS = -Wc,-O2 -Wc,-Wall
+STATOPTS = -fpic -O2 -Wall
 CC       = gcc
 INSTALL  = /usr/bin/install -m 664
 RM       = /bin/rm
@@ -32,11 +38,12 @@ LINKS    = /usr/bin/links
 L2H      = /usr/local/bin/latex2html
 WEBSERV  = gw0.corp
 
+STATFLAGS = -I$(APACHEINST)/include
+SOFLAGS   = -L$(MYSQLLIBS) -lmysqlclient -lz
 ifdef MODSSLHDRS
-   SSLDEF  = -DWANT_SSL_LOGGING
-   CFLAGS  = -fPIC -O2 -Wall -I$(APACHEINST)/include -I$(MYSQLHDRS) -I$(MODSSLHDRS) -I$(OPNSSLHDRS) $(SSLDEF) -I$(DB1HDRS)
+   FLAGS     = -DEAPI -I$(MYSQLHDRS) $(MYSQLDELAYED) -I$(MODSSLHDRS) -I$(DB1HDRS) -DWANT_SSL_LOGGING
 else
-   CFLAGS  = -fPIC -O2 -Wall -I$(APACHEINST)/include -I$(MYSQLHDRS)
+   FLAGS     = -DEAPI -I$(MYSQLHDRS) $(MYSQLDELAYED)
 endif
 
 all:
@@ -50,10 +57,10 @@ dso: mod_log_sql.so
 static: mod_log_sql.o
 
 mod_log_sql.so: mod_log_sql.c Makefile
-	$(APXS) $(APXSGDB) $(APXOPTS) -c -I$(MYSQLHDRS) -I$(MODSSLHDRS) $(SSLDEF) -L$(MYSQLLIBS) -lmysqlclient -lz mod_log_sql.c
+	$(APXS) -c $(APXSGDB) $(APXSOPTS) $(FLAGS) $(SOFLAGS) mod_log_sql.c
 
 mod_log_sql.o:	mod_log_sql.c Makefile
-	$(CC) ${CFLAGS} -c mod_log_sql.c
+	$(CC) $(STATOPTS) $(FLAGS) $(STATFLAGS) -c mod_log_sql.c
 
 dsoinstall: dso
 	$(APXS) -i mod_log_sql.so
@@ -92,13 +99,10 @@ documentation: Documentation/documentation.lyx
 	@echo "Creating PostScript docs..."
 	@$(DVIPS) Documentation/documentation.dvi -o Documentation/documentation.ps 2>/dev/null
 	@echo "Creating HTML docs..."
-	@$(L2H) -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
+	@$(L2H) -local_icons -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
 	@echo "Creating plain text docs..."
 	@$(L2H) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
 	@$(LINKS) -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
 	@echo "Cleaning up..."
 	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log Documentation/*.old Documentation/*.png Documentation/images.tex
 	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl Documentation/HTML/*.log Documentation/HTML/*.aux Documentation/HTML/*.tex Documentation/HTML/*.old Documentation/HTML/index.html
-
-
-
