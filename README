@@ -1,4 +1,4 @@
-$Id: README,v 1.4 2002/04/08 07:06:20 helios Exp $
+$Id: README,v 1.5 2002/04/21 23:01:53 helios Exp $
 
 
 Homepage
@@ -13,35 +13,25 @@ Approach
 In order to save speed and overhead, links are kept alive in between
 queries.  This module uses one SQL link per httpd process.  Among other
 things, this means that this module supports logging into only one
-MySQL server, and for now, also, only one SQL database (although the
-latter limitation can be relatively easily removed). 
-
-Different data can be sent to different tables.  i.e., it's possible to
-define one table for TransferLog, one for RefererLog, and a 3rd for
-AgentLog.  [ Note: this is now deprecated behavior.  Please consider
-logging Agent and Referer to the same table as your transfers. ]
+MySQL server, and for now, also, only one SQL database.
 
 Virtual hosts are supported in the same manner they are in the regular
 logging modules.  If you specify a different table for a virtual
-host it will be used, otherwise the 'general' would be used.  Note:
-since all 3 types of logs are implemented within the same module, if
-you specify an overriding table for a virtual host for one type of log,
-it'll ignore any previous 'general' defaults (see the example in the
-end).
+host it will be used, otherwise the 'general' would be used.
 
-SQL links are opened on demand (i.e., the first time each httpd needs
-to log something to SQL, the link is opened).  In case the SQL server
-is down when trying to connect to it, the module remains silent and
-logs no error (I didn't want thousands of error messages in the
-logfile).  In case the SQL link is broken ("mysql server has gone
-away") a proper error message is kept to the error log (textual :), and
-the module tries to reestablish the concact (and reports whether it
-succeeded or not in the error log).  If the link cannot be
-reestablished, the module will, again, remain silent. Technical note:
-The SQL link is registered using apache's pool mechanism, so SQL links
-are properly closed on any normal shutdown, kill -HUP or kill -TERM. 
-This also means that if you restart the MySQL daemon for any reason you
-should restart Apache.
+SQL links are opened by each child process when it is born.  Error reporting
+is robust throughout and will let you know about database issues
+in the standard Apache error-log for the server or virtual server. 
+
+A robust "preserve" capability has now been implemented as well.  This
+permits the module to preserve any failed INSERT commands to a local
+file on its machine.  In any situation that the database is unavailable --
+e.g. the network fails, you reboot the machine, etc. -- mod_log_mysql
+will note this in the error log and begin appending its log entries to
+the preserve file.  At the time that your MySQL server returns to service,
+each of these preserve files is easily imported because it is stored in SQL:
+
+  # mysql -uadminuser -p mydbname < /tmp/mysql-preserve
 
 
 
@@ -63,84 +53,21 @@ What gets logged by default?
 
 All the data that would be contained in the "Combined Log Format" 
 is logged by default, plus a little extra.  Your best bet is to
-accept this default and employ the enclosed access_log.sql to
-format your table.  Customize your logging format after you've
-had a chance to experiment with the default first.
+begin by accepting this default, then later customize the log
+configuration based on your needs.
 
-If you just want to log enough data to be able to reconstruct
-a Combined Log Format log, log these:
-
-+------------------+------------------+
-| Field            | Type             |
-+------------------+------------------+
-| remote_host      | varchar(50)      |
-| remote_user      | varchar(50)      |
-| request_uri      | varchar(50)      |
-| virtual_host     | varchar(50)      |
-| time_stamp       | int(10) unsigned |
-| status           | smallint(6)      |
-| bytes_sent       | int(11)          |
-| referer          | varchar(255)     |
-| agent            | varchar(255)     |
-| request_method   | varchar(6)       |
-| request_protocol | varchar(10)      |
-+------------------+------------------+
-
-remote_host: corresponds to the Apache %h directive.  Contains the remote
-  hostname or IP of the machine accessing your server.
-  Example:  si4002.inktomi.com
-
-remote_user: corresponds to the Apache %u directive.  Contains the 
-  userid of people who have authenticated to your server, if applicable.
-  Example:  freddy
-
-request_uri: corresponds to the Apache %U directive.  Contains the
-  URL path requested, excluding any query string.  This is different than
-  the %r information you might be used to seeing:
-
-  %r: GET /cgi-bin/neomail.pl?sessionid=freddy-session-0.742143231719&sort=date_rev HTTP/1.1
-  %U: /cgi-bin/neomail.pl
-
-  We log %U because it contains the real meat of the information that is
-  needed for log analysis, and saves the database a LOT of wasted growth
-  on unneeded bytes.
-
-virtual_host: contains the VirtualHost that is making the log entry. This
-  allows you to log multiple VirtualHosts to a single MySQL database and
-  yet still be able to extract them for separate analysis.
-  Example: www.grubbybaby.com
-
-time_stamp: contains the time that the request was logged.  Please see
-  "Notes" below to get a better understanding of this.
-  Example: 1014249231
-
-status: corresponds to the Apache %t directive.  Contains the HTTP status
-  of the request.
-  Example: 404
-
-bytes_sent: corresponds to the Apache %b directive.  Contains the number
-  of bytes sent to service the request.
-  Example: 23123
-
-referer: corresponds to the Apache "%{Referer}i" directive.  Contains the
-  referring HTML page's URL, if applicable.
-  Example: http://www.foobar.com/links.html
-
-agent: corresponds to the Apache "%{User-Agent}" directive.  Contains the
-  broswer type (user agent) of the software that made the request.
-  Example: Mozilla/3.0 (Slurp/si; slurp@inktomi.com; http://www.inktomi.com/slurp.html)
-
-request_method: corresponds to the Apache %m directive.  Contains the type
-  of request sent: GET, PUT, etc.
-  Example: GET
-  
-request_protocol: corresponds to the Apache %H directive.  Contains the HTTP
-  protocol that was used.
-  Example: HTTP/1.1
+The online documentation of the run-time directives includes a full
+explanation of what you can log, including examples.
   
   
 Notes
 -----
+
+* You will customarily set most of your run-time configuration directives
+  on a per-virtualserver basis, with only MySQLMassVirtualHosting,
+  MySQLLoginInfo and MySQLDatabase 'outside' in the main server config.
+  Any directives other than those in the main config do NOT get inherited
+  by the virutal servers.
 
 * The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the
   standard unix "seconds since 1/1/1970 12:00:00" format.  This is
@@ -161,20 +88,15 @@ Notes
   Log Format compliant.  You can then feed this to your favorite web
   log analysis tool.
 
-
 * The table's string values can be CHAR or VARCHAR, at a length of your choice.
   VARCHAR is superior because it truncates long strings; CHAR types are
   fixed-length and will be padded with spaces.  Just like the
   time_stamp described above, that kind of space waste will add up over
   thousands of records.
 
-
-* Most fields should probably be set to NOT NULL.  The only ones that
-  shouldn't are extra fields that you don't intend the logging module
-  to update.  (You can have other fields in the logging tables if you'd
-  like, but if they're set to NOT NULL then the logging module won't be
-  able to insert rows to these tables.)
-
+* Be careful not to go overboard setting fields to NOT NULL.  If a field is
+  marked NOT NULL then it must contain data in the INSERT or the INSERT
+  will fail.  
 
 * Apache normally logs numeric fields with a '-' character to mean "not
   applicable," e.g. bytes_sent on a request with a 304 response code. 
@@ -182,15 +104,6 @@ Notes
   fields are assigned the value 0 instead of '-' which, of course,
   makes perfect sense anyway.
 
-
-* If your database goes offline and Apache cannot log to it, mod_log_mysql
-  intelligently preserves any queries to a local text file.  (By
-  default the file is /tmp/mysql-preserve.)  This will allow you to not
-  miss those entries; when you bring your database back online it is a
-  simple matter to import the contents of this preserve file.  To do
-  this simply copy the file to your MySQL server and run an import
-  as follows:
-  # mysql -uadminuser -p mydbname < mysql-preserve
 
 
 Author / Maintainer
@@ -202,7 +115,7 @@ text modules, so all that credit goes to the Apache Server group.
 The MySQL routines and directives were added by Zeev Suraski
 <bourbon@netvision.net.il>.
 
-Changes from 1.06 on and the new documentation were added by 
+All changes from 1.06+ and the new documentation were added by 
 Chris Powell <chris@grubbybaby.com>.  It seems that the module had fallen
 into the "unmaintained" category -- it hadn't been updated since 1998 --
 so Chris adopted it as the new maintainer.

@@ -1,52 +1,72 @@
-/* $Id: mod_log_sql.c,v 1.8 2002/04/08 07:06:20 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.9 2002/04/21 23:01:53 helios Exp $ */
 
+/* --------*
+ * DEFINES *
+ * --------*/
 
-/* DEFINES */
+/* The enduser probably won't modify these */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
 #define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
 #define WARNINGLEVEL APLOG_WARNING|APLOG_NOERRNO
 #define NOTICELEVEL APLOG_NOTICE|APLOG_NOERRNO
-#define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
-#define PRESERVEFILE "/tmp/mysql-preserve"
-/* (MYSQLSOCKET, DEBUG and WANT_SSL_LOGGING are defined in the Makefile DEFS line.) */
+#define DEBUGLEVEL APLOG_DEBUG|APLOG_NOERRNO
+
+/* The enduser may wish to modify these */
+#define WANT_SSL_LOGGING
+#undef DEBUG
 
 
-
-/* INCLUDES */
+/* ---------*
+ * INCLUDES *
+ * ---------*/
 #include <time.h>
 #include <mysql/mysql.h>
 #include <stdio.h>
-
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
 #include "http_core.h"
 
-/* M_M_N is defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
-#if MODULE_MAGIC_NUMBER >= 19980324 /* 1.3b6 or later */
+#if MODULE_MAGIC_NUMBER >= 19980324 /* M_M_N is defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
 	#include "ap_compat.h"
 #endif
 
-#ifdef WANT_SSL_LOGGING /* Defined in Makefile */
+#ifdef WANT_SSL_LOGGING
 	#include "mod_ssl.h"
 #endif
 
 
+/* -------------*
+ * DECLARATIONS *
+ * -------------*/
 
-/* DECLARATIONS */
+/* Declare ourselves so the configuration routines can find and know us. */
 module mysql_log_module;
 
+/* The contents of these are known 'Apache wide' and are not variable
+ * on a per-virtual-server basis.  Every virtual server 'knows' the
+ * same versions of these variables.
+ */
 MYSQL sql_server, *mysql_log = NULL;
 
+int massvirtual = 0;
 char *db_name = NULL;
 char *db_host = NULL;
 char *db_user = NULL;
 char *db_pwd  = NULL;
-char *cookie_name = NULL;
+char *socket_file = "/var/lib/mysql/mysql.sock";
 
 typedef const char *(*item_key_func) (request_rec *, char *);
 
+/* But the contents of this structure will vary by virtual server. 
+ * This permits each virtual server to vary its configuration slightly
+ * for per-server customization. 
+ * 
+ * Each child process has its own segregated copy of this structure.
+ */
 typedef struct {
+	int create_tables;
+	int table_made;
 	char *referer_table_name;
 	char *agent_table_name;
 	char *transfer_table_name;
@@ -54,11 +74,14 @@ typedef struct {
 	array_header *transfer_ignore_list;
 	array_header *remhost_ignore_list;
 	char *transfer_log_format;
+	char *preserve_file;
+	char *cookie_name;
 } log_mysql_state;
 
 
-
-/* FUNCTIONS */
+/* -----------------*
+ * HELPER FUNCTIONS *
+ * -----------------*/
 static char *format_integer(pool *p, int i)
 {
 	char dummy[40];
@@ -110,7 +133,7 @@ static const char *extract_ssl_keysize(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_USEKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_KEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_KEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -127,7 +150,7 @@ static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_ALGKEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_ALGKEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -144,7 +167,7 @@ static const char *extract_ssl_cipher(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: SSL_CIPHER: %s", result);
+    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_CIPHER: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -299,15 +322,27 @@ static const char *extract_cookie(request_rec *r, char *a)
 	char *isvalid;
 	char *cookiebuf;
     
+	log_mysql_state *cls = get_module_config(r->server->module_config, &mysql_log_module);
+	
+	#ifdef DEBUG
+	  	ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"watching for cookie '%s'", cls->cookie_name);
+	#endif
+	
+	/* Fetch out the cookie header */
  	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
     if (cookiestr != NULL) {
 		#ifdef DEBUG
-			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Cookie2: [%s]", cookiestr);
+			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie2: [%s]", cookiestr);
 		#endif
-		isvalid = strstr(cookiestr, cookie_name);
+		/* Does the cookie string contain one with our name? */
+		isvalid = strstr(cookiestr, cls->cookie_name);
 		if (isvalid != NULL) {
-			isvalid += strlen(cookie_name) + 1;
+			/* Move past the cookie name and equal sign */
+			isvalid += strlen(cls->cookie_name) + 1;
+			/* Duplicate it into the pool */
 		    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			/* Segregate just this cookie out of the string 
+			 * with a terminating nul at the first semicolon */
 		    cookieend = strchr(cookiebuf, ';');
 		    if (cookieend != NULL)
 		       *cookieend = '\0';
@@ -318,11 +353,11 @@ static const char *extract_cookie(request_rec *r, char *a)
  	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
     if (cookiestr != NULL) {
 		#ifdef DEBUG
-			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Cookie: [%s]", cookiestr);
+			ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie: [%s]", cookiestr);
 		#endif
-		isvalid = strstr(cookiestr, cookie_name);
+		isvalid = strstr(cookiestr, cls->cookie_name);
 		if (isvalid != NULL) {
-			isvalid += strlen(cookie_name) + 1;
+			isvalid += strlen(cls->cookie_name) + 1;
 		    cookiebuf = ap_pstrdup(r->pool, isvalid);
 		    cookieend = strchr(cookiebuf, ';');
 		    if (cookieend != NULL)
@@ -334,11 +369,11 @@ static const char *extract_cookie(request_rec *r, char *a)
  	cookiestr = table_get(r->headers_out,  "set-cookie");
     if (cookiestr != NULL) {
 		#ifdef DEBUG
-		     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_mysql: Set-Cookie: [%s]", cookiestr);
+		     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Set-Cookie: [%s]", cookiestr);
 		#endif
-		isvalid = strstr(cookiestr, cookie_name);
+		isvalid = strstr(cookiestr, cls->cookie_name);
 		if (isvalid != NULL) {
-		    isvalid += strlen(cookie_name) + 1;
+		    isvalid += strlen(cls->cookie_name) + 1;
 		    cookiebuf = ap_pstrdup(r->pool, isvalid);
 		    cookieend = strchr(cookiebuf, ';');
 		    if (cookieend != NULL)
@@ -349,23 +384,6 @@ static const char *extract_cookie(request_rec *r, char *a)
 		
 	return "-"; 
 }
-
-/*
-static const char *extract_forwarded(request_rec *r, char *a)
-{
-	return table_get(r->subprocess_env, "HTTP_FORWARDED");
-}
-
-static const char *extract_via(request_rec *r, char *a)
-{
-	return table_get(r->subprocess_env, "HTTP_VIA");
-}
-
-static const char *extract_forwarded_for(request_rec *r, char *a)
-{
-	return table_get(r->subprocess_env, "HTTP_X_FORWARDED_FOR");
-}
-*/
 
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
@@ -390,11 +408,11 @@ static const char *extract_env_var(request_rec *r, char *a)
 
 
 struct log_mysql_item_list {
-	  char ch;
-	  item_key_func func;
-	  const char *sql_field_name;
-	  int want_orig_default;
-	  int string_contents;
+	  char ch;						/* its letter code */
+	  item_key_func func;			/* its extraction function */
+	  const char *sql_field_name;	/* its column in SQL */
+	  int want_orig_default;		/* if it requires the original request prior to internal redirection */
+	  int string_contents;			/* if it returns a string */
     } log_mysql_item_keys[] = {
 
 	{   'A', extract_agent,             "agent",            1, 1    },
@@ -420,10 +438,6 @@ struct log_mysql_item_list {
     {   'u', extract_remote_user,       "remote_user",      0, 1    },
     {   'U', extract_request_uri,       "request_uri",      1, 1    },
     {   'v', extract_virtual_host,      "virtual_host",     0, 1    },
-/*    {   'V', extract_via,               "via",              0, 1    },
-    {   'w', extract_forwarded,         "forwarded",        0, 1    },
-    {   'W', extract_forwarded_for,     "forwarded_for",    0, 1    },
- */ 
 	#ifdef WANT_SSL_LOGGING
     {   'q', extract_ssl_keysize,       "ssl_keysize",      0, 1    },
     {   'Q', extract_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
@@ -436,66 +450,54 @@ struct log_mysql_item_list {
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-const char *mysql_escape_log(const char *str, pool *p)
+const char *escape_query(const char *from_str, pool *p)
 {
-	register int i = 0, j = 0;
-	int need_to_escape = 0;
-
-	if (!str) {
+	if (!from_str)
 		return NULL;
-	}
-
-	/* First find out if we need to escape.   */
-	i = 0;
-	while (str[i]) {
-		/* WAS THIS WRONG in 1.05?!?   if (str[i] != '\'' || str[i] != '\\' || str[i] != '\"') { */
-		if (str[i] == '\'' || str[i] == '\\' || str[i] == '\"') {
-			need_to_escape = 1;
-			break;
-		}
-		i++;
-	}
-
-	if (need_to_escape) {
-		char *tmp_str;
-		int length = strlen(str);
-
+	else {
+	  	char *to_str;
+		unsigned long length = strlen(from_str);
+		unsigned long retval;
+		
 		/* Pre-allocate a new string that could hold twice the original, which would only
 		 * happen if the whole original string was 'dangerous' characters.
 		 */
-		tmp_str = (char *) palloc(p, length * 2 + 1);
-		if (!tmp_str) {
-			return str;
+		to_str = (char *) ap_palloc(p, length * 2 + 1);
+		if (!to_str) {
+			return from_str;
 		}
 		
-		/* Walk through character-by-character, escaping any dangerous characters found. */
-		for (i = 0, j = 0; i < length; i++, j++) {
-			switch (str[i]) {
-			    case '\'':
-			    case '\"':
-			    case '\\':
-				    tmp_str[j] = '\\';
-				    j++;
-			    default:
-				    tmp_str[j] = str[i];
-			}
+		if (!mysql_log) {
+			/* Well, I would have liked to use the current database charset.  mysql is
+			 * unavailable, however, so I fall back to the slightly less respectful
+			 * mysql_escape_string() function that uses the default charset.
+			 */
+			retval = mysql_escape_string(to_str, from_str, length);
+		} else {	
+			/* MySQL is available, so I'll go ahead and respect the current charset when
+			 * I perform the escape.
+			 */
+			retval = mysql_real_escape_string(mysql_log, to_str, from_str, length);
 		}
-		tmp_str[j] = '\0';
-		return tmp_str;
-	} else {
-		return str;
+		
+		if (retval)
+		  return to_str;
+		else
+		  return from_str;
 	}
 }
 
 int open_logdb_link()
 {
+	/* Returns 2 if already connected, 1 if successful, 0 if unsuccessful */
+	
 	if (mysql_log != NULL) {
 		return 2;
 	}
 
 	if (db_name) {
 		mysql_init(&sql_server);
-		mysql_log = mysql_real_connect(&sql_server, db_host, db_user, db_pwd, db_name, 0, MYSQLSOCKET, 0);
+		mysql_log = mysql_real_connect(&sql_server, db_host, db_user, db_pwd, db_name, 0, socket_file, 0);
 
 		if (mysql_log != NULL) {
 			return 1;
@@ -509,18 +511,27 @@ int open_logdb_link()
 void preserve_entry(request_rec *r, const char *query)
 {
 	FILE *fp;
+	log_mysql_state *cls = get_module_config(r->server->module_config, &mysql_log_module);
 	
-	fp = fopen(PRESERVEFILE, "a");
+	fp = pfopen(r->pool, cls->preserve_file, "a");
 	if (fp == NULL)
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: attempted append of local offline file but failed.");
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"attempted append of local offline file but failed.");
 	else 
 		fprintf(fp,"%s;\n", query);
-	fclose(fp);
+	pfclose(r->pool, fp);
 }
 
+/*-----------------------------------------------------*/
+/* safe_mysql_query: perform a database insert with    */
+/* a degree of safety and error checking.              */
+/*                                                     */
+/* Parms:   request record, SQL insert statement       */
+/* Returns: 0 (OK) on success                          */
+/*          mysql return code on error                 */
+/*-----------------------------------------------------*/
 int safe_mysql_query(request_rec *r, const char *query)
 {
-	int retval = 1;
+	int retval;
 	struct timespec delay, remainder;
 	int ret;
 	char *str;
@@ -539,19 +550,22 @@ int safe_mysql_query(request_rec *r, const char *query)
 	 * at any time, hence the check. */
 	if ( retval != 0 ) 
     {
+			log_mysql_state *cls = get_module_config(r->server->module_config, &mysql_log_module);
+		
 			/* Something went wrong, so start by trying to restart the db link. */
-		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: attempting reconnect because API said: %s", MYSQL_ERROR(mysql_log));
+		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"attempting reconnect because API said: %s", mysql_error(mysql_log));
 
 			mysql_log = NULL;
-    		open_logdb_link();
+			open_logdb_link();
 
     		if (mysql_log == NULL) {	 /* still unable to link */
     			signal(SIGPIPE, handler);
-    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: httpd child reconnect failed, unable to reach database. SQL logging stopped until an httpd child regains a db connection.");
-				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: log entries are being preserved in %s",PRESERVEFILE);
+    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"httpd child reconnect failed, unable to reach database. SQL logging stopped until an httpd child regains a db connection.");
+				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"log entries are being preserved in %s", cls->preserve_file);
+				preserve_entry(r, query);
     			return retval;
     		} else {
-	    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect successful.");
+	    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"reconnect successful.");
 			}
 
 		    /* Attempt a single re-try... First sleep for a tiny amount of time. */
@@ -559,7 +573,7 @@ int safe_mysql_query(request_rec *r, const char *query)
 	        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
 	        ret = nanosleep(&delay, &remainder);
 	        if (ret && errno != EINTR)
-	           perror("nanosleep");
+				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"nanosleep unsuccessful.");
 
 	        /* Now make our second attempt */
 		    retval = mysql_query(mysql_log,query);
@@ -567,13 +581,13 @@ int safe_mysql_query(request_rec *r, const char *query)
 			/* If this one also failed, log that and append to our local offline file */
 		    if ( retval != 0 )
 		    {
-	    		str = pstrcat(r->pool, "MySQL delayed insert attempt failed, API said: ", MYSQL_ERROR(mysql_log), NULL);
+	    		str = ap_pstrcat(r->pool, "delayed insert attempt failed, API said: ", MYSQL_ERROR(mysql_log), NULL);
 	    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
 
 				preserve_entry(r, query);
-				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: entry preserved in %s",PRESERVEFILE);
+				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"entry preserved in %s", cls->preserve_file);
 			} else {
-	    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
+	    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"insert successful after a delayed retry.");
 	    	}
 	}
 
@@ -584,42 +598,24 @@ int safe_mysql_query(request_rec *r, const char *query)
 }
 
 
+/* ------------------------------------------------*
+ * Command handlers that are called according      *
+ * to the directives found at Apache runtime.      *
+ * ------------------------------------------------*/
 
-const char *set_referer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
+const char *set_massvirtual(cmd_parms *parms, void *dummy, int flag)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
-
-	cls->referer_table_name = arg;
+	massvirtual = ( flag ? 1 : 0);
 	return NULL;
 }
 
-
-const char *set_agent_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
+const char *set_log_mysql_create(cmd_parms *parms, void *dummy, int flag)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
-
-	cls->agent_table_name = arg;
+	
+	cls->create_tables = ( flag ? 1 : 0);
 	return NULL;
 }
-
-
-const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
-
-	cls->transfer_table_name = arg;
-	return NULL;
-}
-
-
-const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
-{
-	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
-
-	cls->transfer_log_format = arg;
-	return NULL;
-}
-
 
 const char *set_log_mysql_db(cmd_parms *parms, void *dummy, char *arg)
 {
@@ -629,7 +625,17 @@ const char *set_log_mysql_db(cmd_parms *parms, void *dummy, char *arg)
 
 const char *set_log_mysql_cookie(cmd_parms *parms, void *dummy, char *arg)
 {
-	cookie_name = arg;
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	cls->cookie_name = arg;
+	return NULL;
+}
+
+const char *set_log_mysql_preserve_file(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	cls->preserve_file = arg;
 	return NULL;
 }
 
@@ -647,12 +653,59 @@ const char *set_log_mysql_info(cmd_parms *parms, void *dummy, char *host, char *
 	return NULL;
 }
 
+const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	if (massvirtual == 1) {
+		char *base = "access_";
+		char *tablename;
+		int i;
+		
+		/* Find memory long enough to hold the table name + \0. */
+		/* old way: */
+		/*  tablename = (char*)ap_palloc(parms->pool, (strlen(base) + strlen(parms->server->server_hostname) + 1) * sizeof(char));*/
+		/*  strcpy(tablename, base);*/
+		/*  strcat(tablename, parms->server->server_hostname);*/
+		
+		tablename = ap_pstrcat(parms->pool, base, parms->server->server_hostname, NULL);
+
+		/* Transform any dots to underscores */
+		for (i = 0; i < strlen(tablename); i++) {
+			if (tablename[i] == '.')
+			  tablename[i] = '_';
+		}
+		
+		/* Tell this virtual server its transfer table name, and
+		 * turn on create_tables, which is implied by massvirtual.
+		 */
+		cls->transfer_table_name = tablename;
+		cls->create_tables = 1;
+	} else {
+		cls->transfer_table_name = arg;
+	}
+	return NULL;
+}
+
+const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	cls->transfer_log_format = arg;
+	return NULL;
+}
+
+const char *set_mysql_socket_file(cmd_parms *parms, void *dummy, char *arg)
+{
+	socket_file = arg;
+
+	return NULL;
+}
 
 const char *add_referer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	addme = push_array(cls->referer_ignore_list);
 	*addme = pstrdup(cls->referer_ignore_list->pool, arg);
@@ -662,8 +715,7 @@ const char *add_referer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 const char *add_transfer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	addme = push_array(cls->transfer_ignore_list);
 	*addme = pstrdup(cls->transfer_ignore_list->pool, arg);
@@ -673,8 +725,7 @@ const char *add_transfer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	addme = push_array(cls->remhost_ignore_list);
 	*addme = pstrdup(cls->remhost_ignore_list->pool, arg);
@@ -682,24 +733,91 @@ const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 }
 
 
+
+
+/*------------------------------------------------------------*
+ * Apache-specific hooks into the module code                 *
+ * that are defined in the array 'mysql_lgog_module' (at EOF) *
+ *------------------------------------------------------------*/
+
+
+/* 
+ * This function is called during server initialisation when an heavy-weight
+ * process (such as a child) is being initialised.  As with the
+ * module-initialisation function, any information that needs to be recorded
+ * must be in static cells, since there's no configuration record.
+ *
+ * There is no return value.
+ */
+static void log_mysql_child_init(server_rec *s, pool *p)
+{
+	int retval; 
+	
+	retval = open_logdb_link();
+	#ifdef DEBUG
+	if (retval > 0) {
+   	    ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"open_logdb_link successful");
+	}
+	#endif
+}
+
+/* 
+ * This function is called when an heavy-weight process (such as a child) is
+ * being run down or destroyed.  As with the child-initialisation function,
+ * any information that needs to be recorded must be in static cells, since
+ * there's no configuration record.
+ *
+ * There is no return value.
+ */
+static void log_mysql_child_exit(server_rec *s, pool *p)
+{
+	mysql_close(mysql_log);
+}
+
+
 /*
- * Apache-specific hooks into the module code
- * that are defined in the array 'mysql_lgog_module' (at EOF)
+void *log_mysql_initializer(server_rec *main_server, pool *p)
+{
+	server_rec *s;
+	
+    log_mysql_state main_conf = ap_get_module_config(main_server->module_config, &mysql_log_module);
+
+	for (server_rec *s = main_server; s; s = s->next) {
+	    conf = ap_get_module_config(s->module_config, &mysql_log_module);
+	    if (conf->transfer_log_format == NULL && s != main_server) {
+	        *conf = *main_conf;
+		}
+			
+}
  */
 
-
-/* Set up space for the various major configuration options */
+/*
+ * This function gets called to create a per-server configuration
+ * record.  It will always be called for the main server and
+ * for each virtual server that is established.  Each server maintains
+ * its own state that is separate from the others' states.
+ *
+ * The return value is a pointer to the created module-specific
+ * structure.
+ */
 void *log_mysql_make_state(pool *p, server_rec *s)
 {
-	log_mysql_state *cls = (log_mysql_state *) palloc(p, sizeof(log_mysql_state));
+	
+	log_mysql_state *cls = (log_mysql_state *) ap_palloc(p, sizeof(log_mysql_state));
 
-	cls->referer_table_name = cls->agent_table_name = cls->transfer_table_name = "";
+
+	cls->transfer_table_name = NULL;
+	cls->transfer_log_format = NULL;
 	
 	cls->referer_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
 	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
-
-	cls->transfer_log_format = "";
+	
+	cls->table_made    = 0;
+	cls->create_tables = 0;
+	
+	cls->preserve_file = "/tmp/mysql-preserve";
+	
 	return (void *) cls;
 }
 
@@ -708,12 +826,6 @@ void *log_mysql_make_state(pool *p, server_rec *s)
  * Structure: command, function called, NULL, where available, how many arguments, verbose description
  */
 command_rec log_mysql_cmds[] = {
-	{"MySQLRefererLogTable", set_referer_log_mysql_table,   NULL, 	RSRC_CONF, 	TAKE1,
-	 "The MySQL table that holds the referer log"}
-	,
-	{"MySQLAgentLogTable", set_agent_log_mysql_table, 		NULL, 	RSRC_CONF, 	TAKE1,
-	 "The MySQL table that holds the agent log"}
-	,
 	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the transfer log"}
 	,
@@ -738,6 +850,18 @@ command_rec log_mysql_cmds[] = {
 	{"MySQLLoginInfo", set_log_mysql_info, 					NULL, 	RSRC_CONF, 	TAKE3,
 	 "The MySQL host, user-id and password for logging"}
 	,
+	{"MySQLCreateTables", set_log_mysql_create,				NULL, 	RSRC_CONF, 	FLAG,
+	 "Turn on module's capability to create its SQL tables on the fly"}
+	,
+	{"MySQLMassVirtualHosting", set_massvirtual,            NULL,   RSRC_CONF,  FLAG,
+	 "Activates option(s) useful for ISPs performing mass virutal hosting"}
+	,
+	{"MySQLPreserveFile", set_log_mysql_preserve_file,		NULL, 	RSRC_CONF, 	TAKE1,
+	 "Name of the file to use for data preservation during database downtime"}
+	,
+	{"MySQLSocketFile", set_mysql_socket_file,				NULL, 	RSRC_CONF, 	TAKE1,
+	 "Name of the file to employ for socket connections to MySQL"}
+	,
 	{NULL}
 };
 
@@ -749,102 +873,25 @@ command_rec log_mysql_cmds[] = {
 int log_mysql_transaction(request_rec *orig)
 {
 	char **ptrptr, **ptrptr2;
-	log_mysql_state *cls = get_module_config(orig->server->module_config,
-						 &mysql_log_module);
-	char *str;
-	const char *referer;
+	log_mysql_state *cls = get_module_config(orig->server->module_config, &mysql_log_module);
+	const char *str;
 	request_rec *r;
-	int retvalue = DECLINED;
-	int referer_needed, agent_needed, transfer_needed;
-	
 	
 	/* Are there configuration directives for these SQL logs?  For each found
 	 * config directive that is found, mark that type as 'needed'.
 	 */
-	referer_needed = ((cls->referer_table_name[0] != '\0') ? 1 : 0);
-	agent_needed = ((cls->agent_table_name[0] != '\0') ? 1 : 0);
-	transfer_needed = ((cls->transfer_table_name[0] != '\0') ? 1 : 0);
-
-	if (!referer_needed && !agent_needed && !transfer_needed) {
-		return OK;
-	}
-	
-
-	for (r = orig; r->next; r = r->next) {
-		continue;
-	}
-
-	/* Log the 'referer' to its own log if configured to do so. */
-	if (referer_needed) {			 
-		retvalue = OK;
-		referer = table_get(orig->headers_in, "Referer");
-		if (referer != NULL) {
-
-			/* The following is an upsetting mess of pointers, I'm sorry
-			 * Anyone with the motiviation and/or the time should feel free
-			 * to make this cleaner... */
-			ptrptr2 = (char **) (cls->referer_ignore_list->elts + (cls->referer_ignore_list->nelts * cls->referer_ignore_list->elt_size));
-
-			/* Go through each element of the ignore list and compare it to the
-			 * referer_host.  If we get a match, return without logging */
-			for (ptrptr = (char **) cls->referer_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->referer_ignore_list->elt_size)) {
-				if (strstr(referer, *ptrptr)) {
-					return OK;
-				}
-			}
-			str = pstrcat(orig->pool, "insert into ", cls->referer_table_name, " (referer,url,time_stamp) values ('", mysql_escape_log(referer, orig->pool), "','", mysql_escape_log(r->uri, orig->pool), "',unix_timestamp(now()) )", NULL);
-
-			if (mysql_log == NULL) {		 /* child's mysql link not up, re-establish it */
-				open_logdb_link();
-				if (mysql_log == NULL) {
-					preserve_entry(r, str);
-					return OK;
-				} else {
-					ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
-		   			safe_mysql_query(orig, str);
-				}
-			} else {
-				  safe_mysql_query(orig, str);
-			}
-			
-		}
-	}
-
-	/* Log the 'user agent' to its own log if configured to do so. */
-	if (agent_needed) {			 
-		const char *agent, *str;
-		
-		retvalue = OK;
-		agent = table_get(orig->headers_in, "User-Agent");
-		
-		if (agent != NULL) {
-			str = pstrcat(orig->pool, "insert into ", cls->agent_table_name, "(agent,time_stamp) values ('", mysql_escape_log(agent, orig->pool), "',unix_timestamp(now()) )", NULL);
-
-			if (mysql_log == NULL) {		 /* child's mysql link not up, re-establish it */
-				open_logdb_link();
-				if (mysql_log == NULL) {
-					preserve_entry(r, str);
-					return OK;
-				} else {
-					ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
-		   			safe_mysql_query(orig, str);
-				}
-			} else {
-			    safe_mysql_query(orig, str);
-			}
-		}
-	}
-
-	/* Log the transfer to its own log if configured to do so. */
-	if (transfer_needed) {
+	if ( ((cls->transfer_table_name == NULL) ? 1 : 0) ) {
+		return DECLINED;
+	} else {
 		const char *thehost;
-
 		char *fields = "", *values = "";
 		const char *formatted_item;
 		int i, j, length;
+		char *createstring = NULL;
 
-		retvalue = OK;
-
+		for (r = orig; r->next; r = r->next) {
+			continue;
+		}
 
 		/* The following is a stolen upsetting mess of pointers, I'm sorry
 		 * Anyone with the motiviation and/or the time should feel free
@@ -856,7 +903,7 @@ int log_mysql_transaction(request_rec *orig)
 		if (r->uri) {
 			for (ptrptr = (char **) cls->transfer_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->transfer_ignore_list->elt_size)) {
 				if (strstr(r->uri, *ptrptr)) {
-					return retvalue;
+					return OK;
 				}
 			}
 		}
@@ -868,13 +915,13 @@ int log_mysql_transaction(request_rec *orig)
 		if (thehost) {
 			for (ptrptr = (char **) cls->remhost_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->remhost_ignore_list->elt_size)) {
 				if (strstr(thehost, *ptrptr)) {
-					return retvalue;
+					return OK;
 				}
 			}
 		}
 
 		/* If not specified by the user, use the default format */
-		if (cls->transfer_log_format[0] == '\0') {	
+		if (cls->transfer_log_format == NULL) {	
 			cls->transfer_log_format = "AbHhmRSsTUuv";
 		}
 		length = strlen(cls->transfer_log_format);
@@ -883,8 +930,10 @@ int log_mysql_transaction(request_rec *orig)
 		 * what the user has configured. */
 		for (i = 0; i < length; i++) {
 			j = 0;
+
 			while (log_mysql_item_keys[j].ch) {
-				if (log_mysql_item_keys[j].ch == cls->transfer_log_format[i]) {
+
+				  if (log_mysql_item_keys[j].ch == cls->transfer_log_format[i]) {
 					/* Yes, this key is one of the configured keys.
 					 * Call the key's function and put the returned value into 'formatted_item' */
 					formatted_item = log_mysql_item_keys[j].func(log_mysql_item_keys[j].want_orig_default ? orig : r, "");
@@ -894,91 +943,134 @@ int log_mysql_transaction(request_rec *orig)
 						formatted_item = "";
 					} else if (formatted_item[0] == '-' && formatted_item[1] == '\0' && !log_mysql_item_keys[j].string_contents) {
 						/* If apache tried to log a '-' character for a numeric field, convert that to a zero 
-						 * because the database expects an integer. */
+						 * because the database expects a numeral and will reject the '-' character. */
 						formatted_item = "0";
 					}
 				    
-				     /* Append the fieldname and value-to-insert to teh appropriate strings, quoting stringvals with ' as appropriate */
-					fields = pstrcat(orig->pool, fields, (i > 0 ? "," : ""), log_mysql_item_keys[j].sql_field_name, NULL);
-					values = pstrcat(orig->pool, values, (i > 0 ? "," : ""), (log_mysql_item_keys[j].string_contents ? "'" : ""), mysql_escape_log(formatted_item, orig->pool), (log_mysql_item_keys[j].string_contents ? "'" : ""), NULL);
+				     /* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
+					fields = pstrcat(r->pool, fields, (i > 0 ? "," : ""),
+									 log_mysql_item_keys[j].sql_field_name, NULL);
+					
+					values = pstrcat(r->pool, values, (i > 0 ? "," : ""),
+									 (log_mysql_item_keys[j].string_contents ? "'" : ""),
+								     escape_query(formatted_item, r->pool),
+									 (log_mysql_item_keys[j].string_contents ? "'" : ""), NULL);
 					break;
 				}
 				j++;
+
 			}
 		}
 
-		/* Set up the actual INSERT statement and execute it. */
-		str = pstrcat(orig->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
+		
+		/* Is this virtual server's table flagged as made?  We flag it as such in order
+		 * to avoid extra processing with each request.  If it's not flagged as made,
+		 * set up the CREATE string.
+		 */													  
+		if ((cls->table_made != 1) && (cls->create_tables != 0)) {		
+			char *createprefix = "create table if not exists ";
+			char *createsuffix =
+			 " (agent varchar(255),\
+			   bytes_sent int unsigned,\
+	           child_pid smallint unsigned,\
+	           cookie varchar(255),\
+	           request_file varchar(255),\
+	           referer varchar(255),\
+	           remote_host varchar(50),\
+	           remote_logname varchar(50),\
+	           remote_user varchar(50),\
+	           request_duration smallint unsigned,\
+	           request_line varchar(255),\
+	           request_method varchar(6),\
+	           request_protocol varchar(10),\
+	           request_time char(28),\
+	           request_uri varchar(50),\
+	           server_port smallint unsigned,\
+	           ssl_cipher varchar(25),\
+	           ssl_keysize smallint unsigned,\
+	           ssl_maxkeysize smallint unsigned,\
+	           status smallint unsigned,\
+	           time_stamp int unsigned,\
+	           virtual_host varchar(50))";
 
+			/* Find memory long enough to hold the whole CREATE string + \0 */
+			/* old way:
+			 * createstring = (char*)ap_palloc(orig->pool,(strlen(createprefix) + strlen(cls->transfer_table_name) + strlen(createsuffix) + 1) * sizeof(char));
+			 * strcpy (createstring, createprefix);
+			 * strcat (createstring, cls->transfer_table_name);
+			 * strcat (createstring, createsuffix); */
+			
+			createstring = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, createsuffix, NULL);			
+			
+			#ifdef DEBUG
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", createstring);
+			#endif
 
+		}
+		  
+		/* Set up the actual INSERT statement and escape it. */
+		str = ap_pstrcat(r->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
+
+		#ifdef DEBUG
+	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"insert string: %s", str);
+	    #endif
+		  
+		
 		/* How's our mysql link integrity? */
 		if (mysql_log == NULL) {
 
-			/* Try to regain the link */
+			/* Make a try to establish the link */
 			open_logdb_link();
 			
 			if (mysql_log == NULL) {
 				/* Unable to re-establish a DB link, so assume that it's really
-				 * gone and send the entry to the preserve file instead. */
-				preserve_entry(r, str);
+				 * gone and send the entry to the preserve file instead. 
+				 * Note that we don't keep logging the db error over and over. */
+				preserve_entry(orig, str);
 				return OK;
 			} else {
 				/* Whew, we got the DB link back */
-				ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
-				safe_mysql_query(orig, str);
+				ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"httpd child established database connection");
 			}
-		} else {
-			/* Everything was fine */
-			safe_mysql_query(orig, str);
+		}
+		
+		if ((cls->table_made != 1) && (cls->create_tables != 0)) {
+		  	mysql_query(mysql_log,createstring);
+		  	cls->table_made = 1;
 		}
 
+  	    /* Make the insert */
+		safe_mysql_query(orig, str);
+
+		return OK;
 	}
-	return retvalue;
 }
 
 
-/* Called on the exit of an httpd child process */
-static void log_mysql_child_exit(server_rec *s, pool *p)
-{
-	mysql_close(mysql_log);
-}
-
-/* Called on the init of an httpd child process */
-static void log_mysql_child_init(server_rec *s, pool *p)
-{
-	int retval; 
-	
-	retval = open_logdb_link();
-	#ifdef DEBUG
-	if (retval > 0) {
-   	    ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"MySQL: open_logdb_link successful");
-	}
-	#endif
-}
 
 
 /* The configuration array that sets up the hooks into the module. */
 module mysql_log_module = {
 	STANDARD_MODULE_STUFF,
-	NULL,					 /* initializer */
-	NULL,					 /* create per-dir config */
-	NULL,					 /* merge per-dir config */
-	log_mysql_make_state,	 /* server config */
-	NULL,					 /* merge server config */
-	log_mysql_cmds,			 /* command table */
-	NULL,					 /* handlers */
-	NULL,					 /* filename translation */
-	NULL,					 /* check_user_id */
-	NULL,					 /* check auth */
-	NULL,					 /* check access */
-	NULL,					 /* type_checker */
-	NULL,					 /* fixups */
-	log_mysql_transaction,	 /* logger */
-	NULL,					 /* header parser */
+	NULL,					 /* module initializer 				*/
+	NULL,					 /* create per-dir config 			*/
+	NULL,					 /* merge per-dir config 			*/
+	log_mysql_make_state,	 /* create server config 			*/
+	NULL,					 /* merge server config 			*/
+	log_mysql_cmds,			 /* config directive table 			*/
+	NULL,					 /* [9] content handlers 			*/
+	NULL,					 /* [2] URI-to-filename translation */
+	NULL,					 /* [5] check/validate user_id 		*/
+	NULL,					 /* [6] check authorization 		*/
+	NULL,					 /* [4] check access by host		*/
+	NULL,					 /* [7] MIME type checker/setter 	*/
+	NULL,					 /* [8] fixups 						*/
+	log_mysql_transaction,	 /* [10] logger 					*/
+	NULL					 /* [3] header parser 				*/
 #if MODULE_MAGIC_NUMBER >= 19970728 /* 1.3-dev or later support these additionals... */
-	log_mysql_child_init,    /* child_init */
-	log_mysql_child_exit,    /* process exit/cleanup */
-	NULL					 /* [#0] post read-request */
+	,log_mysql_child_init,   /* child process initializer 		*/
+	log_mysql_child_exit,    /* process exit/cleanup 			*/
+	NULL					 /* [1] post read-request 			*/
 #endif
 	  
 };

@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.6 2002/04/02 20:19:30 helios Exp $
+$Id: INSTALL,v 1.7 2002/04/21 23:01:52 helios Exp $
 
 
 Requirements
@@ -7,7 +7,7 @@ Requirements
 * I run a Red Hat 6.2 system, but these instructions should easily
   adapt to any modern distro.
 
-* Apache 1.2.x or higher installed.  (I run 1.3.22 and it works fine). 
+* Apache 1.2 or 1.3 installed.  (I run 1.3.22 and it works fine). 
   You should have already successfully compiled Apache and know what
   you're doing there.  In fact, you should already have any other
   modules and add-ons like mod_ssl or PHP configured and installed
@@ -15,9 +15,9 @@ Requirements
 
 * The MySQL development headers.  (I run MySQL-devel-3.23.44-1.i386.rpm).  
 
-* MySQL configured, installed and running on either localhost or an
-  accessible networked machine.  You should already have a basic
-  understanding of MySQL and how it functions.
+* MySQL >= 3.23.15 configured, installed and running on either
+  localhost or an accessible networked machine.  You should already
+  have a basic understanding of MySQL and how it functions.
 
 * Again, basic administrative skills with Apache and MySQL.  I try to
   make things as easy as possible in this README, but its purpose is
@@ -55,19 +55,15 @@ For folks interested in using this module as an Apache DSO:
    fully explained in the Makefile.
 
 3) Instruct apxs to compile and install the module as a DSO.  You need
-   to know three things before you run apxs:
+   to know two things before you run apxs:
    - The location of the apxs binary, find using 'locate apxs'
    - The location of your MySQL libraries, find using 'locate libmysqlclient'
-   - The location of your mysql.sock socket file.  If your MySQL is running on
-     a different machine (in other words, communication is via TCP/IP and not
-     sockets), this value will be ignored BUT IT STILL MUST BE DEFINED
-     AS SOMETHING/ANYTHING FOR COMPILATION TO WORK.
 
    FORMAT:
-   # <path>/apxs -i -c -DMYSQLSOCKET='\"/path/to/mysql.sock\"' -L/path/to/mysqllibs -lmysqlclient -lz mod_log_mysql.c
+   # <path>/apxs -i -c -L/path/to/mysqllibs -lmysqlclient -lz mod_log_mysql.c
 
    EXAMPLE:
-   # /usr/sbin/apxs -i -c -DMYSQLSOCKET='\"/var/lib/mysql/mysql.sock\"' -L/usr/lib/mysql -lmysqlclient -lz mod_log_mysql.c
+   # /usr/sbin/apxs -i -c -L/usr/lib/mysql -lmysqlclient -lz mod_log_mysql.c
 
    You should see something like this:
 
@@ -106,8 +102,9 @@ Installation (as a static module compiled into httpd)
    # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
    # cd /usr/local/src/mod_log_mysql
 
-2) Edit Makefile and make any adjustments for your system.  These are
-   fully explained in the Makefile.
+2) Examine the DEFINEs at the top of mod_log_mysql.c and alter any that 
+   you choose.  Edit Makefile and make any adjustments for your system.  
+   These are fully explained in the Makefile.
 
 3) # make all 
    (You should receive NO warnings or errors of any kind. 
@@ -128,8 +125,8 @@ Installation (as a static module compiled into httpd)
        * Append the following string to the EXTRA_LIBS= line. (/usr/lib/mysql is where your libmysqlclient.a file lives):
        -L/usr/lib/mysql -lmysqlclient -lm -lz
 
-       * Add this line at the end of the file:
-       Module mysql_log_module  mod_log_mysql.o
+       * Find the mod_log_config.o line, and add this line immediately after it:
+	  AddModule modules/sql/mod_log_mysql.o
 
    6b) # cp Configuration.apaci Configuration
 
@@ -196,7 +193,10 @@ Installation (as a static module compiled into httpd)
        AddModule mod_log_mysql.c 
 
 
-10) Create a database and table to hold the new log data.  I log the
+10) If you compiled mod_log_mysql with the ability to make its own tables
+    then you can skip this step.  Otherwise you need to do it by hand:
+
+    Create a database and table to hold the new log data.  I log the
     same data as the regular "combined log" plus a little extra information
     that can be useful.
 
@@ -218,9 +218,14 @@ Installation (as a static module compiled into httpd)
 
 11) Create a specific MySQL userid that httpd will use to authenticate
     and enter data.  This userid need not be an actual Unix user.  It
-    is a userid internal to MySQL with specific privileges. To create a
-    user called "loguser" with the password "l0gger" with only the
-    capability of INSERT to "access_log":
+    is a userid internal to MySQL with specific privileges.
+	
+	mysql> grant insert,create on apache.* to loguser@my.apachemachine.com identified by 'l0gger';
+	
+	Security is a very real concern.  mod_log_mysql by default is 
+	set up to create the SQL tables it needs.  If you have deactivated
+	this capability, then create a user called "loguser" with the password
+	"l0gger" with only the capability of INSERT to "access_log":
 
     mysql> grant insert on apache.access_log to loguser@my.apachemachine.com identified by 'l0gger';
 

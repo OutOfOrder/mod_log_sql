@@ -1,5 +1,5 @@
-# $Id: Makefile,v 1.8 2002/04/08 06:37:14 helios Exp $
-MLMVERS = 1.15
+# $Id: Makefile,v 1.9 2002/04/21 23:01:52 helios Exp $
+MLMVERS = 1.16
 
 # Where you unpacked your Apache tarball -- the source.
 APACHESOURCE = /usr/local/src/apache_1.3.22
@@ -7,18 +7,9 @@ APACHESOURCE = /usr/local/src/apache_1.3.22
 # Where Apache [got|will get] installed
 APACHEINST   = /usr/local/Apache
 
-# Use the first DEFS line if you want mod_log_mysql to be able to log SSL
-# variables like keysize or cipher.  Use the second one if you don't use SSL
-# or don't care to log it.
-#
-# If your MySQL db is running on the same machine as Apache, modify the
-# MYSQLSOCKET path to point to your MySQL socket.  This define has no effect
-# if your MySQL machine is a networked (TCP/IP) machine.
-
-DEFS      = -DMYSQLSOCKET="\"/var/lib/mysql/mysql.sock\"" -DWANT_SSL_LOGGING
-#DEFS      = -DMYSQLSOCKET="\"/var/lib/mysql/mysql.sock\""
-
-# Use the first CFLAGS if you *do* WANT_SSL_LOGGING, and confirm the paths.
+# Set the WANT_SSL_LOGGING define in mod_log_mysql.c if you want to log SSL
+# info, or #undef it if you don't.  Then use the first CFLAGS if you *do*
+# WANT_SSL_LOGGING, and confirm the paths.
 #
 # Modify "/usr/local/ssl/include" to where YOUR openssl/*.h files are,
 # Modify "/usr/include/db1" to where YOUR ndbm.h can be found,
@@ -53,10 +44,13 @@ INSTALL   = /usr/bin/install -m 664
 all: mod_log_mysql.o
 
 mod_log_mysql.o:	mod_log_mysql.c Makefile
-	$(CC) ${CFLAGS} ${DEFS} -c mod_log_mysql.c
+	$(CC) ${CFLAGS} -c mod_log_mysql.c
 			
 install: all
-	$(INSTALL) mod_log_mysql.o ${APACHESOURCE}/src/mod_log_mysql.o
+	$(INSTALL) -d -m 755 ${APACHESOURCE}/src/modules/sql
+	$(INSTALL) mod_log_mysql.c ${APACHESOURCE}/src/modules/sql/mod_log_mysql.c
+	$(INSTALL) Makefile ${APACHESOURCE}/src/modules/sql/Makefile
+	$(INSTALL) mod_log_mysql.o ${APACHESOURCE}/src/modules/sql/mod_log_mysql.o
 
 distro: all
 	cp -f INSTALL ${APACHEINST}/html/mod_log_mysql/
