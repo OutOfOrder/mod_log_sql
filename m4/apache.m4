@@ -5,7 +5,7 @@ AC_DEFUN(CHECK_PATH_APACHE,
 [dnl
 AC_ARG_WITH(
 		apxs,
-		[AC_HELP_STRING([--with-apxs[=DIR]],[Location to APXS binary])],
+		[AC_HELP_STRING([--with-apxs=PATH],[Location to APXS binary (default: /usr)])],
 		apxs_prefix="$withval",
 		apxs_prefix="/usr"
 	)
@@ -17,7 +17,11 @@ AC_ARG_ENABLE(apachetest,
 
 	AC_REQUIRE([AC_CANONICAL_TARGET])
 	PATH="$apxs_prefix:$apxs_prefix/bin:$apxs_prefix/sbin:$PATH"
-	AC_PATH_PROG(APXS_BIN, apxs, no, [$PATH])
+	if test -x $apxs_prefix && test ! -d $apxs_prefix; then
+		APXS_BIN=$apxs_prefix
+	else
+		AC_PATH_PROG(APXS_BIN, apxs, no, [$PATH])
+	fi
 	min_apache_version=ifelse([$1], ,1.3.1,$1)
 	AC_MSG_CHECKING(for Apache - version >= $min_apache_version)
 	no_apxs=""
@@ -96,7 +100,7 @@ int main (int argc, char *argv[])
 		ifelse([$2], , :, [$2])
    	else
     	AC_MSG_RESULT(no)
-		if test "APXS_BIN" = "no" ; then
+		if test "$APXS_BIN" = "no" ; then
 			echo "*** The apxs binary installed by apache could not be found"
 			echo "*** If apache is installed in PREFIX, make sure PREFIX/bin is in"
 			echo "*** your path, or use the --with-apxs configure option"

@@ -112,7 +112,7 @@ $(builddir)/.deps: depend
 
 depend: $(SOURCES) $(HEADERS)
 	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
-		$(CC) -MM -MT $(TARGET) -I@APACHE_INCDIR@ $(INCLUDES) -DHAVE_CONFIG_H $(srcdir)/*.c > $(builddir)/.deps || true; \
+		$(CC) -MM -I@APACHE_INCDIR@ $(INCLUDES) -DHAVE_CONFIG_H $(srcdir)/*.c > $(builddir)/.deps || true; \
 	fi
 
 include $(builddir)/.deps
@@ -128,6 +128,7 @@ $(srcdir)/stamp-h.in: configure.ac aclocal.m4
 	echo timestamp > $(srcdir)/stamp-h.in
 
 config.h: stamp-h
+
 stamp-h: config.h.in config.status
 	./config.status
 

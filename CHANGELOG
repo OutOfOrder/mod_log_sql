@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.4 2004/01/04 03:23:21 urkle Exp $
+$Id: CHANGELOG,v 1.5 2004/01/06 00:32:46 urkle Exp $
 
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
@@ -13,15 +13,19 @@ TODO:
 * Directive to yes/no create ancillary tables (or just access table)
 * break module into separate code files
     separate DB implimentation into sub-modules via provider mechanism
+    separate module for SSL support
 * add document building to Makefile.in
 * backport patch for apache 1.3
 * investigate thread safety issues (libmysqlclient_r)
-* Get SSL logging working with apache 2.0
 
 CHANGES:
-1.92: ?
+1.92: 2004-01-05
 * fixed compilation issue with mysql 4.x where mysql_error returns const char *
-* added mysql import script by Aaron Jenson
+* Have SSL support compiling (though not really tested)
+* updated configure macros to detect mod_ssl.h
+* configure now uses --with-apxs instead of --with-apache
+* Added documentation from 1.19b (needs to be update)
+* Fixed an issue with dependencies in Makefile.in
 
 1.91: 2003-12-23
 * Added checks for MySQL to autoconf

@@ -19,18 +19,18 @@ AC_ARG_ENABLE(
     ac_save_CFLAGS=$CFLAGS
     ac_save_LDFLAGS=$LDFLAGS
     if test "x$mysql_prefix" != "x" && test "x$mysql_prefix" != "xyes"; then
-	MYSQL_LDFLAGS="-L${mysql_prefix}/lib -L${mysql_prefix}/lib/mysql -L${mysql_prefix}/mysql/lib"
-	MYSQL_CFLAGS="-I${mysql_prefix}/include -I${mysql_prefix}/include/mysql -I${mysql_prefix}/mysql/include"
+		MYSQL_LDFLAGS="-L${mysql_prefix}/lib -L${mysql_prefix}/lib/mysql -L${mysql_prefix}/mysql/lib"
+		MYSQL_CFLAGS="-I${mysql_prefix}/include -I${mysql_prefix}/include/mysql -I${mysql_prefix}/mysql/include"
     else
-	MYSQL_LDFLAGS="-L/usr/local/mysql/lib -L/usr/lib/mysql -L/usr/mysql/lib -L/usr/local/lib/mysql -L/usr/local/mysql/lib/mysql -L/usr/mysql/lib/mysql"
-	MYSQL_CFLAGS="-I/usr/local/mysql/include -I/usr/include/mysql -I/usr/mysql/include -I/usr/local/include/mysql -I/usr/local/mysql/include/mysql -I/usr/mysql/include/mysql"
+		MYSQL_LDFLAGS="-L/usr/local/mysql/lib -L/usr/lib/mysql -L/usr/mysql/lib -L/usr/local/lib/mysql -L/usr/local/mysql/lib/mysql -L/usr/mysql/lib/mysql"
+		MYSQL_CFLAGS="-I/usr/local/mysql/include -I/usr/include/mysql -I/usr/mysql/include -I/usr/local/include/mysql -I/usr/local/mysql/include/mysql -I/usr/mysql/include/mysql"
     fi
     CFLAGS="$CFLAGS $MYSQL_CFLAGS"
     LDFLAGS="$LDFLAGS $MYSQL_LDFLAGS"
     AC_CHECK_LIB(m, floor)
     AC_CHECK_LIB(z, gzclose)
     with_mysql="yes"
-    AC_DEFINE(WITH_MYSQL,,[with mysql])
+    AC_DEFINE(WITH_MYSQL,1,[Define to 1 if we are compiling with mysql])
     AC_CHECK_LIB(mysqlclient, mysql_init, ,
       [AC_MSG_ERROR(libmysqlclient is needed for MySQL support)])
     MYSQL_LIBS=$LIBS
@@ -48,14 +48,14 @@ AC_ARG_ENABLE(
       CFLAGS=$ac_save_CFLAGS
       LDFLAGS=$ac_save_LDFLAGS
       if test "x$no_mysql" = x; then
-	AC_MSG_RESULT(yes)
+		AC_MSG_RESULT(yes)
         ifelse([$1], , :, [$1])
       else
         AC_MSG_RESULT(no)
-	echo "*** MySQL could not be found ***"
-	MYSQL_CFLAGS=""
-	MYSQL_LDFLAGS=""
-	MYSQL_LIBS=""
+		echo "*** MySQL could not be found ***"
+		MYSQL_CFLAGS=""
+		MYSQL_LDFLAGS=""
+		MYSQL_LIBS=""
         ifelse([$2], , :, [$2])
       fi
       AC_SUBST(MYSQL_LDFLAGS)
