@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.20 2002/12/18 01:39:28 helios Exp $
+$Id: CHANGELOG,v 1.21 2003/03/27 01:58:42 helios Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
@@ -13,6 +13,8 @@ TODO:
 * new format char: IP as bigint?
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
 * ignore by cookie
+* tool to import logs into SQL
+* Directive to yes/no create ancillary tables (or just access table)
 
 CHANGES:
 
