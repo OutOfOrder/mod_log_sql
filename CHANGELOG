@@ -1,5 +1,5 @@
-$Id: CHANGELOG,v 1.16 2004/03/05 00:30:58 urkle Exp $
-1.96: ?
+$Id: CHANGELOG,v 1.17 2004/03/05 01:05:34 urkle Exp $
+1.96: 2004-03-04
 * fixed LogSQLPreserveFile config parameter
 * reworked safe_create_tables and core SQL insert routine.
 * renamed log_sql_* variables and typedefs to logsql_*
