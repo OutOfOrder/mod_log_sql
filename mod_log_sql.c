@@ -16,7 +16,17 @@
 /* ---------*
  * INCLUDES *
  * ---------*/
-#include <time.h>
+#include "config.h"
+#if TIME_WITH_SYS_TIME
+ #include <sys/time.h>
+ #include <time.h>
+#else
+ #if TM_IN_SYS_TIME
+  #include <sys/time.h>
+ #else
+  #include <time.h>
+ #endif
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +62,7 @@ MYSQL logsql_server, *logsql_server_p = NULL;
 int logsql_massvirtual = 0;
 int logsql_createtables = 0;
 int logsql_forcepreserve = 0;
+char *logsql_tabletype = NULL;
 char *logsql_dbname = NULL;
 char *logsql_dbhost = NULL;
 char *logsql_dbuser = NULL;
@@ -289,7 +300,7 @@ static const char *extract_request_duration(request_rec *r, char *a)
 {
 	char duration[22];			 /* Long enough for 2^64 */
 
-	ap_snprintf(duration, sizeof(duration), "%ld", time(NULL) - r->request_time);
+	ap_snprintf(duration, sizeof(duration), "%ld", (long) time(NULL) - r->request_time);
 	return pstrdup(r->pool, duration);
 }
 
@@ -494,7 +505,7 @@ static const char *extract_request_timestamp(request_rec *r, char *a)
 {
 	char tstr[32];
 
-	ap_snprintf(tstr, 32, "%ld", time(NULL));
+	ap_snprintf(tstr, 32, "%ld", (long) time(NULL));
 	return pstrdup(r->pool, tstr);
 }
 
@@ -815,6 +826,8 @@ int safe_create_tables(logsql_state *cls, request_rec *r)
 	char *create_hin = NULL;
 	char *create_cookies = NULL;
 
+	char *type_suffix = NULL;
+
 	char *createprefix = "create table if not exists `";
 	char *access_suffix =
 	 "` (id char(19),\
@@ -858,12 +871,15 @@ int safe_create_tables(logsql_state *cls, request_rec *r)
 	   item varchar(80),\
        val varchar(80))";
 
+	if (logsql_tabletype)
+		type_suffix = ap_pstrcat( r->pool, " TYPE=", logsql_tabletype, NULL );
+
 	/* Find memory long enough to hold the whole CREATE string + \0 */
-	create_access = ap_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);
-	create_notes  = ap_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);
-	create_hout   = ap_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);
-	create_hin    = ap_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);
-	create_cookies= ap_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, NULL);
+	create_access = ap_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, type_suffix, NULL);
+	create_notes  = ap_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, type_suffix, NULL);
+	create_hout   = ap_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, type_suffix, NULL);
+	create_hin    = ap_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, type_suffix, NULL);
+	create_cookies= ap_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, type_suffix, NULL);
 
 	#ifdef DEBUG
 		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_access);
@@ -887,7 +903,8 @@ int safe_create_tables(logsql_state *cls, request_rec *r)
 	}
 
 	if ((create_results = safe_sql_query(r, create_hin))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create header_out table");
+		ap_log_error(APLOG_MARK,
+		ERRLEVEL,r->server,"mod_log_sql: failed to create header_out table");
 		retval = create_results;
 	}
 
@@ -933,6 +950,17 @@ const char *set_log_sql_create(cmd_parms *parms, void *dummy, int flag)
 		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLCreateTables when LogSQLMassVirtualHosting is On. Ignoring.");
 	else
 		logsql_createtables = ( flag ? 1 : 0);
+	return NULL;
+}
+
+const char *set_log_sql_tabletype(cmd_parms *parms, void *dummy, char *arg)
+{
+	/* These are the legal table types according to the MySQL docs:
+	 * TYPE = {BDB | HEAP | ISAM | InnoDB | MERGE | MRG_MYISAM | MYISAM }
+	 * However, for now the module does no checking.  If MySQL is passed
+	 * a table type it does not understand, it defaults to MyISAM. */
+
+	logsql_tabletype = arg;
 	return NULL;
 }
 
@@ -1200,12 +1228,12 @@ void *log_sql_make_state(pool *p, server_rec *s)
 
 	/* These defaults are overridable in the httpd.conf file. */
 	cls->transfer_table_name = NULL; /* No default b/c we want its absence to disable logging */
-	cls->transfer_log_format = "AbHhmRSsTUuv";
-	cls->notes_table_name    = "notes";
-	cls->hin_table_name      = "headers_in";
-	cls->hout_table_name     = "headers_out";
-	cls->cookie_table_name   = "cookies";
-	cls->preserve_file 		 = "/tmp/sql-preserve";
+	cls->transfer_log_format = NULL;
+	cls->notes_table_name    = NULL;
+	cls->hin_table_name      = NULL;
+	cls->hout_table_name     = NULL;
+	cls->cookie_table_name   = NULL;
+	cls->preserve_file 		 = NULL;
 
 	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
 	cls->transfer_accept_list = make_array(p, 1, sizeof(char *));
@@ -1218,6 +1246,106 @@ void *log_sql_make_state(pool *p, server_rec *s)
 
 	return (void *) cls;
 }
+
+static void *log_sql_merge_state(pool *p, void *basev, void *addv)
+{
+	/* Make room for the merged state */
+	logsql_state *merged =
+		(logsql_state*)ap_pcalloc(p, sizeof(logsql_state));
+
+	/* Fetch the two states to merge */
+	logsql_state *parent = (logsql_state *) basev;
+	logsql_state *child = (logsql_state *) addv;
+
+	/* Child can override these, otherwise they default to parent's choice.
+	 * If the parent didn't set them, create reasonable defaults for the
+	 * ones that should have such default settings.  Leave the others null. */
+
+	merged->transfer_table_name = child->transfer_table_name ?
+				child->transfer_table_name : parent->transfer_table_name;
+	/* No default for transfer_table_name because we want its absence
+	 * to disable logging. */
+
+
+	merged->transfer_log_format = child->transfer_log_format ?
+				child->transfer_log_format : parent->transfer_log_format;
+	if (!merged->transfer_log_format)
+		merged->transfer_log_format = "AbHhmRSsTUuv";
+
+
+	merged->preserve_file = child->preserve_file ?
+	 			child->preserve_file : parent->preserve_file;
+	if (!merged->preserve_file)
+		merged->preserve_file = "/tmp/sql-preserve";
+
+
+	merged->notes_table_name = child->notes_table_name ?
+				child->notes_table_name : parent->notes_table_name;
+	if (!merged->notes_table_name)
+		merged->notes_table_name = "notes";
+
+
+	merged->hin_table_name = child->hin_table_name ?
+				child->hin_table_name : parent->hin_table_name;
+	if (!merged->hin_table_name)
+		merged->hin_table_name = "headers_in";
+
+
+	merged->hout_table_name = child->hout_table_name ?
+				child->hout_table_name : parent->hout_table_name;
+	if (!merged->hout_table_name)
+		merged->hout_table_name = "headers_out";
+
+
+	merged->cookie_table_name = child->cookie_table_name ?
+				child->cookie_table_name : parent->cookie_table_name;
+	if (!merged->cookie_table_name)
+		merged->cookie_table_name = "cookies";
+
+
+	merged->transfer_ignore_list = child->transfer_ignore_list ?
+				child->transfer_ignore_list : parent->transfer_ignore_list;
+
+	merged->transfer_accept_list = child->transfer_accept_list ?
+				child->transfer_accept_list : parent->transfer_accept_list;
+
+	merged->remhost_ignore_list = child->remhost_ignore_list ?
+				child->remhost_ignore_list : parent->remhost_ignore_list;
+
+	merged->notes_list = child->notes_list ?
+				child->notes_list : parent->notes_list ;
+
+	merged->hin_list = child->hin_list ?
+				child->hin_list : parent->hin_list ;
+
+	merged->hout_list = child->hout_list ?
+				child->hout_list : parent->hout_list ;
+
+	merged->cookie_list = child->cookie_list ?
+				child->cookie_list : parent->cookie_list ;
+
+	merged->cookie_name = child->cookie_name ?
+				child->cookie_name : parent->cookie_name ;
+
+	return (void*) merged;
+
+	/* Here is how mod_log_config does it: */
+
+	/*
+    multi_log_state *base = (multi_log_state *) basev;
+    multi_log_state *add = (multi_log_state *) addv;
+
+    add->server_config_logs = base->config_logs;
+    if (!add->default_format) {
+        add->default_format_string = base->default_format_string;
+        add->default_format = base->default_format;
+    }
+    add->formats = ap_overlay_tables(p, base->formats, add->formats);
+
+    return add;
+	*/
+}
+
 
 
 /* Setup of the available httpd.conf configuration commands.
@@ -1245,7 +1373,7 @@ command_rec log_sql_cmds[] = {
 	{"LogSQLMachineID", set_log_sql_machine_id,						NULL, 	RSRC_CONF, 	TAKE1,
 	 "Machine ID that the module will log, useful in web clusters to differentiate machines"}
 	,
-	{"LogSQLRequestAccept", add_log_sql_transfer_accept,		NULL, 	RSRC_CONF, 	ITERATE,
+	{"LogSQLRequestAccept", add_log_sql_transfer_accept,			NULL, 	RSRC_CONF, 	ITERATE,
 	 "List of URIs to accept for logging. Accesses that don't match will not be logged"}
 	,
 	{"LogSQLRequestIgnore", add_log_sql_transfer_ignore, 			NULL, 	RSRC_CONF, 	ITERATE,
@@ -1277,6 +1405,9 @@ command_rec log_sql_cmds[] = {
 	,
 	{"LogSQLSocketFile", set_log_sql_socket_file,					NULL, 	RSRC_CONF, 	TAKE1,
 	 "Name of the file to employ for socket connections to database"}
+    ,
+    {"LogSQLTableType", set_log_sql_tabletype,						NULL,	RSRC_CONF,	TAKE1,
+     "What kind of table to create (MyISAM, InnoDB...) when creating tables"}
 	,
 	{"LogSQLTCPPort", set_log_sql_tcp_port,							NULL, 	RSRC_CONF, 	TAKE1,
 	 "Port number to use for TCP connections to database, defaults to 3306 if not set"}
@@ -1322,36 +1453,23 @@ int log_sql_transaction(request_rec *orig)
 		char *i_tablename;
 		char *o_tablename;
 		char *c_tablename;
-		unsigned int i;
+
+		/* Determine the hostname and convert it to all-lower-case.
+		 * Also change any dots to underscores.
+		 */
+		char *p;
+		char *servname = (char *)ap_get_server_name(orig);
+		for (p = servname; *p != '\0'; p++) {
+		    *p = tolower((unsigned char) *p);
+			if (*p == '.') *p = '_';
+		}
 
 		/* Find memory long enough to hold the table name + \0. */
-		a_tablename = ap_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
-		n_tablename = ap_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
-		i_tablename = ap_pstrcat(orig->pool, hin_base,    ap_get_server_name(orig), NULL);
-		o_tablename = ap_pstrcat(orig->pool, hout_base,   ap_get_server_name(orig), NULL);
-		c_tablename = ap_pstrcat(orig->pool, cookie_base, ap_get_server_name(orig), NULL);
-
-		/* Transform any dots to underscores */
-		for (i = 0; i < strlen(a_tablename); i++) {
-			if (a_tablename[i] == '.')
-			  a_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(n_tablename); i++) {
-			if (n_tablename[i] == '.')
-			  n_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(i_tablename); i++) {
-			if (i_tablename[i] == '.')
-			  i_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(o_tablename); i++) {
-			if (o_tablename[i] == '.')
-			  o_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(c_tablename); i++) {
-			if (c_tablename[i] == '.')
-			  c_tablename[i] = '_';
-		}
+		a_tablename = ap_pstrcat(orig->pool, access_base, servname, NULL);
+		n_tablename = ap_pstrcat(orig->pool, notes_base,  servname, NULL);
+		i_tablename = ap_pstrcat(orig->pool, hin_base,    servname, NULL);
+		o_tablename = ap_pstrcat(orig->pool, hout_base,   servname, NULL);
+		c_tablename = ap_pstrcat(orig->pool, cookie_base, servname, NULL);
 
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
@@ -1667,7 +1785,7 @@ module sql_log_module = {
 	NULL,					 /* create per-dir config 			*/
 	NULL,					 /* merge per-dir config 			*/
 	log_sql_make_state,		 /* create server config 			*/
-	NULL,					 /* merge server config 			*/
+	log_sql_merge_state,	 /* merge server config 			*/
 	log_sql_cmds,			 /* config directive table 			*/
 	NULL,					 /* [9] content handlers 			*/
 	NULL,					 /* [2] URI-to-filename translation */

@@ -1,0 +1,23 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* Architecture type */
+#define __LINUX 0
+#define __NETBSD 0
+#define __OPENBSD 0
+#define __SOLARIS 0
+#define __SUNOS 0
+#define __FREEBSD 0
+#define __BSDI 0
+#define __MACOSX 0
+
+/* Autodetected bits */
+#define STDC_HEADERS 0
+#define TIME_WITH_SYS_TIME 0
+#define TM_IN_SYS_TIME 0
+#define RETSIGTYPE void
+#define HAVE_STRFTIME 0
+#define HAVE_STRSTR 0
+#define HAVE_ATOI 0
+
+#endif

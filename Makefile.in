@@ -1,24 +1,10 @@
-# $Id: Makefile,v 1.21 2002/12/18 22:56:37 helios Exp $
-
-###########################################################################
-# Important:
-# Adjust these values as outlined in section "Installation" in the docs.
-# Not all are needed at all times.
-
-APACHESOURCE    = /usr/local/src/apache_1.3.27-dso
-APACHEINSTALLED = /usr/local/Apache
-APACHEHEADERS   = /usr/local/Apache/include
-APXS            = $(APACHEINSTALLED)/bin/apxs
-
-MYSQLLIBRARIES  = /usr/lib
-MYSQLHEADERS    = /usr/include/mysql
-
-#MODSSLHEADERS   = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
-#DB1HEADERS      = /usr/include/db1
+# $Id: Makefile.in,v 1.1 2003/07/22 04:17:53 helios Exp $
 
 ###########################################################################
 # Don't uncomment this without reading the "Optimizing for a busy database"
 # section in the documentation (under "Advanced logging scenarios").
+
+#@DEFS@
 
 #MYSQLDELAYED = -DWANT_DELAYED_MYSQL_INSERT
 
@@ -29,22 +15,20 @@ MLMVERS  = 1.18
 #APXSGDB  = -Wc,-g
 APXSOPTS = -Wc,-O2 -Wc,-Wall
 STATOPTS = -fpic -O2 -Wall
-CC       = gcc
-INSTALL  = /usr/bin/install -m 664
-RM       = /bin/rm
-LYX      = /usr/bin/lyx
-LATEX    = /usr/bin/latex
-DVIPS    = /usr/bin/dvips
-LINKS    = /usr/bin/lynx
-L2H      = /usr/bin/latex2html
+CC       = @CC@
+INSTALL  = @INSTALL@ -m 664
+RM       = @RM@
+LYX      = @LYX@
+LATEX    = @LATEX@
+DVIPS    = @DVIPS@
+LINKS    = @LINKS@
+L2H      = @L2H@
 WEBSERV  = gw0.corp
 
-STATFLAGS = -I$(APACHEHEADERS)
-SOFLAGS   = -L$(MYSQLLIBRARIES) -lmysqlclient -lz
-ifdef MODSSLHEADERS
-   FLAGS     = -DEAPI -I$(MYSQLHEADERS) $(MYSQLDELAYED) -I$(MODSSLHEADERS) -I$(DB1HEADERS) -DWANT_SSL_LOGGING
+ifeq (@HAVE_MODSSL@, 1)
+   FLAGS     = -DEAPI -I@MYSQLHDRDIR@ $(MYSQLDELAYED) -I@APSRCDIR@/src/modules/ssl -DWANT_SSL_LOGGING
 else
-   FLAGS     = -DEAPI -I$(MYSQLHEADERS) $(MYSQLDELAYED)
+   FLAGS     = -DEAPI -I@MYSQLHDRDIR@ $(MYSQLDELAYED)
 endif
 
 all:
@@ -58,19 +42,19 @@ dso: mod_log_sql.so
 static: mod_log_sql.o
 
 mod_log_sql.so: mod_log_sql.c Makefile
-	$(APXS) -c $(APXSGDB) $(APXSOPTS) $(FLAGS) $(SOFLAGS) mod_log_sql.c
+	@APXSDIR@/apxs -c $(APXSGDB) $(APXSOPTS) $(FLAGS) -L@MYSQLLIBDIR@ @LIBS@ mod_log_sql.c
 
 mod_log_sql.o:	mod_log_sql.c Makefile
-	$(CC) $(STATOPTS) $(FLAGS) $(STATFLAGS) -c mod_log_sql.c
+	$(CC) $(STATOPTS) $(FLAGS) -I@APHDRDIR@ -c mod_log_sql.c
 
 dsoinstall: dso
-	$(APXS) -i mod_log_sql.so
+	@APXSDIR@/apxs -i mod_log_sql.so
 
 statinstall: static
-	$(INSTALL) -d -m 755 $(APACHESOURCE)/src/modules/sql
-	$(INSTALL) mod_log_sql.c $(APACHESOURCE)/src/modules/sql/mod_log_sql.c
-	$(INSTALL) Makefile $(APACHESOURCE)/src/modules/sql/Makefile
-	$(INSTALL) mod_log_sql.o $(APACHESOURCE)/src/modules/sql/mod_log_sql.o
+	$(INSTALL) -d -m 755 @APSRCDIR@/src/modules/sql
+	$(INSTALL) mod_log_sql.c @APSRCDIR@/src/modules/sql/mod_log_sql.c
+	$(INSTALL) Makefile @APSRCDIR@/src/modules/sql/Makefile
+	$(INSTALL) mod_log_sql.o @APSRCDIR@/src/modules/sql/mod_log_sql.o
 
 clean:
 	$(RM) -rf *.o *.so
@@ -80,16 +64,19 @@ clean:
 	$(RM) -f Documentation/*.ps
 	$(RM) -f Documentation/*.txt
 
+distclean: clean
+	$(RM) -f config.log config.status config.cache config.guess confdefs.h Makefile config.h
+
 distro: documentation
-	@scp CHANGELOG $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs
-	@scp Documentation/*.ps $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs
-	@scp Documentation/HTML/*.html $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
-	@scp Documentation/HTML/*.png $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
-	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
-	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.bz2 $(APACHEINSTALLED)/html/mod_log_sql/mod_log_sql.tar.bz2"
+	@scp CHANGELOG $(WEBSERV):@APDSTDIR@/html/mod_log_sql/docs
+	@scp Documentation/*.ps $(WEBSERV):@APDSTDIR@/html/mod_log_sql/docs
+	@scp Documentation/HTML/*.html $(WEBSERV):@APDSTDIR@/html/mod_log_sql/docs/
+	@scp Documentation/HTML/*.png $(WEBSERV):@APDSTDIR@/html/mod_log_sql/docs/
+	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):@APDSTDIR@/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
+	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.bz2 @APDSTDIR@/html/mod_log_sql/mod_log_sql.tar.bz2"
 
 pre-distro: documentation
-	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
+	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):@APDSTDIR@/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
 
 documentation: Documentation/documentation.lyx
 	@echo "Creating LaTeX docs..."

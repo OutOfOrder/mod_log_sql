@@ -1061,8 +1061,22 @@ mysql> create database apachelogs;
 \end_inset 
 
 If you want to hand-create the tables, run the enclosed 'create-tables'
- SQL script as follows:
+ SQL script as follows (
+\begin_inset Quotes eld
+\end_inset 
+
+create_tables.sql
+\begin_inset Quotes erd
+\end_inset 
+
+ needs to be in your current working directory).
 \begin_deeper 
+\layout LyX-Code
+
+mysql> use apachelogs
+\layout LyX-Code
+
+Database changed
 \layout LyX-Code
 
 mysql> source create_tables.sql
@@ -1081,9 +1095,7 @@ Create a specific MySQL userid that httpd will use to authenticate and enter
 \layout LyX-Code
 
 mysql> grant insert,create on apachelogs.* to loguser@my.apachemachine.com
-\layout LyX-Code
-
-identified by 'l0gger';
+ identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
 
