@@ -363,7 +363,7 @@ Enter password:</screen>
           </listitem>
         </orderedlist>
         <para>This means that you can have a series of directives similar to the following:</para>
-        <programlisting>LogSQLRequestAccept *.html *.gif *.jpg
+        <programlisting>LogSQLRequestAccept .html .gif .jpg
 LogSQLRequestIgnore statistics.html bluedot.jpg</programlisting>
         <para>So the first line instructs the module to only log files with html, gif and jpg suffixes; requests for "formail.cgi" and "shopping-cart.pl" will never be considered for logging. ("LeftArrow.JPG" will also never be considered for logging -- remember, the comparison is case sensitive.) The second line prunes the list further -- you never want to log requests for those two objects.</para>
         <tip>
@@ -1048,6 +1048,13 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
                       <entry>virtual_host</entry>
                       <entry>varchar(255)</entry>
                       <entry>www.foobar.com</entry>
+                    </row>
+                    <row>
+                      <entry>V</entry>
+                      <entry>requested Virtual host name (mass virtualhosting)</entry>
+                      <entry>virtual_host</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>www.foobar.org</entry>
                     </row>
                   </tbody>
                 </tgroup>
