@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.8 2002/05/14 21:47:14 helios Exp $
+$Id: INSTALL,v 1.9 2002/06/27 20:09:17 helios Exp $
 
 
 Requirements
@@ -65,26 +65,19 @@ For folks interested in using this module as an Apache DSO:
    EXAMPLE:
    # /usr/sbin/apxs -i -c -L/usr/lib/mysql -lmysqlclient -lz mod_log_sql.c
 
-   You should see something like this:
+   You should see something similar to this:
 
-	gcc -fpic -DSHARED_MODULE -I/usr/local/Apache/include -c mod_log_sql.c
-	ld -Bshareable -o mod_log_sql.so mod_log_sql.o
-	cp mod_log_sql.so <your path to Apache libexec>/mod_log_sql.so
-	chmod 755 <your path to Apache libexec>/mod_log_sql.so
-	[activating module blah in /path/to/apache/etc/httpd.conf]
+	gcc -fpic -DSHARED_MODULE -I/usr/local/apache/include -c mod_log_mysql.c
+	gcc -shared -o mod_log_mysql.so mod_log_mysql.o -L/usr/local/lib/mysql/ -lmysqlclient -lz
+	cp mod_log_mysql.so /usr/local/apache/libexec/mod_log_mysql.so
+	chmod 755 /usr/local/apache/libexec/mod_log_mysql.so
 
-4) Add the following stanzas to your httpd.conf file.  Put the second stanza
+4) Add the following lines to your httpd.conf file.  Put the second line
    somewhere after the ClearModuleList directive.
 
-	<IfDefine HAVE_LOG_MYSQL>
-	   LoadModule mysql_log_module modules/mod_log_sql.so
-	</IfDefine>
+     LoadModule mysql_log_module libexec/mod_log_sql.so
 
-
-	<IfDefine HAVE_LOG_MYSQL>
-	   AddModule mod_log_sql.c
-	</IfDefine>
-
+     AddModule mod_log_sql.c
 
 5) Now go to step (9) in the instructions below to configure httpd.conf...
 

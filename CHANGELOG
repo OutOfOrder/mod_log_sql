@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.13 2002/05/24 20:52:39 helios Exp $
+$Id: CHANGELOG,v 1.14 2002/06/27 20:09:17 helios Exp $
 
 
 TODO:
@@ -10,6 +10,9 @@ TODO:
 * port to Apache 2.x
 * does determining table name in massvirtual mode upon every request
   cause performance degradation?  If so fix.
+* LogSQLRotateLogs directive with daily/monthly/weekly/etc.
+* new format char: IP as bigint?
+* socket-based middleman daemon with configurable conns?
 
 
 CHANGES:
@@ -44,7 +47,18 @@ CHANGES:
 * Config directives used to begin with MySQL, now begin with LogSQL.
   This is for database inspecificity.  In your httpd.conf just do
   a search-and-replace.
-  
+* More robust table-creation code with error checking.  [The race condition
+  that several users have reported may still exist, but this will go a long
+  way toward debugging the condition.]
+* Fixed bug whereby a MySQL connection was abandoned on reopen; the old
+  connection is now properly closed first.
+* Minor: remind user not to set createtables when massvirtual is on.
+* If Apache started but MySQL was unavailable, the module would do
+  everything it was supposed to (preserve entries, etc.) but not notify
+  the sysadmin. Added a log message to alert sysadmin if MySQL is 
+  unreachable at startup.
+* Migrated to the Artistic License (as used by Perl).
+
 
 1.16:
 * Moved all the user DEFINEs inside the .c file -- splitting them
@@ -87,7 +101,7 @@ CHANGES:
 * Reduced sleep time on a retry to 1/4 second from 1/2 second.
 * Confirmed that this module will compile with -pedantic ... but not
   with -ansi. :-)
-
+  
 
 1.15:
 * Vastly improved error reporting is a lot clearer about lost db
