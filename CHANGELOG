@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.17 2002/11/14 22:52:53 helios Exp $
+$Id: CHANGELOG,v 1.18 2002/12/10 19:43:21 helios Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
@@ -15,11 +15,28 @@ TODO:
 * socket-based middleman daemon with configurable conns?
 * ignore by cookie
 
-
 CHANGES:
 
-1.17:
+1.18:
+* Delayed inserts (a MySQL extension) are now available at compile-time.
+  THIS IS UGLY because there seems to be a bug in the way MySQL returns
+  errors on failed INSERT DELAYED queries.  See the FAQ.
+* Reworked the Makefile a tad.
+* Added stdlib.h to the includes, some systems need it for atoi(). Added
+  string.h to the includes just to be safe.
+* Reworked table creation (again).  Inserts are attempted and tables
+  are made only on ER_NO_SUCH_TABLE.  This should solve all the multiple-
+  creation-attempt issues as well as reduce overhead.
+* safe_mysql_query reworked; it now can be counted on to preserve_entry()
+  if the query doesn't succeed.  (Before, preserve_entry() was called
+  separately.)
+* Always return SIGPIPE to handler before leaving safe_mysql_query().
+* New directive LogSQLRequestAccept, another filter for excluding things
+  from being logged.
+* Alphabetized the directives in the reference section of the docs.
+* Reorganized the FAQ by section.
 
+1.17:
 * Renamed the module mod_log_sql to conform to the project goal of
   database-inspecificity.
 * Added capability of logging Notes field.  This is useful for folks using

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 2002/11/27 07:13:58 helios Exp $
+# $Id: Makefile,v 1.18 2002/12/10 19:43:21 helios Exp $
 
 ###########################################################################
 # Important:
@@ -13,7 +13,7 @@ MYSQLLIBS  = /usr/lib
 MYSQLHDRS  = /usr/include/mysql
 
 #MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
-DB1HDRS    = /usr/include/db1
+#DB1HDRS    = /usr/include/db1
 
 ###########################################################################
 # Don't uncomment this without reading the "Optimizing for a busy database"

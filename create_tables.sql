@@ -1,10 +1,10 @@
 create table access_log (
-    id char(19) ,
+	id char(19) ,
 	agent varchar(255) ,
 	bytes_sent int unsigned ,
 	child_pid smallint unsigned,
 	cookie varchar(255),
-    machine_id varchar(25),
+	machine_id varchar(25),
 	request_file varchar(255),
 	referer varchar(255) ,
 	remote_host varchar(50) ,
