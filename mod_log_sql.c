@@ -1,10 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.18 2004/03/04 05:41:12 urkle Exp $ */
-/* --------*
- * DEFINES *
- * --------*/
-
-/* The enduser may wish to modify this */
-#define DEBUG
+/* $Id: mod_log_sql.c,v 1.19 2004/03/04 05:43:20 urkle Exp $ */
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -787,9 +781,7 @@ static int log_sql_transaction(request_rec *orig)
 			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", notes_tablename, itemsets);
 
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: note string: %s", note_query);
-		   	#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: note string: %s", note_query);
 		}
 
 		/* Work through the list of headers-out defined by LogSQLWhichHeadersOut*/
