@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.9 2002/04/21 23:01:52 helios Exp $
+$Id: CHANGELOG,v 1.10 2002/04/23 03:46:20 helios Exp $
 
 
 TODO:
@@ -7,8 +7,7 @@ TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with PostgreSQL.
 * Fully test create-table
 * Document new features
-* preserve and socket configurable in .conf
-* segfault when mvh on
+* check for mandatory conf directives quit if not
 
 
 CHANGES:
@@ -20,7 +19,8 @@ CHANGES:
   version the name of the preserve-file was hardcoded and therefore
   global across all Apache virtual servers.  Now the user can configure
   this on a per-virthost basis.  It defaults to a hardcoded value
-  if the user does not define it.
+  if the user does not define it.  The module *always* prepends /tmp/
+  to the user-supplied value for security reasons.
 * A new MySQLSocketFile runtime config directive.  In the last
   version the name of the MySQL socket was hardcoded.  Now the user
   can configure this at Apache runtime.  However, it is a global
@@ -28,26 +28,31 @@ CHANGES:
   It defaults ot a hardcoded value if the user does not define it.
 * A new MySQLCreateTables runtime config directive.  Module can now
   create the access table on-the-fly.  Table creation takes place
-  during the virtual server's first request and is flagged after that.
+  during the virtual server's first request and is flagged after that to
+  avoid repetition.
 * A new MySQLMassVirtualHosting runtime config directive.  This flag
-  currently only activates a single feature: each virtual server
-  gets its very own exclusive table prefixed 'access_' with the
-  server's name following.  It also implies MySQLCreateTables On.
-* escape_query (was mysql_escape_log) is now called on every item
+  currently only activates a single feature: each virtual server gets
+  its very own dynamically-determined table prefixed 'access_' with the
+  server's name following.  It also implies MySQLCreateTables On, and
+  obviates the need for MySQLTransferLogTable.
+* escape_query (was mysql_escape_log) is now called on every item  
   rather than first checking to see if it needs to be called, which
-  was probably a big waste of time.  Furthermore the routine now
-  uses a native MySQL API call to do the escaping instead of doing
+  was probably a big waste of time.  Furthermore the routine now  
+  uses a native MySQL API call to do the escaping instead of doing 
   this 'manually.'  It attempts to use the charset-respectful MySQL
   call first, but falls back on a more generic call if the MySQL
   server is unavailable (e.g. if it goes offline).
-* Open preserve file with pfopen instead of regular fopen to 
+* Open preserve file with pfopen instead of regular fopen to
   take advantage of pool structure.
 * As forewarned, I finally got rid of the code to support separate
   Referer and Agent logs.
 * Finally brought the make process up-to-date with the way Apache
   likes modules to be done.
-* Cookies are now configurable on a per-virtualserver basis.  Before
-  they were on a global basis.
+* MySQLWhichCookie is now configurable on a per-virtualserver basis. 
+  Before it was single-shot global only.
+* Reduced sleep time on a retry to 1/4 second from 1/2 second.
+* Confirmed that this module will compile with -pedantic ... but not
+  with -ansi. :-)
 
 
 1.15:

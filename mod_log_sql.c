@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.9 2002/04/21 23:01:53 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.10 2002/04/23 03:46:20 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -67,8 +67,6 @@ typedef const char *(*item_key_func) (request_rec *, char *);
 typedef struct {
 	int create_tables;
 	int table_made;
-	char *referer_table_name;
-	char *agent_table_name;
 	char *transfer_table_name;
 	array_header *referer_ignore_list;
 	array_header *transfer_ignore_list;
@@ -570,7 +568,7 @@ int safe_mysql_query(request_rec *r, const char *query)
 
 		    /* Attempt a single re-try... First sleep for a tiny amount of time. */
 	        delay.tv_sec = 0;
-	        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
+	        delay.tv_nsec = 250000000;  /* max is 999999999 (nine nines) */
 	        ret = nanosleep(&delay, &remainder);
 	        if (ret && errno != EINTR)
 				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"nanosleep unsuccessful.");
@@ -603,7 +601,7 @@ int safe_mysql_query(request_rec *r, const char *query)
  * to the directives found at Apache runtime.      *
  * ------------------------------------------------*/
 
-const char *set_massvirtual(cmd_parms *parms, void *dummy, int flag)
+const char *set_mysql_massvirtual(cmd_parms *parms, void *dummy, int flag)
 {
 	massvirtual = ( flag ? 1 : 0);
 	return NULL;
@@ -633,9 +631,11 @@ const char *set_log_mysql_cookie(cmd_parms *parms, void *dummy, char *arg)
 
 const char *set_log_mysql_preserve_file(cmd_parms *parms, void *dummy, char *arg)
 {
+	char *pfile;
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
-	cls->preserve_file = arg;
+	pfile = ap_pstrcat(parms->pool, "/tmp/", arg, NULL);
+	cls->preserve_file = pfile;
 	return NULL;
 }
 
@@ -657,37 +657,14 @@ const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *ar
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
-	if (massvirtual == 1) {
-		char *base = "access_";
-		char *tablename;
-		int i;
-		
-		/* Find memory long enough to hold the table name + \0. */
-		/* old way: */
-		/*  tablename = (char*)ap_palloc(parms->pool, (strlen(base) + strlen(parms->server->server_hostname) + 1) * sizeof(char));*/
-		/*  strcpy(tablename, base);*/
-		/*  strcat(tablename, parms->server->server_hostname);*/
-		
-		tablename = ap_pstrcat(parms->pool, base, parms->server->server_hostname, NULL);
-
-		/* Transform any dots to underscores */
-		for (i = 0; i < strlen(tablename); i++) {
-			if (tablename[i] == '.')
-			  tablename[i] = '_';
-		}
-		
-		/* Tell this virtual server its transfer table name, and
-		 * turn on create_tables, which is implied by massvirtual.
-		 */
-		cls->transfer_table_name = tablename;
-		cls->create_tables = 1;
-	} else {
+	if (massvirtual != 0)
+		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"do not set MySQLTransferLogTable when MySQLMassVirtualHosting is On. Ignoring.");
+	else
 		cls->transfer_table_name = arg;
-	}
 	return NULL;
 }
 
-const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
+const char *set_mysql_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
@@ -829,7 +806,7 @@ command_rec log_mysql_cmds[] = {
 	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the transfer log"}
 	,
-	{"MySQLTransferLogFormat", set_transfer_log_format, 	NULL, 	RSRC_CONF, 	TAKE1,
+	{"MySQLTransferLogFormat", set_mysql_transfer_log_format,	NULL, 	RSRC_CONF, 	TAKE1,
 	 "Instruct the module what information to log to the MySQL transfer log"}
 	,
 	{"MySQLRefererIgnore", add_referer_mysql_ignore, 		NULL, 	RSRC_CONF, 	ITERATE,
@@ -853,7 +830,7 @@ command_rec log_mysql_cmds[] = {
 	{"MySQLCreateTables", set_log_mysql_create,				NULL, 	RSRC_CONF, 	FLAG,
 	 "Turn on module's capability to create its SQL tables on the fly"}
 	,
-	{"MySQLMassVirtualHosting", set_massvirtual,            NULL,   RSRC_CONF,  FLAG,
+	{"MySQLMassVirtualHosting", set_mysql_massvirtual,      NULL,   RSRC_CONF,  FLAG,
 	 "Activates option(s) useful for ISPs performing mass virutal hosting"}
 	,
 	{"MySQLPreserveFile", set_log_mysql_preserve_file,		NULL, 	RSRC_CONF, 	TAKE1,
@@ -876,10 +853,32 @@ int log_mysql_transaction(request_rec *orig)
 	log_mysql_state *cls = get_module_config(orig->server->module_config, &mysql_log_module);
 	const char *str;
 	request_rec *r;
-	
-	/* Are there configuration directives for these SQL logs?  For each found
-	 * config directive that is found, mark that type as 'needed'.
+
+	/* We handle mass virtual hosting differently.  Dynamically determine the name
+	 * of the table from the virtual server's name, and flag it for creation.
 	 */
+	if (massvirtual == 1) {
+		char *base = "access_";
+		char *tablename;
+		int i;
+		
+		/* Find memory long enough to hold the table name + \0. */
+		tablename = ap_pstrcat(orig->pool, base, ap_get_server_name(orig), NULL);
+	
+		/* Transform any dots to underscores */
+		for (i = 0; i < strlen(tablename); i++) {
+			if (tablename[i] == '.')
+			  tablename[i] = '_';
+		}
+		
+		/* Tell this virtual server its transfer table name, and
+		 * turn on create_tables, which is implied by massvirtual.
+		 */
+		cls->transfer_table_name = tablename;
+		cls->create_tables = 1;
+	}
+		
+	/* Do we have enough info to log? */
 	if ( ((cls->transfer_table_name == NULL) ? 1 : 0) ) {
 		return DECLINED;
 	} else {
@@ -893,6 +892,7 @@ int log_mysql_transaction(request_rec *orig)
 			continue;
 		}
 
+		
 		/* The following is a stolen upsetting mess of pointers, I'm sorry
 		 * Anyone with the motiviation and/or the time should feel free
 		 * to make this cleaner, and while at it, clean the same mess at the RefererLog part :) */
@@ -994,12 +994,6 @@ int log_mysql_transaction(request_rec *orig)
 	           virtual_host varchar(50))";
 
 			/* Find memory long enough to hold the whole CREATE string + \0 */
-			/* old way:
-			 * createstring = (char*)ap_palloc(orig->pool,(strlen(createprefix) + strlen(cls->transfer_table_name) + strlen(createsuffix) + 1) * sizeof(char));
-			 * strcpy (createstring, createprefix);
-			 * strcat (createstring, cls->transfer_table_name);
-			 * strcat (createstring, createsuffix); */
-			
 			createstring = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, createsuffix, NULL);			
 			
 			#ifdef DEBUG
@@ -1033,7 +1027,8 @@ int log_mysql_transaction(request_rec *orig)
 				ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"httpd child established database connection");
 			}
 		}
-		
+
+		/* Make the table if we're supposed to */
 		if ((cls->table_made != 1) && (cls->create_tables != 0)) {
 		  	mysql_query(mysql_log,createstring);
 		  	cls->table_made = 1;
