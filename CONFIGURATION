@@ -1,8 +1,0 @@
-$Id: CONFIGURATION,v 1.2 2002/05/14 21:47:14 helios Exp $
-
-
-Run-time configuration directives are fully documented on the
-mod_log_sql homepage:
-
-http://www.grubbybaby.com/mod_log_sql/directives.html
-
