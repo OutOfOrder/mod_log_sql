@@ -1,7 +1,7 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = 
+SUBDIRS = Documentation
 SOURCES = \
 	@PACKAGE_NAME@.c
 
@@ -70,10 +70,10 @@ include:
 	ln -s @APACHE_INCDIR@ include
 
 install: install-subdirs
-	@APXS_BIN@ -i -a -n $(subst mod_,,@PACKAGE_NAME@) $(TARGET)
+	@APXS_BIN@ -i -a $(TARGET)
 
 update: update-subdirs
-	@APXS_BIN@ -i -n $(subst mod_,,@PACKAGE_NAME@) $(TARGET)
+	@APXS_BIN@ -i $(TARGET)
 
 clean: clean-subdirs
 	$(RM) $(OBJ) $(SLO) $(LO) $(TARGET) .deps
