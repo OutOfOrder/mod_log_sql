@@ -1,0 +1,86 @@
+# @configure_input@
+
+# Modify these top variables.
+SUBDIRS = 
+
+EXTRA_DIST = README documentation.lyx
+
+#Don't modify anything below here
+
+srcdir = @abs_srcdir@
+builddir = @abs_builddir@
+
+STD_DIST = Makefile.in
+
+DISTFILES = $(STD_DIST) $(EXTRA_DIST)
+
+all: $(TARGET) all-subdirs
+
+all-subdirs install-subdirs update-subdirs clean-subdirs distclean-subdirs:
+	@otarget=`echo $@|sed s/-subdirs//`; \
+	list=' $(SUBDIRS)'; \
+	for i in $$list; do \
+		if test -d "$$i"; then \
+			target="$$otarget"; \
+			echo "Making $$target in $$i"; \
+			if test "$$i" = "."; then \
+				made_local=yes; \
+				target="local-$$target"; \
+			fi; \
+			(cd $$i && $(MAKE) $$target) || exit 1; \
+		fi; \
+	done; \
+
+include:
+	rm -rf include
+	ln -s @APACHE_INCDIR@ include
+
+install: install-subdirs
+	@APXS_BIN@ -i -a -n $(subst mod_,,@PACKAGE_NAME@) $(TARGET)
+
+update: update-subdirs
+
+clean: clean-subdirs
+
+distclean: clean distclean-subdirs
+	$(RM) Makefile
+
+DESTDIR = @PACKAGE_TARNAME@-@PACKAGE_VERSION@
+DESTTGZ = $(DESTDIR).tar.gz
+dist:
+	@rm -rf $(DESTDIR); \
+	list=' $(SUBDIRS)'; \
+	for i in $$list; do \
+		if test -d "$$i"; then \
+			target=local-dist; \
+			echo "Making $$target in $$i"; \
+			if test "$$i" = "."; then \
+				made_local=yes; \
+				target="local-dist"; \
+			fi; \
+			NEWDESTDIR=$(builddir)/$(DESTDIR)/$$i; \
+			echo $(NEWDESTDIR); \
+			(cd $$i && $(MAKE) DESTDIR=$(builddir)/$(DESTDIR)/$$i $$target) || exit 1; \
+		fi; \
+	done;
+	if test "$$made_local" != "yes"; then \
+		$(MAKE) "local-dist" || exit 1; \
+	fi
+	tar -zcf $(DESTTGZ) $(DESTDIR)
+	rm -rf $(DESTDIR)
+
+local-dist: $(DISTFILES)
+	mkdir -p $(DESTDIR)
+	cp -dp --parents $(DISTFILES) $(DESTDIR)
+
+$(builddir)/.deps: depend
+
+depend: $(SOURCES) $(HEADERS)
+	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
+		$(CC) -MM -MT $(TARGET) -I@APACHE_INCDIR@ $(INCLUDES) $(srcdir)/*.c > $(builddir)/.deps || true; \
+	fi
+
+include $(builddir)/.deps
+
+.PHONY: include all-subdirs update-subdirs install-subdirs \
+	clean-subdirs distclean-subdirs dist
