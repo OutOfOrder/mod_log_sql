@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.10 2002/05/14 21:47:14 helios Exp $
+# $Id: Makefile,v 1.11 2002/09/04 18:46:00 helios Exp $
 MLMVERS = 1.17
 
 # Where you unpacked your Apache tarball -- the source.
-APACHESOURCE = /usr/local/src/apache_1.3.22
+APACHESOURCE = /usr/local/src/apache_1.3.26
 
 # Where Apache [got|will get] installed
 APACHEINST   = /usr/local/Apache

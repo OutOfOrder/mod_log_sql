@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.14 2002/06/27 20:09:17 helios Exp $
+$Id: CHANGELOG,v 1.15 2002/09/04 18:46:00 helios Exp $
 
 
 TODO:
@@ -13,6 +13,9 @@ TODO:
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * new format char: IP as bigint?
 * socket-based middleman daemon with configurable conns?
+
+* go ahead and allow dashes - quote the table name!
+* maxlength of request field should be longer
 
 
 CHANGES:
@@ -57,7 +60,10 @@ CHANGES:
   everything it was supposed to (preserve entries, etc.) but not notify
   the sysadmin. Added a log message to alert sysadmin if MySQL is 
   unreachable at startup.
+* New config key 'I' to extract & log unique_id, provided by mod_unique_id.
 * Migrated to the Artistic License (as used by Perl).
+* Moved table creation into its own callable function
+* Robustifying table creation
 
 
 1.16:

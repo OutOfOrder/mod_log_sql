@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.15 2002/06/27 20:09:17 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.16 2002/09/04 18:46:00 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -436,16 +436,16 @@ struct log_sql_item_list {
     } log_sql_item_keys[] = {
 
 	{   'A', extract_agent,             "agent",            1, 1    },
-    {   'b', extract_bytes_sent,        "bytes_sent",       0, 0    },
-    {   'c', extract_cookie,            "cookie",           0, 1    },
-    {   'e', extract_env_var,           "env_var",          0, 1    },
-    {   'f', extract_request_file,      "request_file",     0, 1    },
+	{   'b', extract_bytes_sent,        "bytes_sent",       0, 0    },
+    	{   'c', extract_cookie,            "cookie",           0, 1    },
+    	{   'e', extract_env_var,           "env_var",          0, 1    },
+    	{   'f', extract_request_file,      "request_file",     0, 1    },
 	{   'H', extract_request_protocol,  "request_protocol", 0, 1    },
 	{   'h', extract_remote_host,       "remote_host",      0, 1    },
-    {   'i', extract_header_in,         "header_in",        0, 1    },
+	{   'i', extract_header_in,         "header_in",        0, 1    },
 	{   'I', extract_unique_id,         "id",               0, 1    },
 	{   'l', extract_remote_logname,    "remote_logname",   0, 1    },
-	{	'm', extract_request_method,    "request_method",   0, 1    },
+	{   'm', extract_request_method,    "request_method",   0, 1    },
 	{   'n', extract_note,              "note",             0, 1    },
     {   'o', extract_header_out,        "header_out",       0, 1    },
     {   'P', extract_child_pid,         "child_pid",        0, 0    },
@@ -565,8 +565,12 @@ void preserve_entry(request_rec *r, const char *query)
 	else {
 		fprintf(fp,"%s;\n", query);
 		pfclose(r->pool, fp);
+		#ifdef DEBUG
+		  ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
+		#endif 
 	}
 }
+
 
 /*-----------------------------------------------------*/
 /* safe_mysql_query: perform a database query with     */
@@ -574,12 +578,12 @@ void preserve_entry(request_rec *r, const char *query)
 /*                                                     */
 /* Parms:   request record, SQL insert statement       */
 /* Returns: 0 (OK) on success                          */
-/*          -1 if have no log handle                   */
+/*          1 if have no log handle                    */
 /*          actual MySQL return code on error          */
 /*-----------------------------------------------------*/
-int safe_mysql_query(request_rec *r, const char *query)
+unsigned int safe_mysql_query(request_rec *r, const char *query)
 {
-	int retval;
+	unsigned int retval;
 	unsigned int real_error;
 	struct timespec delay, remainder;
 	int ret;
@@ -593,21 +597,20 @@ int safe_mysql_query(request_rec *r, const char *query)
 	if (mysql_log != NULL) 
 		retval = mysql_query(mysql_log, query);
 	else
-	  	return -1;
+	  	return 1;
 	
-	/* If we ran the query and it returned an error, try to be graceful.
-	 * (The module thought it had a valid mysql_log connection but the query
-	 * might have failed, so we have to be extra-safe and check.)
-	 */
-	if ( retval != 0 ) 
+	if ( retval != 0 )
     {
+		/* If we ran the query and it returned an error, try to be robust.
+		 * (After all, the module thought it had a valid mysql_log connection but the query
+		 * could have failed for a number of reasons, so we have to be extra-safe and check.) */
+	
 		log_sql_state *cls = get_module_config(r->server->module_config, &mysql_log_module);
 
-		real_error = mysql_errno(mysql_log);
+		real_error = mysql_errno(mysql_log); /* What really happened? */
 		
 		/* Something went wrong, so start by trying to restart the db link. */
 		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: first attempt failed, API said: error %d, %s", real_error, MYSQL_ERROR(mysql_log));
-		
 		mysql_close(mysql_log);
 		mysql_log = NULL;
 		open_logdb_link();
@@ -616,20 +619,18 @@ int safe_mysql_query(request_rec *r, const char *query)
     		signal(SIGPIPE, handler);
     		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
 			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: log entries are being preserved in %s", cls->preserve_file);
-			preserve_entry(r, query);
-    		return retval;
-    	} else {
+    		return 1;
+    	} else
 	    	ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: reconnect successful");
-		}
 
-		/* Attempt a single re-try... First sleep for a tiny amount of time. */
+		/* First sleep for a tiny amount of time. */
 	    delay.tv_sec = 0;
 	    delay.tv_nsec = 250000000;  /* max is 999999999 (nine nines) */
 	    ret = nanosleep(&delay, &remainder);
 	    if (ret && errno != EINTR)
 			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: nanosleep unsuccessful");
 
-	    /* Now make our second attempt */
+	    /* Then make our second attempt */
 		retval = mysql_query(mysql_log,query);
 
 		/* If this one also failed, log that and append to our local offline file */
@@ -637,11 +638,9 @@ int safe_mysql_query(request_rec *r, const char *query)
 		{
 			real_error = mysql_errno(mysql_log);
 	    	ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: second attempt failed, API said: error %d, %s", real_error, MYSQL_ERROR(mysql_log));
-			preserve_entry(r, query);
-			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
-		} else {
+			retval = real_error;
+		} else 
 	        ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: second attempt successful");
-	    }
 	}
 
 	/* Restore SIGPIPE to its original handler function */
@@ -650,6 +649,102 @@ int safe_mysql_query(request_rec *r, const char *query)
 	return retval;
 }
 
+/*-----------------------------------------------------*/
+/* safe_create_tables: create SQL table set for the    */
+/* virtual server represented by cls.                  */
+/*                                                     */
+/* Parms:   virtserver structure, request record       */
+/* Returns: 0 on no errors							   */
+/*          mysql error code on failure				   */
+/*-----------------------------------------------------*/
+int safe_create_tables(log_sql_state *cls, request_rec *r)
+{
+	int retval;
+	unsigned int create_results;
+    char *create_access = NULL;
+	char *create_notes = NULL;
+	char *create_hout = NULL;
+	char *create_hin = NULL;
+	
+	char *createprefix = "create table if not exists ";
+	char *access_suffix =
+	 " (id char(19),\
+	   agent varchar(255),\
+	   bytes_sent int unsigned,\
+       child_pid smallint unsigned,\
+       cookie varchar(255),\
+       request_file varchar(255),\
+       referer varchar(255),\
+       remote_host varchar(50),\
+       remote_logname varchar(50),\
+       remote_user varchar(50),\
+       request_duration smallint unsigned,\
+       request_line varchar(255),\
+       request_method varchar(6),\
+       request_protocol varchar(10),\
+       request_time char(28),\
+       request_uri varchar(50),\
+       server_port smallint unsigned,\
+       ssl_cipher varchar(25),\
+       ssl_keysize smallint unsigned,\
+       ssl_maxkeysize smallint unsigned,\
+       status smallint unsigned,\
+       time_stamp int unsigned,\
+       virtual_host varchar(50))";
+			
+	char *notes_suffix = 
+	 " (id char(19),\
+	   item varchar(80),\
+	   val varchar(80))";
+			
+	char *headers_suffix = 
+	 " (id char(19),\
+	   item varchar(80),\
+       val varchar(80))";
+	
+	/* Find memory long enough to hold the whole CREATE string + \0 */
+	create_access = ap_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);			
+	create_notes  = ap_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);			
+	create_hout   = ap_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);			
+	create_hin    = ap_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);			
+		
+	#ifdef DEBUG
+		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_access);
+		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_notes);
+		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_hout);
+		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_hin);
+	#endif
+
+	/* Assume that things worked unless told otherwise */
+	cls->table_made = 1;
+	retval = 0;
+	  
+  	if ((create_results = safe_mysql_query(r, create_access)) != 0) {
+		cls->table_made = 0;
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create access table");
+		retval = create_results;
+	}
+		
+	if ((create_results = safe_mysql_query(r, create_notes)) != 0) {
+		cls->table_made = 0;
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create notes table");
+		retval = create_results;		
+	}
+			
+	if ((create_results = safe_mysql_query(r, create_hin)) != 0) {
+		cls->table_made = 0;
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create header_out table");
+		retval = create_results;
+	}
+			
+	if ((create_results = safe_mysql_query(r, create_hout)) != 0) {
+		cls->table_made = 0;
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create header_in table");
+		retval = create_results;
+	}
+	
+	return retval;
+}
 
 /* ------------------------------------------------*
  * Command handlers that are called according      *
@@ -1060,20 +1155,12 @@ int log_sql_transaction(request_rec *orig)
 		const char *unique_id;
 		const char *formatted_item;
 		int i, j, length;
-		char *create_access = NULL;
-		char *create_notes = NULL;
-		char *create_hout = NULL;
-		char *create_hin = NULL;
-		int create_results;
+		int result;
 		
 		for (r = orig; r->next; r = r->next) {
 			continue;
 		}
 
-		#ifdef DEBUG
-		 /*ap_table_do(trace, orig, orig->subprocess_env, NULL);*/
-		#endif
-		
 		/* The following is a stolen upsetting mess of pointers, I'm sorry.
 		 * Anyone with the motiviation and/or the time should feel free
 		 * to make this cleaner. :) */
@@ -1228,64 +1315,6 @@ int log_sql_transaction(request_rec *orig)
 		   	#endif
 		}
 		
-		
-		
-		/* Is this virtual server's table flagged as made?  We flag it as such in order
-		 * to avoid extra processing with each request.  If it's not flagged as made,
-		 * set up the CREATE string.
-		 */													  
-		if ((cls->table_made != 1) && (create_tables != 0)) {		
-			char *createprefix = "create table if not exists ";
-			char *access_suffix =
-			 " (id char(19),\
-			   agent varchar(255),\
-			   bytes_sent int unsigned,\
-	           child_pid smallint unsigned,\
-	           cookie varchar(255),\
-	           request_file varchar(255),\
-	           referer varchar(255),\
-	           remote_host varchar(50),\
-	           remote_logname varchar(50),\
-	           remote_user varchar(50),\
-	           request_duration smallint unsigned,\
-	           request_line varchar(255),\
-	           request_method varchar(6),\
-	           request_protocol varchar(10),\
-	           request_time char(28),\
-	           request_uri varchar(50),\
-	           server_port smallint unsigned,\
-	           ssl_cipher varchar(25),\
-	           ssl_keysize smallint unsigned,\
-	           ssl_maxkeysize smallint unsigned,\
-	           status smallint unsigned,\
-	           time_stamp int unsigned,\
-	           virtual_host varchar(50))";
-			
-			char *notes_suffix = 
-			 " (id char(19),\
-			   item varchar(80),\
-			   val varchar(80))";
-			
-			char *headers_suffix = 
-			 " (id char(19),\
-			   item varchar(80),\
-               val varchar(80))";
-
-			/* Find memory long enough to hold the whole CREATE string + \0 */
-			create_access = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);			
-			create_notes  = ap_pstrcat(orig->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);			
-			create_hout   = ap_pstrcat(orig->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);			
-			create_hin    = ap_pstrcat(orig->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);			
-			
-			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: create string: %s", create_access);
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: create string: %s", create_notes);
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: create string: %s", create_hout);
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: create string: %s", create_hin);
-			#endif
-
-		}
-		  
 		/* Set up the actual INSERT statement */
 		access_query = ap_pstrcat(r->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
 
@@ -1293,7 +1322,6 @@ int log_sql_transaction(request_rec *orig)
 	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: access string: %s", access_query);
 	    #endif
 		  
-		
 		/* How's our mysql link integrity? */
 		if (mysql_log == NULL) {
 
@@ -1322,38 +1350,43 @@ int log_sql_transaction(request_rec *orig)
 		}
 		
 		
-		/* So as of here we have a non-null value of mysql_log. */
+		/* ---> So as of here we have a non-null value of mysql_log. <--- */
+		/* ---> i.e. we have a good MySQL connection.                <--- */
 		
 
 		/* Make the tables if we're supposed to. */
 		if ((cls->table_made != 1) && (create_tables != 0)) {
-
-			/* Assume it will be made successfully...*/
-			cls->table_made = 1;
-			
-		  	if ((create_results = safe_mysql_query(orig, create_access)) != 0) {
-				cls->table_made = 0;
-				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: failed to create access table, see preserve file");
-			}
-				
-			if ((create_results = safe_mysql_query(orig, create_notes)) != 0) {
-				cls->table_made = 0;
-				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: failed to create notes table, see preserve file");
-			}
-			
-			if ((create_results = safe_mysql_query(orig, create_hin)) != 0) {
-				cls->table_made = 0;
-				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: failed to create header_out table, see preserve file");
-			}
-			
-			if ((create_results = safe_mysql_query(orig, create_hout)) != 0) {
-				cls->table_made = 0;
-				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: failed to create header_in table, see preserve file");
-			}
+			result = safe_create_tables(cls, orig);
+			if (result != 0)
+			  	ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: child attempted but failed to create one or more tables for %s", ap_get_server_name(orig));
+			else
+			    ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"mod_log_sql: no problems creating tables for %s", ap_get_server_name(orig));
 		}
 		
   	    /* Make the access-table insert */
-		safe_mysql_query(orig, access_query);
+		result = safe_mysql_query(orig, access_query);
+		
+		/* It failed, but NOT because table didn't exist */
+		if ( (result != 0) && (result != 1146) )
+		 	preserve_entry(orig,access_query);
+	
+		/* It failed because table didn't exist */
+		if (result == 1146) {
+			ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: hmm, table didn't yet exist; creating");
+			result = safe_create_tables(cls, orig);
+			if (result != 0) {
+				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(orig));
+				preserve_entry(orig,access_query);
+			} else {
+				ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: table successfully created, query will now be retried");
+				result = safe_mysql_query(orig, access_query);
+				if (result != 0 ) {
+					ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: giving up, preserving query");
+					preserve_entry(orig,access_query);
+					return OK;
+				}
+   			}
+		}
 		
 		/* Log the optional notes, headers, etc. */
 		if ( note_query != NULL )
