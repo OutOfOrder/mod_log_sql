@@ -5,7 +5,11 @@ SUBDIRS = Documentation
 SOURCES = \
 	@PACKAGE_NAME@.c
 
-HEADERS =
+HEADERS = functions.h \
+		functions13.h \
+		functions20.h \
+		apache13.h \
+		apache20.h
 
 CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
@@ -15,7 +19,7 @@ LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 
 EXTRA_DIST = INSTALL LICENSE CHANGELOG make_combined_log.pl
 
-TARGET = @APACHE_OUTPUT_NAME@
+TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
 
 #Don't modify anything below here
 
@@ -59,7 +63,7 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 		fi; \
 	done;
 
-$(TARGET):
+$(TARGET): $(SOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(TARGET) $(INCLUDES) @MOD_SSL_CFLAGS@ $(CFLAGS) \
 		$(LDADD) @DEFS@ @APACHE_DEFS@ $(SOURCES)
 
@@ -74,7 +78,7 @@ activate: activate-subdirs
 	@@APXS_BIN@ -i -a $(TARGET)
 
 clean: clean-subdirs
-	$(RM) $(OBJ) $(SLO) $(LO) $(TARGET) .deps
+	$(RM) $(OBJ) $(SLO) $(LO) $(TARGET)
 	$(RM) -r .libs
 
 distclean: clean distclean-subdirs
@@ -109,16 +113,6 @@ dist:
 local-dist: $(DISTFILES)
 	@mkdir -p $(DESTDIR); \
 	cp -dp --parents $(DISTFILES) $(DESTDIR);
-
-$(builddir)/.deps: depend
-
-depend: $(SOURCES) $(HEADERS)
-	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
-		$(CC) -MM -I@APACHE_INCDIR@ @MOD_SSL_CFLAGS@ $(INCLUDES) @DEFS@ \
-			@APACHE_DEFS@ $(srcdir)/*.c > $(builddir)/.deps || true; \
-	fi
-
-include $(builddir)/.deps
 
 .PHONY: include all-subdirs activate-subdirs install-subdirs \
 	clean-subdirs distclean-subdirs dist

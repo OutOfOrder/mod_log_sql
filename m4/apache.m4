@@ -139,7 +139,7 @@ AC_ARG_ENABLE(
 					AC_MSG_RESULT(yes)
 					AC_DEFINE(WITH_APACHE20,1,[Define to 1 if we are compiling with Apache 2.0.x])
 					APACHE_VERSION="20"
-			        APACHE_OUTPUT_NAME=$PACKAGE_NAME.la
+			        APXS_EXTENSION=.la
 					APACHE_DEFS="-DWITH_APACHE20"
 					ifelse([$4], , , $4),
 					AC_MSG_RESULT(no)
@@ -154,7 +154,7 @@ AC_ARG_ENABLE(
 					AC_MSG_RESULT(yes)
 					AC_DEFINE(WITH_APACHE13,1,[Define to 1 if we are compiling with Apache 1.3.x])
 					APACHE_VERSION="13"
-	       			APACHE_OUTPUT_NAME=$PACKAGE_NAME.so
+					APXS_EXTENSION=.so
 					APACHE_DEFS="-DWITH_APACHE13"
 					ifelse([$3], , , $3),
 					AC_MSG_RESULT(no)
@@ -167,6 +167,6 @@ AC_ARG_ENABLE(
 		AC_SUBST(APACHE_INCDIR)
 		AC_SUBST(APACHE_MODDIR)
 		AC_SUBST(APACHE_VERSION)
-		AC_SUBST(APACHE_OUTPUT_NAME)
+		AC_SUBST(APXS_EXTENSION)
    	fi
 ])

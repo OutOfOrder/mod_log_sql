@@ -53,7 +53,13 @@ anjuta.program.arguments=
 module.include.name=.
 module.include.type=
 module.include.expanded=0
-module.include.files=
+module.include.files=\
+	apache13.h\
+	apache20.h\
+	functions.h\
+	functions13.h\
+	functions20.h\
+	mod_log_sql.h
 
 module.source.name=.
 module.source.type=

@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql_ssl.c,v 1.1 2004/01/20 19:38:08 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql_ssl.c,v 1.2 2004/01/20 20:33:20 urkle Exp $ */
 /* mod_log_sql_ssl */
 
 #if defined(WITH_APACHE20)
@@ -93,8 +93,8 @@ static const char *extract_ssl_cipher(request_rec *r, char *a)
 	}
 }
 
-#ifdef WANT_SSL_LOGGING
+
+
 	{   'q', extract_ssl_keysize,       "ssl_keysize",      0, 1    },
 	{   'Q', extract_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
 	{   'z', extract_ssl_cipher,        "ssl_cipher",       0, 1    },
-#endif

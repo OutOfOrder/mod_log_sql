@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.8 2004/01/20 19:38:08 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.9 2004/01/20 20:33:20 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -43,6 +43,7 @@
 #include <limits.h>
 #endif
 
+#include "mod_log_sql.h"
 
 /* Configuratino Defaults */
 #define DEFAULT_TRANSFER_LOG_FMT	"AbHhmRSsTUuv"
@@ -83,8 +84,6 @@ typedef struct {
 
 static global_config_t global_config;
 
-typedef const char *(*item_key_func) (request_rec *, char *);
-
 /* But the contents of this structure will vary by virtual server.
  * This permits each virtual server to vary its configuration slightly
  * for per-server customization.
@@ -116,6 +115,30 @@ typedef struct {
 
 static int safe_create_tables(logsql_state *cls, request_rec *r);
 
+typedef struct {
+	  log_sql_item_func *func;		/* its extraction function */
+	  const char *sql_field_name;	/* its column in SQL */
+	  int want_orig_default;		/* if it requires the original request prior to internal redirection */
+	  int string_contents;			/* if it returns a string */
+} log_sql_item;
+
+apr_hash_t *log_sql_hash;
+
+/* Registration Function for extract functions */
+LOGSQL_DECLARE(void) log_sql_register_item(apr_pool_t *p, char *key,
+		log_sql_item_func *func, const char *sql_field_name,
+		int want_orig_default, int string_contents)
+{
+	log_sql_item *item = apr_palloc(p, sizeof(log_sql_item));
+	/*item->key = */
+	item->func = func;
+	item->sql_field_name = sql_field_name;
+	item->want_orig_default = want_orig_default;
+	item->string_contents = string_contents;
+	/* TODO: find apache 13 way of doing this */
+	apr_hash_set(log_sql_hash, key, APR_HASH_KEY_STRING, item);
+}
+
 /* Include all the extract functions */
 #include "functions.h"
 #if defined(WITH_APACHE13)
@@ -123,40 +146,6 @@ static int safe_create_tables(logsql_state *cls, request_rec *r);
 #elif defined(WITH_APACHE20)
 #	include "functions20.h"
 #endif
-
-struct log_sql_item_list {
-	  char ch;						/* its letter code */
-	  item_key_func func;			/* its extraction function */
-	  const char *sql_field_name;	/* its column in SQL */
-	  int want_orig_default;		/* if it requires the original request prior to internal redirection */
-	  int string_contents;			/* if it returns a string */
-    } static log_sql_item_keys[] = {
-
-	{   'A', extract_agent,             "agent",            1, 1    },
-	{   'a', extract_request_args,      "request_args",     1, 1    },
-	{   'b', extract_bytes_sent,        "bytes_sent",       0, 0    },
-    {   'c', extract_cookie,            "cookie",           0, 1    },
-    {   'e', extract_env_var,           "env_var",          0, 1    },
-    {   'f', extract_request_file,      "request_file",     0, 1    },
-	{   'H', extract_request_protocol,  "request_protocol", 0, 1    },
-	{   'h', extract_remote_host,       "remote_host",      0, 1    },
-	{   'I', extract_unique_id,         "id",               0, 1    },
-	{   'l', extract_remote_logname,    "remote_logname",   0, 1    },
-	{   'm', extract_request_method,    "request_method",   0, 1    },
-	{   'M', extract_machine_id,        "machine_id",       0, 1    },
-	{   'P', extract_child_pid,         "child_pid",        0, 0    },
-	{   'p', extract_server_port,       "server_port",      0, 0    },
-	{   'R', extract_referer,           "referer",          1, 1    },
-	{   'r', extract_request_line,      "request_line",     1, 1    },
-	{   'S', extract_request_timestamp, "time_stamp",       0, 0    },
-	{   's', extract_status,            "status",           1, 0    },
-	{   'T', extract_request_duration,  "request_duration", 1, 0    },
-	{   't', extract_request_time,      "request_time",     0, 1    },
-	{   'u', extract_remote_user,       "remote_user",      0, 1    },
-	{   'U', extract_request_uri,       "request_uri",      1, 1    },
-	{   'v', extract_virtual_host,      "virtual_host",     0, 1    },
-	{'\0'}
-};
 
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
@@ -699,6 +688,31 @@ static void log_sql_pre_config(server_rec *s, apr_pool_t *p)
 		global_config.socketfile = "/tmp/mysql.sock";
 	if (!global_config.tcpport)
 		global_config.tcpport = 3306;
+
+	/* Register handlers */
+	log_sql_register_item(p,"A", extract_agent,             "agent",            1, 1);
+	log_sql_register_item(p,"a", extract_request_args,      "request_args",     1, 1);
+	log_sql_register_item(p,"b", extract_bytes_sent,        "bytes_sent",       0, 0);
+    log_sql_register_item(p,"c", extract_cookie,            "cookie",           0, 1);
+    log_sql_register_item(p,"e", extract_env_var,           "env_var",          0, 1);
+    log_sql_register_item(p,"f", extract_request_file,      "request_file",     0, 1);
+	log_sql_register_item(p,"H", extract_request_protocol,  "request_protocol", 0, 1);
+	log_sql_register_item(p,"h", extract_remote_host,       "remote_host",      0, 1);
+	log_sql_register_item(p,"I", extract_unique_id,         "id",               0, 1);
+	log_sql_register_item(p,"l", extract_remote_logname,    "remote_logname",   0, 1);
+	log_sql_register_item(p,"m", extract_request_method,    "request_method",   0, 1);
+	log_sql_register_item(p,"M", extract_machine_id,        "machine_id",       0, 1);
+	log_sql_register_item(p,"P", extract_child_pid,         "child_pid",        0, 0);
+	log_sql_register_item(p,"p", extract_server_port,       "server_port",      0, 0);
+	log_sql_register_item(p,"R", extract_referer,           "referer",          1, 1);
+	log_sql_register_item(p,"r", extract_request_line,      "request_line",     1, 1);
+	log_sql_register_item(p,"S", extract_request_timestamp, "time_stamp",       0, 0);
+	log_sql_register_item(p,"s", extract_status,            "status",           1, 0);
+	log_sql_register_item(p,"T", extract_request_duration,  "request_duration", 1, 0);
+	log_sql_register_item(p,"t", extract_request_time,      "request_time",     0, 1);
+	log_sql_register_item(p,"u", extract_remote_user,       "remote_user",      0, 1);
+	log_sql_register_item(p,"U", extract_request_uri,       "request_uri",      1, 1);
+	log_sql_register_item(p,"v", extract_virtual_host,      "virtual_host",     0, 1);
 
 #if defined(WITH_APACHE20)
 	return OK;
