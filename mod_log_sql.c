@@ -1,4 +1,4 @@
-
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.2 2003/12/21 17:45:51 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -75,7 +75,7 @@ typedef const char *(*item_key_func) (request_rec *, char *);
  * Each child process has its own segregated copy of this structure.
  */
 typedef struct {
-	array_header *transfer_ignore_list;
+	apr_array_t *transfer_ignore_list;
 	array_header *transfer_accept_list;
 	array_header *remhost_ignore_list;
 	array_header *notes_list;

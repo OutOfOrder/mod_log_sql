@@ -9,7 +9,7 @@ HEADERS =
 
 CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
-INCLUDES =
+INCLUDES = -I/usr/include/mysql
 
 LDADD = 
 
@@ -115,7 +115,7 @@ $(builddir)/.deps: depend
 
 depend: $(SOURCES) $(HEADERS)
 	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
-		$(CC) -MM -MT $(TARGET) -I@APACHE_INCDIR@ $(srcdir)/*.c > $(builddir)/.deps || true; \
+		$(CC) -MM -MT $(TARGET) -I@APACHE_INCDIR@ $(INCLUDES) $(srcdir)/*.c > $(builddir)/.deps || true; \
 	fi
 
 include $(builddir)/.deps
