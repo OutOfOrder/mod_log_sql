@@ -1,4 +1,8 @@
 #!/usr/bin/perl -w
+
+# Written by Aaron Jenson.
+# Original source: http://www.visualprose.com/software.php
+# Updated to work under Perl 5.6.1 by Edward Rudd
 use strict;
 use Getopt::Long qw(:config bundling);
 use DBI;
@@ -216,6 +220,8 @@ EOF
 sub VERSION_MESSAGE
 {
 	print "mysql_import_combined_log.pl version 1.1\n";
+	print "Version 1.0 Written by Aaron Jenson.\n";
+	print "Update to work with perl 5.6.1 by Edward Rudd\n";
 }
 
 1;
