@@ -1,19 +1,10 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.15 2004/02/12 03:18:18 urkle Exp $ */
+/* $Id $ */
 /* --------*
  * DEFINES *
  * --------*/
 
 /* The enduser may wish to modify this */
 #define DEBUG
-
-/* The enduser won't modify these */
-#define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
-
-/* ---------*
- * INCLUDES *
- * ---------*/
-#include "mysql.h"
-#include "mysqld_error.h"
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -69,17 +60,9 @@ typedef struct {
 	int massvirtual;
 	int createtables;
 	int forcepreserve;
-	char *tabletype;
-	char *dbname;
-	char *dbhost;
-	char *dbuser;
-	char *dbpwd;
 	char *machid;
-	char *socketfile;
-	unsigned int tcpport;
-	int insertdelayed;
-	MYSQL server;
-	MYSQL *server_p;
+	apr_table_t *dbparams;
+	logsql_dbconnection db;
 } global_config_t;
 
 static global_config_t global_config;
@@ -87,11 +70,11 @@ static global_config_t global_config;
 /* structure to hold helper function info */
 typedef struct {
 	char key;					/* item letter character */
-	log_sql_item_func *func;	/* its extraction function */
+	logsql_item_func *func;	/* its extraction function */
 	const char *sql_field_name;	/* its column in SQL */
 	int want_orig_default;		/* if it requires the original request prior to internal redirection */
 	int string_contents;		/* if it returns a string */
-} log_sql_item;
+} logsql_item;
 
 /* But the contents of this structure will vary by virtual server.
  * This permits each virtual server to vary its configuration slightly
@@ -114,33 +97,28 @@ typedef struct {
 	const char *transfer_table_name;
 	const char *transfer_log_format;
 	apr_pool_t *parsed_pool;
-	log_sql_item **parsed_log_format;
+	logsql_item **parsed_log_format;
 	const char *preserve_file;
 	const char *cookie_name;
 } logsql_state;
 
 
-/* -----------------*
- * HELPER FUNCTIONS *
- * -----------------*/
-
-static int safe_create_tables(logsql_state *cls, request_rec *r);
-
-static apr_array_header_t *log_sql_item_list;
+/* list of "handlers" for log types */
+static apr_array_header_t *logsql_item_list;
 
 /* Registration Function for extract functions *
  * and update parse cache for transfer_log_format *
  * this is exported from the module */
 LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
-		char key, log_sql_item_func *func, const char *sql_field_name,
+		char key, logsql_item_func *func, const char *sql_field_name,
 		int want_orig_default, int string_contents)
 {
 	server_rec *ts;
-	log_sql_item *item;
-	if (!log_sql_item_list)
-		log_sql_item_list = apr_array_make(p,10, sizeof(log_sql_item));
+	logsql_item *item;
+	if (!logsql_item_list)
+		logsql_item_list = apr_array_make(p,10, sizeof(logsql_item));
 
-	item= apr_array_push(log_sql_item_list);
+	item= apr_array_push(logsql_item_list);
 	item->key = key;
 	item->func = func;
 	item->sql_field_name = sql_field_name;
@@ -189,7 +167,7 @@ static const char *escape_query(const char *from_str, apr_pool_t *p)
 			return from_str;
 		}
 
-		if (!global_config.server_p) {
+		if (!global_config.db.connected) {
 			/* Well, I would have liked to use the current database charset.  mysql is
 			 * unavailable, however, so I fall back to the slightly less respectful
 			 * mysql_escape_string() function that uses the default charset.
@@ -199,7 +177,7 @@ static const char *escape_query(const char *from_str, apr_pool_t *p)
 			/* MySQL is available, so I'll go ahead and respect the current charset when
 			 * I perform the escape.
 			 */
-			retval = mysql_real_escape_string(global_config.server_p, to_str, from_str, length);
+			retval = mysql_real_escape_string(global_config.db.handle, to_str, from_str, length);
 		}
 
 		if (retval)
@@ -209,42 +187,19 @@ static const char *escape_query(const char *from_str, apr_pool_t *p)
 	}
 }
 
-static int open_logdb_link(server_rec* s)
+static logsql_opendb open_logdb_link(server_rec* s)
 {
-	/* Returns:
-	   3 if preserve forced
-	   2 if already connected
-	   1 if successful
-	   0 if unsuccessful
-	*/
-
 	if (global_config.forcepreserve)
-		return 3;
+		return LOGSQL_OPENDB_PRESERVE;
 
-	if (global_config.server_p)
-		return 2;
+	if (global_config.db.connected)
+		return LOGSQL_OPENDB_ALREADY;
 
 	if ((global_config.dbname) && (global_config.dbhost) && (global_config.dbuser) && (global_config.dbpwd)) {
-		mysql_init(&global_config.server);
-		global_config.server_p = mysql_real_connect(&global_config.server, global_config.dbhost, global_config.dbuser, global_config.dbpwd, global_config.dbname, global_config.tcpport, global_config.socketfile, 0);
-
-		if (global_config.server_p) {
-			#ifdef DEBUG
-			  log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-			  										global_config.dbhost, global_config.tcpport, global_config.dbname, global_config.dbuser, global_config.socketfile);
-			#endif
-			return 1;
-		} else {
-			#ifdef DEBUG
-			  log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: database connection error: %s",MYSQL_ERROR(&global_config.server));
-			  log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-			  										global_config.dbhost, global_config.tcpport, global_config.dbname, global_config.dbuser, global_config.socketfile);
-		 	#endif
-			return 0;
-		}
+		log_sql_mysql_connect();
 	} else {
 		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: insufficient configuration info to establish database link");
-		return 0;
+		return LOGSQL_OPENDB_FAIL;
 	}
 }
 
@@ -285,245 +240,6 @@ static void preserve_entry(request_rec *r, const char *query)
 	}
 }
 
-
-/*-----------------------------------------------------*
- * safe_sql_query: perform a database query with       *
- * a degree of safety and error checking.              *
- *                                                     *
- * Parms:   request record, SQL insert statement       *
- * Returns: 0 (OK) on success                          *
- *          1 if have no log handle                    *
- *          2 if insert delayed failed (kluge)         *
- *          the actual MySQL return code on error      *
- *-----------------------------------------------------*/
-static unsigned int safe_sql_query(request_rec *r, const char *query)
-{
-	int retval;
-	struct timespec delay, remainder;
-	int ret;
-	void (*handler) (int);
-	logsql_state *cls;
-	unsigned int real_error = 0;
-	const char *real_error_str = NULL;
-
-	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
-	handler = signal(SIGPIPE, SIG_IGN);
-
-	/* First attempt for the query */
-	if (!global_config.server_p) {
-		signal(SIGPIPE, handler);
-		return 1;
-	} else if (!(retval = mysql_query(global_config.server_p, query))) {
-		signal(SIGPIPE, handler);
-		return 0;
-	}
-
-	/* If we ran the query and it returned an error, try to be robust.
-	* (After all, the module thought it had a valid mysql_log connection but the query
-	* could have failed for a number of reasons, so we have to be extra-safe and check.) */
-	if (global_config.insertdelayed) {
-	 real_error_str = MYSQL_ERROR(global_config.server_p);
-	} else {
-	 real_error = mysql_errno(global_config.server_p);
-	}
-
-	/* Check to see if the error is "nonexistent table" */
-	if (global_config.insertdelayed) {
-		retval = (strstr(real_error_str, "Table")) && (strstr(real_error_str,"doesn't exist"));
-	} else {
-		retval = (real_error == ER_NO_SUCH_TABLE);
-	}
-	if (retval) {
-		if (global_config.createtables) {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: table doesn't exist...creating now");
-			cls = ap_get_module_config(r->server->module_config, &log_sql_module);
-			if (safe_create_tables(cls, r)) {
-				log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
-				preserve_entry(r, query);
-				retval = mysql_errno(global_config.server_p);
-			} else {
-				log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: tables successfully created - retrying query");
-				if (mysql_query(global_config.server_p, query)) {
-					log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: giving up, preserving query");
-					preserve_entry(r, query);
-					retval = mysql_errno(global_config.server_p);
-				} else
-					log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: query successful after table creation");
-					retval = 0;
-			}
-		} else {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql, table doesn't exist, creation denied by configuration, preserving query");
-			preserve_entry(r, query);
-			retval = ER_NO_SUCH_TABLE;
-		}
-		/* Restore SIGPIPE to its original handler function */
-		signal(SIGPIPE, handler);
-		return retval;
-	}
-
-	/* Handle all other types of errors */
-
-	cls = ap_get_module_config(r->server->module_config, &log_sql_module);
-
-	/* Something went wrong, so start by trying to restart the db link. */
-	if (global_config.insertdelayed) {
-	 real_error = 2;
-	} else {
-	 real_error = mysql_errno(global_config.server_p);
-	}
-
-	log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: first attempt failed, API said: error %d, \"%s\"", real_error, MYSQL_ERROR(global_config.server_p));
-	mysql_close(global_config.server_p);
-	global_config.server_p = NULL;
-	open_logdb_link(r->server);
-
-	if (global_config.server_p == NULL) {	 /* still unable to link */
-		signal(SIGPIPE, handler);
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: log entries are being preserved in %s", cls->preserve_file);
-		return 1;
-	} else
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: db reconnect successful");
-
-	/* First sleep for a tiny amount of time. */
-	delay.tv_sec = 0;
-	delay.tv_nsec = 250000000;  /* max is 999999999 (nine nines) */
-	ret = nanosleep(&delay, &remainder);
-	if (ret && errno != EINTR)
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: nanosleep unsuccessful");
-
-	/* Then make our second attempt */
-	retval = mysql_query(global_config.server_p,query);
-
-	/* If this one also failed, log that and append to our local offline file */
-	if (retval)	{
-		if (global_config.insertdelayed) {
-		 real_error = 2;
-		} else {
-		 real_error = mysql_errno(global_config.server_p);
-		}
-
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: second attempt failed, API said: error %d, \"%s\" -- preserving", real_error, MYSQL_ERROR(global_config.server_p));
-		preserve_entry(r, query);
-		retval = real_error;
-	} else
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: second attempt successful");
-
-	/* Restore SIGPIPE to its original handler function */
-	signal(SIGPIPE, handler);
-	return retval;
-}
-
-/*-----------------------------------------------------*
- * safe_create_tables: create SQL table set for the    *
- * virtual server represented by cls.                  *
- *                                                     *
- * Parms:   virtserver structure, request record       *
- * Returns: 0 on no errors							   *
- *          mysql error code on failure				   *
- *-----------------------------------------------------*/
-static int safe_create_tables(logsql_state *cls, request_rec *r)
-{
-	int retval;
-	unsigned int create_results;
-	char *create_access = NULL;
-	char *create_notes = NULL;
-	char *create_hout = NULL;
-	char *create_hin = NULL;
-	char *create_cookies = NULL;
-
-	char *type_suffix = NULL;
-
-	char *createprefix = "create table if not exists `";
-	char *access_suffix =
-	 "` (id char(19),\
-       agent varchar(255),\
-       bytes_sent int unsigned,\
-       child_pid smallint unsigned,\
-       cookie varchar(255),\
-	   machine_id varchar(25),\
-       request_file varchar(255),\
-       referer varchar(255),\
-       remote_host varchar(50),\
-       remote_logname varchar(50),\
-       remote_user varchar(50),\
-       request_duration smallint unsigned,\
-       request_line varchar(255),\
-       request_method varchar(10),\
-       request_protocol varchar(10),\
-       request_time char(28),\
-       request_uri varchar(255),\
-	   request_args varchar(255),\
-       server_port smallint unsigned,\
-       ssl_cipher varchar(25),\
-       ssl_keysize smallint unsigned,\
-       ssl_maxkeysize smallint unsigned,\
-       status smallint unsigned,\
-       time_stamp int unsigned,\
-       virtual_host varchar(255))";
-
-	char *notes_suffix =
-	 "` (id char(19),\
-	   item varchar(80),\
-	   val varchar(80))";
-
-	char *headers_suffix =
-	 "` (id char(19),\
-	   item varchar(80),\
-       val varchar(80))";
-
-   	char *cookies_suffix =
-	 "` (id char(19),\
-	   item varchar(80),\
-       val varchar(80))";
-	if (global_config.tabletype) {
-		type_suffix = apr_pstrcat(r->pool, " TYPE=", global_config.tabletype, NULL);
-	}
-	/* Find memory long enough to hold the whole CREATE string + \0 */
-	create_access = apr_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, type_suffix, NULL);
-	create_notes  = apr_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, type_suffix, NULL);
-	create_hout   = apr_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, type_suffix, NULL);
-	create_hin    = apr_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, type_suffix, NULL);
-	create_cookies= apr_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, type_suffix, NULL);
-
-	#ifdef DEBUG
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: create string: %s", create_access);
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: create string: %s", create_notes);
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: create string: %s", create_hout);
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: create string: %s", create_hin);
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: create string: %s", create_cookies);
-	#endif
-
-	/* Assume that things worked unless told otherwise */
-	retval = 0;
-
-  	if ((create_results = safe_sql_query(r, create_access))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: failed to create access table");
-		retval = create_results;
-	}
-
-	if ((create_results = safe_sql_query(r, create_notes))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: failed to create notes table");
-		retval = create_results;
-	}
-
-	if ((create_results = safe_sql_query(r, create_hin))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: failed to create header_in table");
-		retval = create_results;
-	}
-
-	if ((create_results = safe_sql_query(r, create_hout))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: failed to create header_out table");
-		retval = create_results;
-	}
-
-	if ((create_results = safe_sql_query(r, create_cookies))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: failed to create cookies table");
-		retval = create_results;
-	}
-
-	return retval;
-}
 
 /* ------------------------------------------------*
  * Command handlers that are called according      *
@@ -567,7 +283,6 @@ static const char *set_global_string_slot(cmd_parms *cmd,
     *(const char **)((char *)ptr + offset) = apr_pstrdup(cmd->pool,arg);
     return NULL;
 }
-
 static const char *set_server_string_slot(cmd_parms *cmd,
                                      		 void *struct_ptr,
                                      		 const char *arg)
@@ -591,7 +306,7 @@ static const char *set_logformat_slot(cmd_parms *cmd,
 	cfg->transfer_log_format = arg;
 /*	apr_pool_clear(cfg->parsed_pool);*/
 	cfg->parsed_log_format = apr_pcalloc(cfg->parsed_pool,
-		strlen(arg) * sizeof(log_sql_item *));
+		strlen(arg) * sizeof(logsql_item *));
     return NULL;
 }
 
@@ -607,16 +322,38 @@ static const char *set_server_nmv_string_slot(cmd_parms *parms,
 		return set_server_string_slot(parms,struct_ptr,arg);
 }
 
-static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, const char *host, const char *user, const char *pwd)
+/* Set a DB connection parameter */
+static void set_dbparam(apr_pool_t *p, const char *key,
+						const char *val);
+{
+	if (!global_config.dbparams) {
+		global_config.dbparams = apr_table_make(p,5);
+	}
+	apr_table_set(global_config.dbparams,key,val);
+}
+
+static const char *set_dbparam_slot(cmd_params *cmd,
+								void *struct_ptr,
+								const char *arg)
+{
+	const char *param = (char *)cmd->info;
+	set_dbparam(cmd->pool,param,arg);
+	return NULL;
+}
+
+/* Sets basic connection info */
+static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, 
+						const char *host, const char *user, const char *pwd)
 {
 	if (*host != '.') {
-		global_config.dbhost = apr_pstrdup(cmd->pool,host);
+		set_db_param_slot(cmd->pool, "host", host);
 	}
 	if (*user != '.') {
+		set_db_param_slot(cmd->pool, "user", user);
 		global_config.dbuser = apr_pstrdup(cmd->pool,user);
 	}
 	if (*pwd != '.') {
-		global_config.dbpwd = apr_pstrdup(cmd->pool,pwd);
+		set_db_param_slot(cmd->pool, "passwd", pwd);
 	}
 	return NULL;
 }
@@ -673,37 +410,26 @@ static int log_sql_open(apr_pool_t *pc, apr_pool_t *p, apr_pool_t *pt, server_re
 static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 #endif
 {
-	int retval;
+	logsql_opendb retval;
 		/* Open a link to the database */
 	retval = open_logdb_link(s);
-	if (!retval)
+	switch (retval) {
+	case LOGSQL_OPENDB_FAIL:
 		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: child spawned but unable to open database link");
-
-	#ifdef DEBUG
-	if ( (retval == 1) || (retval == 2) )
+		break;
+	case LOGSQL_OPENDB_SUCCESS:
+	case LOGSQL_OPENDB_ALREADY:
 		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: open_logdb_link successful");
-	if (retval == 3)
+		break;
+	case LOGSQL_OPENDB_PRESERVE:
  		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: open_logdb_link said that preservation is forced");
-	#endif
+		break;
+	}
 #if defined(WITH_APACHE20)
 	return OK;
 #endif
 }
-/*
-void *log_sql_initializer(server_rec *main_server, apr_pool_t *p)
-{
-	server_rec *s;
 
-    logsql_state main_conf = ap_get_module_config(main_server->module_config, &log_sql_module);
-
-	for (server_rec *s = main_server; s; s = s->next) {
-	    conf = ap_get_module_config(s->module_config, &log_sql_module);
-	    if (conf->transfer_log_format == NULL && s != main_server) {
-	        *conf = *main_conf;
-		}
-
-}
- */
 /* post_config / module_init */
 #if defined(WITH_APACHE20)
 static int log_sql_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
@@ -748,6 +474,20 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 }
 
+/* This function handles calling the DB module,  handling errors 
+ * of missing tables and lost DB connections, and falling back to 
+ * preserving the DB query.
+ *
+ * Parms: request record, table type, table name, and the full SQL command
+ */
+
+static void safe_sql_insert(request_rec *r, logsql_tabletype table_type,
+		const char *table_name, const char *sql) {
+	int result;
+	if (!global_config.connected) {
+	}
+}
+
 /* This function gets called to create a per-server configuration
  * record.  It will always be called for the main server and
  * for each virtual server that is established.  Each server maintains
@@ -764,7 +504,7 @@ static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
 	cls->transfer_log_format = DEFAULT_TRANSFER_LOG_FMT;
 	apr_pool_create(&cls->parsed_pool, p);
 	cls->parsed_log_format = apr_pcalloc(cls->parsed_pool,
-			strlen(cls->transfer_log_format) * sizeof(log_sql_item *));
+			strlen(cls->transfer_log_format) * sizeof(logsql_item *));
 	cls->notes_table_name = DEFAULT_NOTES_TABLE_NAME;
 	cls->hin_table_name = DEFAULT_HIN_TABLE_NAME;
 	cls->hout_table_name = DEFAULT_HOUT_TABLE_NAME;
@@ -801,7 +541,7 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 		child->transfer_log_format = parent->transfer_log_format;
 		/*apr_pool_clear(child->parsed_pool);*/
 		child->parsed_log_format = apr_pcalloc(child->parsed_pool,
-			strlen(child->transfer_log_format) * sizeof(log_sql_item *));
+			strlen(child->transfer_log_format) * sizeof(logsql_item *));
 	}
 
 	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
@@ -961,7 +701,7 @@ static int log_sql_transaction(request_rec *orig)
 		 * what the user has configured. */
 		length = strlen(cls->transfer_log_format);
 		for (i = 0; i<length; i++) {
-			log_sql_item *item = cls->parsed_log_format[i];
+			logsql_item *item = cls->parsed_log_format[i];
 			if (item==NULL) {
 				log_error(APLOG_MARK, APLOG_ERR, orig->server,
 					"Log Format '%c' unknown",cls->transfer_log_format[i]);
@@ -1175,7 +915,11 @@ static int log_sql_transaction(request_rec *orig)
 		/* ---> i.e. we have a good MySQL connection.                <--- */
 
   	    /* Make the access-table insert */
-		safe_sql_query(orig, access_query);
+		if (safe_create_tables(orig, LOGSQL_TABLE_ACCESS, transfer_tablename)==APR_SUCCESS) {
+			safe_sql_query(orig, access_query);
+		} else {
+			preserve_entry(orig, access_query);
+		}
 
 		/* Log the optional notes, headers, etc. */
 		if (note_query)
@@ -1199,6 +943,7 @@ static int log_sql_transaction(request_rec *orig)
  * Structure: command, function called, NULL, where available, how many arguments, verbose description
  */
 static const command_rec log_sql_cmds[] = {
+	/* Table names */
 	AP_INIT_TAKE1("LogSQLTransferLogTable", set_server_nmv_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF, 
 	 "The database table that holds the transfer log")
@@ -1219,14 +964,21 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state, cookie_table_name), RSRC_CONF,
 	 "The database table that holds the cookie info")
 	,
+	AP_INIT_FLAG("LogSQLMassVirtualHosting", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, massvirtual), RSRC_CONF,
+	 "Activates option(s) useful for ISPs performing mass virutal hosting")
+	,
+	/* Log format */
 	AP_INIT_TAKE1("LogSQLTransferLogFormat", set_logformat_slot,
 	 NULL, RSRC_CONF,
 	 "Instruct the module what information to log to the database transfer log")
 	,
+	/* Machine ID */
 	AP_INIT_TAKE1("LogSQLMachineID", set_global_string_slot,
 	 (void *)APR_OFFSETOF(global_config_t, machid), RSRC_CONF,
 	 "Machine ID that the module will log, useful in web clusters to differentiate machines")
 	,
+	/* Limits on logging */
 	AP_INIT_ITERATE("LogSQLRequestAccept", add_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, transfer_accept_list), RSRC_CONF,
 	 "List of URIs to accept for logging. Accesses that don't match will not be logged")
@@ -1239,47 +991,13 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state, remhost_ignore_list), RSRC_CONF,
 	 "List of remote hosts to ignore. Accesses that match will not be logged to database")
 	,
-	AP_INIT_TAKE1("LogSQLDatabase", set_global_string_slot, 
-	 (void *)APR_OFFSETOF(global_config_t, dbname), RSRC_CONF,
-	 "The name of the database database for logging")
-	,
 	AP_INIT_TAKE1("LogSQLWhichCookie", set_server_string_slot, 
 	 (void *)APR_OFFSETOF(logsql_state, cookie_name), RSRC_CONF,
 	 "The single cookie that you want logged in the access_log when using the 'c' config directive")
 	,
-	AP_INIT_TAKE3("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
-	 "The database host, user-id and password for logging")
-	,
-	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
-	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
-	 "Turn on module's capability to create its SQL tables on the fly")
-	,
-	AP_INIT_FLAG("LogSQLMassVirtualHosting", set_global_flag_slot,
-	 (void *)APR_OFFSETOF(global_config_t, massvirtual), RSRC_CONF,
-	 "Activates option(s) useful for ISPs performing mass virutal hosting")
-	,
-	AP_INIT_FLAG("LogSQLDelayedInserts", set_global_flag_slot,
-	 (void *)APR_OFFSETOF(global_config_t, insertdelayed), RSRC_CONF,
-	 "Whether to use delayed inserts")
-	,
-	AP_INIT_FLAG("LogSQLForcePreserve", set_global_flag_slot,
-	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
-	 "Forces logging to preserve file and bypasses database")
-	,
 	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
 	 "Name of the file to use for data preservation during database downtime")
-	,
-	AP_INIT_TAKE1("LogSQLSocketFile", set_global_string_slot,
-	 (void *)APR_OFFSETOF(global_config_t, socketfile), RSRC_CONF,
-	 "Name of the file to employ for socket connections to database")
-	,
-	AP_INIT_TAKE1("LogSQLTableType", set_global_string_slot,
-	 (void *)APR_OFFSETOF(global_config_t, tabletype), RSRC_CONF,
-	 "What kind of table to create (MyISAM, InnoDB,...) when creating tables")
-	,
-	AP_INIT_TAKE1("LogSQLTCPPort", set_log_sql_tcp_port, NULL, RSRC_CONF,
-	 "Port number to use for TCP connections to database, defaults to 3306 if not set")
 	,
 	AP_INIT_ITERATE("LogSQLWhichNotes", add_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, notes_list), RSRC_CONF,
@@ -1296,6 +1014,38 @@ static const command_rec log_sql_cmds[] = {
 	AP_INIT_ITERATE("LogSQLWhichCookies", add_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, cookie_list), RSRC_CONF,
 	 "The cookie(s) that you would like to log in a separate table")
+	,
+	/* DB connection parameters */
+	AP_INIT_FLAG("LogSQLForcePreserve", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
+	 "Forces logging to preserve file and bypasses database")
+	,
+	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
+	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
+	 "Turn on module's capability to create its SQL tables on the fly")
+	,
+	AP_INIT_TAKE3("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
+	 "The database host, user-id and password for logging")
+	,
+	AP_INIT_TAKE1("LogSQLDatabase", set_dbparam_slot, 
+	 (void *)"database", RSRC_CONF,
+	 "The name of the database database for logging")
+	,
+	AP_INIT_TAKE1("LogSQLDelayedInserts", set_dbparam_slot,
+	 (void *)"insertdelayed", RSRC_CONF,
+	 "Whether to use delayed inserts")
+	,
+	AP_INIT_TAKE1("LogSQLTableType", set_dbparam_slot,
+	 (void *)"tabletype", RSRC_CONF,
+	 "What kind of table to create (MyISAM, InnoDB,...) when creating tables")
+	,
+	AP_INIT_TAKE1("LogSQLSocketFile", set_dbparam_slot,
+	 (void *)"socketfile", RSRC_CONF,
+	 "Name of the file to employ for socket connections to database")
+	,
+	AP_INIT_TAKE1("LogSQLTCPPort", set_dbparam_slot, 
+	 (void *)"tcpport", RSRC_CONF,
+	 "Port number to use for TCP connections to database, defaults to 3306 if not set")
 	,
 	{NULL}
 };

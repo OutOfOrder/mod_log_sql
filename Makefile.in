@@ -2,8 +2,8 @@
 
 # Modify these top variables.
 SUBDIRS = Documentation contrib
-SOURCES = \
-	@PACKAGE_NAME@.c
+SOURCES = @PACKAGE_NAME@.c \
+		@PACKAGE_NAME@_mysql.c
 
 HEADERS = mod_log_sql.h \
 		functions.h \
@@ -22,7 +22,7 @@ EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG make_combined_log.pl
 
 TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
 
-sslSOURCES = mod_log_sql_ssl.c
+sslSOURCES = @PACKAGE_NAME@_ssl.c
 
 sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
 

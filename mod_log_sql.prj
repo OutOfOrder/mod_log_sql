@@ -68,7 +68,8 @@ module.source.files=\
 	mod_log_sql.c\
 	make_combined_log.pl\
 	contrib/mysql_import_combined_log.pl\
-	mod_log_sql_ssl.c
+	mod_log_sql_ssl.c\
+	mod_log_sql_mysql.c
 
 module.pixmap.name=.
 module.pixmap.type=

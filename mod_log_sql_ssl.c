@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql_ssl.c,v 1.4 2004/01/22 05:26:56 urkle Exp $ */
+/* $Id: mod_log_sql_ssl.c,v 1.5 2004/02/29 23:36:18 urkle Exp $ */
 /* mod_log_sql_ssl */
 
 #if defined(WITH_APACHE20)

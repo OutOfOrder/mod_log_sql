@@ -1,6 +1,9 @@
-$Id: CHANGELOG,v 1.13 2004/02/12 03:21:35 urkle Exp $
+$Id: CHANGELOG,v 1.14 2004/02/29 23:36:17 urkle Exp $
 1.96: ?
 * fixed LogSQLPreserveFile config parameter
+* reworked safe_create_tables
+* renamed log_sql_* variables and typedefs to logsql_*
+* beginnings of abstraction layer
 
 1.95: 2004-02-05
 * audit and update of extract_* functions to acheive same output as 

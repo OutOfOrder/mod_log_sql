@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.4 2004/02/05 21:59:46 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.5 2004/02/29 23:36:17 urkle Exp $ */
 #ifndef APACHE13_H
 #define APACHE13_H
 
@@ -51,7 +51,9 @@
 #define apr_psprintf ap_psprintf
 #define apr_snprintf ap_snprintf
 
+#define apr_table_set ap_table_set
 #define apr_table_get ap_table_get
+#define apr_table_make ap_make_table
 
 #define apr_array_push ap_push_array
 #define apr_array_make ap_make_array
