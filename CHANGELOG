@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.5 2002/01/15 18:40:14 helios Exp $
+$Id: CHANGELOG,v 1.6 2002/02/24 20:17:16 helios Exp $
 
 
 TODO:
@@ -8,6 +8,13 @@ TODO:
 
 
 CHANGES:
+
+1.14:
+* Improved the apxs instructions based on user feedback, including the
+  mysql.sock define issue.
+* Corrected the INSTALL example directives to the new format.
+* Some improvements to 'make distro'
+
 
 1.13:
 
@@ -21,6 +28,7 @@ CHANGES:
   on localhost.  It is irrelevant if the db resides on a networked
   machine and is ignored in that case (although it still must be defined
   for the connect to work).
+
 
 1.12:
 

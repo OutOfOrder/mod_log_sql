@@ -1,5 +1,5 @@
-# $Id: Makefile,v 1.5 2002/01/15 18:40:14 helios Exp $
-MLMVERS = 1.13
+# $Id: Makefile,v 1.6 2002/02/24 20:17:16 helios Exp $
+MLMVERS = 1.14
 
 # Where you unpacked your Apache tarball -- the source.
 APACHESOURCE = /usr/local/src/apache_1.3.22
@@ -63,6 +63,8 @@ distro: all
 	cp -f README ${APACHEINST}/html/mod_log_mysql/
 	cp -f CHANGELOG ${APACHEINST}/html/mod_log_mysql/
 	cd ..; tar zcf mod_log_mysql-${MLMVERS}.tar.gz --exclude mod_log_mysql/CVS mod_log_mysql/; $(INSTALL) mod_log_mysql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_mysql/; rm -f mod_log_mysql-${MLMVERS}.tar.gz
-	
+	rm -f /usr/local/Apache/html/mod_log_mysql/mod_log_mysql.tar.gz 
+	ln -s mod_log_mysql-1.14.tar.gz /usr/local/Apache/html/mod_log_mysql/mod_log_mysql.tar.gz
+
 clean:
 	rm -f *.o *~
