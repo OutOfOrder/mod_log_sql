@@ -52,12 +52,12 @@ typedef enum {
 	LOGSQL_QUERY_FAIL,
 	LOGSQL_QUERY_NOLINK,
 	LOGSQL_QUERY_NOTABLE,
-	LOGSQL_QUERY_PRESERVED,
+	LOGSQL_QUERY_PRESERVED
 } logsql_query_ret;
 
 typedef enum {
 	LOGSQL_TABLE_SUCCESS = 0,
-	LOGSQL_TABLE_FAIL,
+	LOGSQL_TABLE_FAIL
 } logsql_table_ret;
 
 /* Table type to create/log to */
@@ -66,7 +66,7 @@ typedef enum {
 	LOGSQL_TABLE_NOTES,
 	LOGSQL_TABLE_HEADERSOUT,
 	LOGSQL_TABLE_HEADERSIN,
-	LOGSQL_TABLE_COOKIES,
+	LOGSQL_TABLE_COOKIES
 } logsql_tabletype;
 
 /* All Tables */
@@ -111,10 +111,10 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 		NULL, NULL,  NULL, NULL,  NULL, register_hooks }; \
 	static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 #elif defined(WITH_APACHE13)
-#	define LOGSQL_REGISTER() \
+#	define LOGSQL_REGISTER(driver) \
 	static void module_init(server_rec *s, apr_pool_t *p); \
 	module log_sql_##driver##_module = { \
-		STANDARD_MODULE_STUFF, module_init };
+		STANDARD_MODULE_STUFF, module_init }; \
 	static void module_init(server_rec *s, apr_pool_t *p)
 #endif
 

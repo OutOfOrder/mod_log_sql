@@ -110,8 +110,7 @@ module.po.files=
 compiler.options.supports=
 compiler.options.include.paths=\
 	.\
-	..\
-	/opt/apache2/include
+	/usr/include/apache
 compiler.options.library.paths=
 compiler.options.libraries=
 compiler.options.libraries.selected=

@@ -1,13 +1,5 @@
 /* $Id: mod_log_sql.c,v 1.20 2004/03/05 00:30:58 urkle Exp $ */
 
-#if defined(WITH_APACHE20)
-#	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
-#else
-#	error Unsupported Apache version
-#endif
-
 #ifdef HAVE_CONFIG_H
 /* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
@@ -19,6 +11,14 @@
 #undef PACKAGE_VERSION
 
 #include "config.h"
+#endif
+
+#if defined(WITH_APACHE20)
+#	include "apache20.h"
+#elif defined(WITH_APACHE13)
+#	include "apache13.h"
+#else
+#	error Unsupported Apache version
 #endif
 
 #if APR_HAVE_UNISTD_H
@@ -393,7 +393,7 @@ static apr_status_t log_sql_close_link(void *data)
 #elif defined(WITH_APACHE13)
 static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
 {
-	log_sql_mysql_close(&global_config.db);
+	global_config.driver->disconnect(&global_config.db);
 }
 #endif
 
@@ -625,15 +625,6 @@ static int in_array(apr_array_header_t *ary, const char *elem)
 	return 0;
 }
 
-/* Debugging print */
-#define PRINT_ARRAY(ary) { \
-	char **a_ptr =  (char **)(ary->elts); \
-	int a_itr; \
-	fprintf(stderr, "\nPrinting %s\n\n", #ary); \
-	for (a_itr=0; a_itr<ary->nelts; a_itr++) { \
-		fprintf(stderr, "Array Elem: %s\n",a_ptr[a_itr]); \
-	} \
-}
 
 /* Parse through cookie lists and merge based on +/- prefixes */
 #define DO_MERGE_ARRAY(parent,child,pool) \
@@ -659,9 +650,6 @@ if (apr_is_empty_array(child)) { \
 			*elem = ptr[itr]; \
 		} \
 	} \
-	PRINT_ARRAY(addlist); \
-	PRINT_ARRAY(dellist); \
-	PRINT_ARRAY(parent); \
 	child = apr_array_make(p,1,sizeof(char *)); \
 	ptr = (char **)(parent->elts); \
 	if (overwrite==0) { \
@@ -673,9 +661,7 @@ if (apr_is_empty_array(child)) { \
 			} \
 		} \
 	} \
-	PRINT_ARRAY(child); \
 	apr_array_cat(child, addlist); \
-	PRINT_ARRAY(child); \
 }
 
 static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)

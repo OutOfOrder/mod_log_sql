@@ -1,5 +1,5 @@
 $Id: CHANGELOG,v 1.18 2004/03/22 20:32:16 urkle Exp $
-?: ?
+1.97: 2004-04-08
 * fixed apache.m4 to work with apache 2 setups with different include
   directories for APR and APU then core Apache
 * cleaned up configuration documentation (updated due to deprecated commands)
