@@ -1,9 +1,17 @@
-$Id: CHANGELOG,v 1.14 2004/02/29 23:36:17 urkle Exp $
+$Id: CHANGELOG,v 1.15 2004/03/04 05:41:12 urkle Exp $
 1.96: ?
 * fixed LogSQLPreserveFile config parameter
-* reworked safe_create_tables
+* reworked safe_create_tables and core SQL insert routine.
 * renamed log_sql_* variables and typedefs to logsql_*
-* beginnings of abstraction layer
+* separated all mysql specific code to separate code module (DB abstraction)
+* separated TODO from Changelog
+* fixed default value of socket file. it's really /var/lib/mysql/mysql.sock not
+  /tmp/mysql.sock
+* Documentation completely converted to Docbook
+* Documentation updated. (still needs more work done)
+* LogSQLDelayedInserts config option removed
+* Added DB generic LogSQLDBParam. Usage is LogSQLDBParam param value
+  example: LogSQLDBParam tcpport 12345
 
 1.95: 2004-02-05
 * audit and update of extract_* functions to acheive same output as 

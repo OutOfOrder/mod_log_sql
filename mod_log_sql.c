@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.17 2004/03/02 05:34:50 urkle Exp $ */
+/* $Id: mod_log_sql.c,v 1.18 2004/03/04 05:41:12 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -149,12 +149,13 @@ LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 {
 	logsql_opendb_ret result;
-	if (global_config.forcepreserve)
+	if (global_config.forcepreserve) {
 		global_config.db.connected = 1;
 		return LOGSQL_OPENDB_PRESERVE;
-
-	if (global_config.db.connected)
+	}
+	if (global_config.db.connected) {
 		return LOGSQL_OPENDB_ALREADY;
+	}
 	/* database
 		host
 		user
@@ -196,7 +197,7 @@ static void preserve_entry(request_rec *r, const char *query)
 		result = (fp)?0:1;
 	#endif
 	if (result != APR_SUCCESS) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"mod_log_sql: attempted append of local preserve file but failed.");
+		log_error(APLOG_MARK,APLOG_ERR,r->server,"attempted append of local preserve file '%s' but failed.",cls->preserve_file);
 	} else {
 		#if defined(WITH_APACHE20)
 			apr_file_printf(fp,"%s;\n", query);
@@ -205,9 +206,7 @@ static void preserve_entry(request_rec *r, const char *query)
 			fprintf(fp,"%s;\n", query);
 			ap_pfclose(r->pool, fp);
 		#endif
-		#ifdef DEBUG
-		  log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
-		#endif
+		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
 	}
 }
 
@@ -367,17 +366,16 @@ static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
 /* Child Init */
 #if defined(WITH_APACHE20)
 static void log_sql_child_init(apr_pool_t *p, server_rec *s)
-{
-	apr_pool_cleanup_register(p, NULL, log_sql_close_link, log_sql_close_link);
-}
-
-static int log_sql_open(apr_pool_t *pc, apr_pool_t *p, apr_pool_t *pt, server_rec *s)
 #elif defined(WITH_APACHE13)
 static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 #endif
 {
 	logsql_opendb_ret retval;
-		/* Open a link to the database */
+#	if defined(WITH_APACHE20)
+	/* Register cleanup hook to close DDB connection (apache 2 doesn't have child_exit) */
+	apr_pool_cleanup_register(p, NULL, log_sql_close_link, log_sql_close_link);
+#	endif
+	/* Open a link to the database */
 	retval = log_sql_opendb_link(s);
 	switch (retval) {
 	case LOGSQL_OPENDB_FAIL:
@@ -391,9 +389,6 @@ static void log_sql_child_init(server_rec *s, apr_pool_t *p)
  		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: open_logdb_link said that preservation is forced");
 		break;
 	}
-#if defined(WITH_APACHE20)
-	return OK;
-#endif
 }
 
 /* post_config / module_init */
@@ -403,12 +398,6 @@ static int log_sql_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptem
 static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 {
-	/* Initialize Global configuration */
-	if (!apr_table_get(global_config.db.parms,"socketfile"))
-		apr_table_setn(global_config.db.parms,"socketfile","/tmp/mysql.sock");
-	if (!apr_table_get(global_config.db.parms,"tcpport"))
-		apr_table_setn(global_config.db.parms,"tcpport","3306");
-
 	/* TODO: Add local_address, remote_address, server_name, connection_status */
 	/* Register handlers */
 	log_sql_register_item(s,p,'A', extract_agent,             "agent",            1, 1);
@@ -1063,10 +1052,6 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)"database", RSRC_CONF,
 	 "The name of the database database for logging")
 	,
-	AP_INIT_TAKE1("LogSQLDelayedInserts", set_dbparam_slot,
-	 (void *)"insertdelayed", RSRC_CONF,
-	 "Whether to use delayed inserts")
-	,
 	AP_INIT_TAKE1("LogSQLTableType", set_dbparam_slot,
 	 (void *)"tabletype", RSRC_CONF,
 	 "What kind of table to create (MyISAM, InnoDB,...) when creating tables")
@@ -1086,7 +1071,6 @@ static const command_rec log_sql_cmds[] = {
 static void register_hooks(apr_pool_t *p) {
 	ap_hook_post_config(log_sql_post_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_child_init(log_sql_child_init, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_open_logs(log_sql_open, NULL, NULL, APR_HOOK_MIDDLE);
 	ap_hook_log_transaction(log_sql_transaction, NULL, NULL, APR_HOOK_MIDDLE);
 }
 

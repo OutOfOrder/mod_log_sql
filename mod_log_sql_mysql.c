@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql_mysql.c,v 1.2 2004/03/02 05:34:50 urkle Exp $ */
+/* $Id: mod_log_sql_mysql.c,v 1.3 2004/03/04 05:41:12 urkle Exp $ */
 #include "mysql.h"
 #include "mysqld_error.h"
 
@@ -35,12 +35,18 @@ logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 	const char *user = apr_table_get(db->parms,"user");
 	const char *passwd = apr_table_get(db->parms,"passwd");
 	const char *database = apr_table_get(db->parms,"database");
-	unsigned int tcpport = atoi(apr_table_get(db->parms,"tcpport"));
+	const char *s_tcpport = apr_table_get(db->parms,"tcpport");
+	unsigned int tcpport = (s_tcpport)?atoi(s_tcpport):3306;
 	const char *socketfile = apr_table_get(db->parms,"socketfile");
 	MYSQL *dblink = db->handle;
 
 	dblink = mysql_init(dblink);
 	db->handle = (void *)dblink;
+
+
+	if (!socketfile) {
+		socketfile = "/var/lib/mysql/mysql.sock";
+	}
 
 	if (mysql_real_connect(dblink, host, user, passwd, database, tcpport,
 						socketfile, 0)) {

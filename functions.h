@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/functions.h,v 1.2 2004/02/05 21:59:46 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/functions.h,v 1.3 2004/03/04 05:41:12 urkle Exp $ */
 /* Begin the individual functions that, given a request r,
  * extract the needed information from it and return the
  * value to the calling entity.
@@ -175,18 +175,14 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	char *cookiebuf;
 
 	if (a != NULL) {
-		#ifdef DEBUG
-		  	log_error(APLOG_MARK,APLOG_DEBUG,
-				r->server,"watching for cookie '%s'", a);
-		#endif
+	  	log_error(APLOG_MARK,APLOG_DEBUG,
+			r->server,"watching for cookie '%s'", a);
 
 		/* Fetch out the cookie header */
 	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie2");
 	    if (cookiestr != NULL) {
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,r->server,
-					"Cookie2: [%s]", cookiestr);
-			#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,r->server,
+				"Cookie2: [%s]", cookiestr);
 			/* Does the cookie string contain one with our name? */
 			isvalid = strstr(cookiestr, a);
 			if (isvalid != NULL) {
