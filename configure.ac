@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.96)
+AC_INIT(mod_log_sql, 1.97)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
 
@@ -30,6 +30,19 @@ CHECK_PATH_MOD_SSL(
 
 AC_SUBST(WANT_SSL_MOD)
 
+case "$target" in
+	*-*-solaris* | *-*-osf* )
+		if test $APACHE_VERSION -eq 1.3; then
+			RTLIBS=-lrt
+		fi
+		;;
+	*)
+		RTLIBS=""
+		;;
+esac
+
+AC_SUBST(RTLIBS)
+
 AC_CHECK_HEADERS(limits.h)
 
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
@@ -47,5 +60,4 @@ if test $WANT_SSL_MOD -eq 1; then
 else
 	AC_MSG_RESULT([SSL Support	: no])
 	AC_MSG_RESULT([*** Use --enable-ssl to enable SSL support])
-	AC_MSG_RESULT([*** and --with-ssl-inc for the directory for SSL headers])
 fi

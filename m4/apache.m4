@@ -1,14 +1,17 @@
-dnl TEST_APACHE_VERSION([MINIMUM-VERSION [, ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
+dnl TEST_APACHE_VERSION(RELEASE, [MINIMUM-VERSION [, ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
 dnl Test for Apache
 dnl
 AC_DEFUN(TEST_APACHE_VERSION,
 [dnl
 	AC_REQUIRE([AC_CANONICAL_TARGET])
-
-	min_apache_version="$1"
+	releasetest=$1
+	min_apache_version="$2"
 	no_apache=""
 	ac_save_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $APACHE_CFLAGS"
+	if test $releasetest -eq 20; then
+		CFLAGS="$CFLAGS -I$APU_INCDIR -I$APR_INCDIR"
+	fi
 
 	AC_TRY_RUN([
 #include <stdio.h>
@@ -70,7 +73,7 @@ int main (int argc, char *argv[])
 	CFLAGS="$ac_save_CFLAGS"
 
 	if test "x$no_apache" = x ; then
-		ifelse([$2], , :, [$2])
+		ifelse([$3], , :, [$3])
    	else
 		if test -f conf.apachetest ; then
 			:
@@ -90,7 +93,7 @@ int main(int argc, char *argv[])
 				[ echo "*** The test program failed to compile or link. Check config.log" ])
 			CFLAGS="$ac_save_CFLAGS"
 		fi
-	 	ifelse([$3], , :, [$3])
+	 	ifelse([$4], , :, [$4])
   	fi
   	rm -f conf.apachetest
 ])
@@ -129,18 +132,24 @@ AC_ARG_ENABLE(
 		AC_MSG_ERROR([*** your path, or use the --with-apxs configure option])		
 	else
 		APACHE_INCDIR=`$APXS_BIN -q INCLUDEDIR`
-		APACHE_CPPFLAGS=`$APXS_BIN -q CFLAGS`
-		APACHE_CFLAGS="-I$APACHE_INCDIR"
+		APR_INCDIR=`$APXS_BIN -q APR_INCLUDEDIR`
+		APU_INCDIR=`$APXS_BIN -q APU_INCLUDEDIR`
+		APACHE_CPPFLAGS=`$APXS_BIN -q CPPFLAGS`
+		APACHE_CPPFLAGS="$APACHE_CPPFLAGS -I$APACHE_INCDIR"
+		APACHE_CFLAGS=`$APXS_BIN -q CFLAGS`
+		APACHE_CFLAGS="$APACHE_CFLAGS -I$APACHE_INCDIR"
 		APACHE_MODDIR=`$APXS_BIN -q LIBEXECDIR`
 
 		if test "x$enable_apachetest" = "xyes" ; then
 			if test "$min_apache20_version" != "no"; then
 				AC_MSG_CHECKING(for Apache 2.0 version >= $min_apache20_version)
-				TEST_APACHE_VERSION($min_apache20_version,
+				TEST_APACHE_VERSION(20,$min_apache20_version,
 					AC_MSG_RESULT(yes)
 					AC_DEFINE(WITH_APACHE20,1,[Define to 1 if we are compiling with Apache 2.0.x])
-					APACHE_VERSION="20"
+					APACHE_VERSION="2.0"
 			        APXS_EXTENSION=.la
+					APACHE_CFLAGS="$APACHE_CFLAGS -I$APU_INCDIR -I$APR_INCDIR"
+					APACHE_CPPFLAGS="$APACHE_CPPFLAGS -I$APU_INCDIR -I$APR_INCDIR"
 					APACHE_DEFS="-DWITH_APACHE20"
 					ifelse([$4], , , $4),
 					AC_MSG_RESULT(no)
@@ -151,10 +160,10 @@ AC_ARG_ENABLE(
 			fi
 			if test "$min_apache13_version" != "no" -a "x$APACHE_VERSION" = "x"; then
 				AC_MSG_CHECKING(for Apache 1.3 version >= $min_apache13_version)
-				TEST_APACHE_VERSION($min_apache13_version,
+				TEST_APACHE_VERSION(13,$min_apache13_version,
 					AC_MSG_RESULT(yes)
 					AC_DEFINE(WITH_APACHE13,1,[Define to 1 if we are compiling with Apache 1.3.x])
-					APACHE_VERSION="13"
+					APACHE_VERSION="1.3"
 					APXS_EXTENSION=.so
 					APACHE_CFLAGS="-g $APACHE_CFLAGS"
 					APACHE_DEFS="-DWITH_APACHE13"
@@ -168,6 +177,8 @@ AC_ARG_ENABLE(
   		AC_SUBST(APACHE_CFLAGS)
   		AC_SUBST(APACHE_CPPFLAGS)
 		AC_SUBST(APACHE_INCDIR)
+		AC_SUBST(APR_INCDIR)
+		AC_SUBST(APU_INCDIR)
 		AC_SUBST(APACHE_MODDIR)
 		AC_SUBST(APACHE_VERSION)
 		AC_SUBST(APXS_EXTENSION)

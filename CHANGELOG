@@ -1,4 +1,8 @@
-$Id: CHANGELOG,v 1.17 2004/03/05 01:05:34 urkle Exp $
+$Id: CHANGELOG,v 1.18 2004/03/22 20:32:16 urkle Exp $
+?: ?
+* fixed apache.m4 to work with apache 2 setups with different include
+  directories for APR and APU then core Apache
+
 1.96: 2004-03-04
 * fixed LogSQLPreserveFile config parameter
 * reworked safe_create_tables and core SQL insert routine.
