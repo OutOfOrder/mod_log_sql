@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql_mysql.c,v 1.1 2004/02/29 23:36:18 urkle Exp $ */
+/* $Id: mod_log_sql_mysql.c,v 1.2 2004/03/02 05:34:50 urkle Exp $ */
 #include "mysql.h"
 #include "mysqld_error.h"
 
@@ -28,160 +28,133 @@
 /* The enduser won't modify these */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
 
-logsql_opendb log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db, 
-								apr_table_t *dbparms)
+/* Connect to the MYSQL database */
+logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 {
-	MYSQL *dblink;
-	char *host = apr_table_get(dbparms,"host");
-	char *user = apr_table_get(dbparms,"user");
-	char *passwd = apr_table_get(dbparms,"passwd");
-	char *database = apr_table_get(dbparms,"database");
-	char *tcpport = apr_table_get(dbparms,"tcpport");
-	char *socketfile = apr_table_get(dbparms,"socketfile");
-	mysql_init(&dblink);
-	if (mysql_real_connect(&dblink, host, user, passwd, database, tcpport,
-						socketfile, 0) {
+	const char *host = apr_table_get(db->parms,"host");
+	const char *user = apr_table_get(db->parms,"user");
+	const char *passwd = apr_table_get(db->parms,"passwd");
+	const char *database = apr_table_get(db->parms,"database");
+	unsigned int tcpport = atoi(apr_table_get(db->parms,"tcpport"));
+	const char *socketfile = apr_table_get(db->parms,"socketfile");
+	MYSQL *dblink = db->handle;
+
+	dblink = mysql_init(dblink);
+	db->handle = (void *)dblink;
+
+	if (mysql_real_connect(dblink, host, user, passwd, database, tcpport,
+						socketfile, 0)) {
 		log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_SUCCESS;
 	} else {
 		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: database connection error: %s",
-				MYSQL_ERROR(&dblink));
+				MYSQL_ERROR(dblink));
 		log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_FAIL;
 	}
 }
 
-/*-----------------------------------------------------*
- * safe_sql_query: perform a database query with       *
- * a degree of safety and error checking.              *
- *                                                     *
- * Parms:   request record, SQL insert statement       *
- * Returns: 0 (OK) on success                          *
- *          1 if have no log handle                    *
- *          2 if insert delayed failed (kluge)         *
- *          the actual MySQL return code on error      *
- *-----------------------------------------------------*/
-unsigned int log_sql_mysql_query(request_rec *r, const char *query)
+void log_sql_mysql_close(logsql_dbconnection *db)
+{
+	mysql_close((MYSQL *)db->handle);
+}
+
+/* Routine to escape the 'dangerous' characters that would otherwise
+ * corrupt the INSERT string: ', \, and "
+ */
+const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
+								logsql_dbconnection *db)
+{
+	if (!from_str)
+		return NULL;
+	else {
+	  	char *to_str;
+		unsigned long length = strlen(from_str);
+		unsigned long retval;
+
+		/* Pre-allocate a new string that could hold twice the original, which would only
+		 * happen if the whole original string was 'dangerous' characters.
+		 */
+		to_str = (char *) apr_palloc(p, length * 2 + 1);
+		if (!to_str) {
+			return from_str;
+		}
+
+		if (!db->connected) {
+			/* Well, I would have liked to use the current database charset.  mysql is
+			 * unavailable, however, so I fall back to the slightly less respectful
+			 * mysql_escape_string() function that uses the default charset.
+			 */
+			retval = mysql_escape_string(to_str, from_str, length);
+		} else {
+			/* MySQL is available, so I'll go ahead and respect the current charset when
+			 * I perform the escape.
+			 */
+			retval = mysql_real_escape_string((MYSQL *)db->handle, to_str, from_str, length);
+		}
+
+		if (retval)
+		  return to_str;
+		else
+		  return from_str;
+	}
+}
+
+logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
+								const char *query)
 {
 	int retval;
-	struct timespec delay, remainder;
-	int ret;
 	void (*handler) (int);
-	logsql_state *cls;
 	unsigned int real_error = 0;
-	const char *real_error_str = NULL;
+	/*const char *real_error_str = NULL;*/
 
+	MYSQL *dblink = (MYSQL *)db->handle;
+
+	if (!dblink) {
+		return LOGSQL_QUERY_NOLINK;
+	}
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
 	handler = signal(SIGPIPE, SIG_IGN);
 
-	/* First attempt for the query */
-	if (!global_config.server_p) {
+	/* Run the query */
+	if (!(retval = mysql_query(dblink, query))) {
 		signal(SIGPIPE, handler);
-		return 1;
-	} else if (!(retval = mysql_query(global_config.server_p, query))) {
-		signal(SIGPIPE, handler);
-		return 0;
+		return LOGSQL_QUERY_SUCCESS;
 	}
-
-	/* If we ran the query and it returned an error, try to be robust.
-	* (After all, the module thought it had a valid mysql_log connection but the query
-	* could have failed for a number of reasons, so we have to be extra-safe and check.) */
-
 	/* Check to see if the error is "nonexistent table" */
-	if (global_config.insertdelayed) {
-		real_error_str = MYSQL_ERROR(global_config.server_p);
-		retval = (strstr(real_error_str, "Table")) && (strstr(real_error_str,"doesn't exist"));
-	} else {
-		real_error = mysql_errno(global_config.server_p);
-		retval = (real_error == ER_NO_SUCH_TABLE);
-	}
-	if (retval) {
+	real_error = mysql_errno(dblink);
+
+	if (real_error == ER_NO_SUCH_TABLE) {
 		log_error(APLOG_MARK,APLOG_ERR,r->server,"table does not exist, preserving query");
-		preserve_entry(r, query);
 		/* Restore SIGPIPE to its original handler function */
 		signal(SIGPIPE, handler);
-		return ER_NO_SUCH_TABLE;
+		return LOGSQL_QUERY_NOTABLE;
 	}
 
-	/* Handle all other types of errors */
-
-	cls = ap_get_module_config(r->server->module_config, &log_sql_module);
-
-	/* Something went wrong, so start by trying to restart the db link. */
-	if (global_config.insertdelayed) {
-	 real_error = 2;
-	} /*else {
-	 real_error = mysql_errno(global_config.server_p);
-	}*/
-
-	log_error(APLOG_MARK,APLOG_ERR,r->server,"first attempt failed, API said: error %d, \"%s\"", real_error, MYSQL_ERROR(global_config.server_p));
-	mysql_close(global_config.server_p);
-	global_config.server_p = NULL;
-	open_logdb_link(r->server);
-
-	if (global_config.server_p == NULL) {	 /* still unable to link */
-		signal(SIGPIPE, handler);
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"log entries are being preserved in %s", cls->preserve_file);
-		return 1;
-	} else
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"db reconnect successful");
-
-	/* First sleep for a tiny amount of time. */
-	delay.tv_sec = 0;
-	delay.tv_nsec = 250000000;  /* max is 999999999 (nine nines) */
-	ret = nanosleep(&delay, &remainder);
-	if (ret && errno != EINTR)
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"nanosleep unsuccessful");
-
-	/* Then make our second attempt */
-	retval = mysql_query(global_config.server_p,query);
-
-	/* If this one also failed, log that and append to our local offline file */
-	if (retval)	{
-		if (global_config.insertdelayed) {
-		 real_error = 2;
-		} else {
-		 real_error = mysql_errno(global_config.server_p);
-		}
-
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"second attempt failed, API said: error %d, \"%s\" -- preserving", real_error, MYSQL_ERROR(global_config.server_p));
-		preserve_entry(r, query);
-		retval = real_error;
-	} else {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"second attempt successful");
-		retval = 0;
-	}
 	/* Restore SIGPIPE to its original handler function */
 	signal(SIGPIPE, handler);
-	return retval;
+	return LOGSQL_QUERY_FAIL;
 }
 
-/*-----------------------------------------------------*
- * safe_create_tables: create SQL table set for the    *
- * virtual server represented by cls.                  *
- *                                                     *
- * Parms:   virtserver structure, request record,	   *
- * tables to create									   *
- * Returns: 0 on no errors							   *
- *          mysql error code on failure				   *
- *-----------------------------------------------------*/
-int mod_log_mysql_create_tables(request_rec *r, logsql_tabletype table_type, 
-								const char *table_name)
+logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
+						logsql_tabletype table_type, const char *table_name)
 {
 	int retval;
-
+	const char *tabletype = apr_table_get(db->parms,"tabletype");
+	void (*handler) (int);
 	char *type_suffix = NULL;
 
 	char *create_prefix = "create table if not exists `";
 	char *create_suffix = NULL;
 	char *create_sql;
 
-	if (!global_config.createtables) {
+	MYSQL *dblink = (MYSQL *)db->handle;
+
+/*	if (!global_config.createtables) {
 		return APR_SUCCESS;
-	}
+	}*/
 
 	switch (table_type) {
 	case LOGSQL_TABLE_ACCESS:
@@ -223,9 +196,9 @@ int mod_log_mysql_create_tables(request_rec *r, logsql_tabletype table_type,
 		break;
 	}
 	
-	if (global_config.tabletype) {
+	if (tabletype) {
 		type_suffix = apr_pstrcat(r->pool, " TYPE=", 
-							global_config.tabletype, NULL);
+							tabletype, NULL);
 	}
 	/* Find memory long enough to hold the whole CREATE string + \0 */
 	create_sql = apr_pstrcat(r->pool, create_prefix, table_name, create_suffix,
@@ -233,9 +206,19 @@ int mod_log_mysql_create_tables(request_rec *r, logsql_tabletype table_type,
 
 	log_error(APLOG_MARK,APLOG_DEBUG,r->server,"create string: %s", create_sql);
 
-  	if ((retval = safe_sql_query(r, create_sql))) {
+	if (!dblink) {
+		return LOGSQL_QUERY_NOLINK;
+	}
+	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
+	handler = signal(SIGPIPE, SIG_IGN);
+
+	/* Run the create query */
+  	if ((retval = mysql_query(dblink, create_sql))) {
 		log_error(APLOG_MARK,APLOG_ERR,r->server,"failed to create table: %s",
 			table_name);
+		signal(SIGPIPE, handler);
+		return LOGSQL_TABLE_FAIL;
 	}
-	return retval;
+	signal(SIGPIPE, handler);
+	return LOGSQL_TABLE_SUCCESS;
 }

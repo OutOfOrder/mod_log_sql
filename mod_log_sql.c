@@ -1,4 +1,4 @@
-/* $Id $ */
+/* $Id: mod_log_sql.c,v 1.17 2004/03/02 05:34:50 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -61,7 +61,6 @@ typedef struct {
 	int createtables;
 	int forcepreserve;
 	char *machid;
-	apr_table_t *dbparams;
 	logsql_dbconnection db;
 } global_config_t;
 
@@ -147,56 +146,28 @@ LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 #	include "functions20.h"
 #endif
 
-/* Routine to escape the 'dangerous' characters that would otherwise
- * corrupt the INSERT string: ', \, and "
- */
-static const char *escape_query(const char *from_str, apr_pool_t *p)
+static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 {
-	if (!from_str)
-		return NULL;
-	else {
-	  	char *to_str;
-		unsigned long length = strlen(from_str);
-		unsigned long retval;
-
-		/* Pre-allocate a new string that could hold twice the original, which would only
-		 * happen if the whole original string was 'dangerous' characters.
-		 */
-		to_str = (char *) apr_palloc(p, length * 2 + 1);
-		if (!to_str) {
-			return from_str;
-		}
-
-		if (!global_config.db.connected) {
-			/* Well, I would have liked to use the current database charset.  mysql is
-			 * unavailable, however, so I fall back to the slightly less respectful
-			 * mysql_escape_string() function that uses the default charset.
-			 */
-			retval = mysql_escape_string(to_str, from_str, length);
-		} else {
-			/* MySQL is available, so I'll go ahead and respect the current charset when
-			 * I perform the escape.
-			 */
-			retval = mysql_real_escape_string(global_config.db.handle, to_str, from_str, length);
-		}
-
-		if (retval)
-		  return to_str;
-		else
-		  return from_str;
-	}
-}
-
-static logsql_opendb open_logdb_link(server_rec* s)
-{
+	logsql_opendb_ret result;
 	if (global_config.forcepreserve)
+		global_config.db.connected = 1;
 		return LOGSQL_OPENDB_PRESERVE;
 
 	if (global_config.db.connected)
 		return LOGSQL_OPENDB_ALREADY;
-
-	if ((global_config.dbname) && (global_config.dbhost) && (global_config.dbuser) && (global_config.dbpwd)) {
-		log_sql_mysql_connect();
+	/* database
+		host
+		user
+		passwd
+	*/
+	if (global_config.db.parms) {
+		result = log_sql_mysql_connect(s, &global_config.db);
+		if (result==LOGSQL_OPENDB_FAIL) {
+			global_config.db.connected = 0;
+		} else {
+			global_config.db.connected = 1;			
+		}
+		return result;
 	} else {
 		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: insufficient configuration info to establish database link");
 		return LOGSQL_OPENDB_FAIL;
@@ -323,21 +294,24 @@ static const char *set_server_nmv_string_slot(cmd_parms *parms,
 }
 
 /* Set a DB connection parameter */
-static void set_dbparam(apr_pool_t *p, const char *key,
-						const char *val);
+static const char *set_dbparam(cmd_parms *cmd,
+								void *struct_ptr,
+								const char *key,
+								const char *val)
 {
-	if (!global_config.dbparams) {
-		global_config.dbparams = apr_table_make(p,5);
+	if (!global_config.db.parms) {
+		global_config.db.parms = apr_table_make(cmd->pool,5);
 	}
-	apr_table_set(global_config.dbparams,key,val);
+	apr_table_set(global_config.db.parms,key,val);
+	return NULL;
 }
 
-static const char *set_dbparam_slot(cmd_params *cmd,
+static const char *set_dbparam_slot(cmd_parms *cmd,
 								void *struct_ptr,
 								const char *arg)
 {
 	const char *param = (char *)cmd->info;
-	set_dbparam(cmd->pool,param,arg);
+	set_dbparam(cmd,NULL,param,arg);
 	return NULL;
 }
 
@@ -346,14 +320,13 @@ static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 						const char *host, const char *user, const char *pwd)
 {
 	if (*host != '.') {
-		set_db_param_slot(cmd->pool, "host", host);
+		set_dbparam(cmd, NULL, "host", host);
 	}
 	if (*user != '.') {
-		set_db_param_slot(cmd->pool, "user", user);
-		global_config.dbuser = apr_pstrdup(cmd->pool,user);
+		set_dbparam(cmd, NULL, "user", user);
 	}
 	if (*pwd != '.') {
-		set_db_param_slot(cmd->pool, "passwd", pwd);
+		set_dbparam(cmd, NULL, "passwd", pwd);
 	}
 	return NULL;
 }
@@ -373,13 +346,6 @@ static const char *add_server_string_slot(cmd_parms *cmd,
     return NULL;
 }
 
-static const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, const char *arg)
-{
-	global_config.tcpport = (unsigned int)atoi(arg);
-
-	return NULL;
-}
-
 /*------------------------------------------------------------*
  * Apache-specific hooks into the module code                 *
  * that are defined in the array 'mysql_lgog_module' (at EOF) *
@@ -388,13 +354,13 @@ static const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, const cha
 #if defined(WITH_APACHE20)
 static apr_status_t log_sql_close_link(void *data)
 {
-	mysql_close(global_config.server_p);
+	log_sql_mysql_close(&global_config.db);
 	return APR_SUCCESS;
 }
 #elif defined(WITH_APACHE13)
 static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
 {
-	mysql_close(global_config.server_p);
+	log_sql_mysql_close(&global_config.db);
 }
 #endif
 
@@ -410,9 +376,9 @@ static int log_sql_open(apr_pool_t *pc, apr_pool_t *p, apr_pool_t *pt, server_re
 static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 #endif
 {
-	logsql_opendb retval;
+	logsql_opendb_ret retval;
 		/* Open a link to the database */
-	retval = open_logdb_link(s);
+	retval = log_sql_opendb_link(s);
 	switch (retval) {
 	case LOGSQL_OPENDB_FAIL:
 		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: child spawned but unable to open database link");
@@ -438,10 +404,10 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 {
 	/* Initialize Global configuration */
-	if (!global_config.socketfile)
-		global_config.socketfile = "/tmp/mysql.sock";
-	if (!global_config.tcpport)
-		global_config.tcpport = 3306;
+	if (!apr_table_get(global_config.db.parms,"socketfile"))
+		apr_table_setn(global_config.db.parms,"socketfile","/tmp/mysql.sock");
+	if (!apr_table_get(global_config.db.parms,"tcpport"))
+		apr_table_setn(global_config.db.parms,"tcpport","3306");
 
 	/* TODO: Add local_address, remote_address, server_name, connection_status */
 	/* Register handlers */
@@ -481,11 +447,88 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
  * Parms: request record, table type, table name, and the full SQL command
  */
 
-static void safe_sql_insert(request_rec *r, logsql_tabletype table_type,
-		const char *table_name, const char *sql) {
-	int result;
-	if (!global_config.connected) {
+static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_type,
+		const char *table_name, const char *query) {
+
+	logsql_query_ret result;
+	logsql_state *cls = ap_get_module_config(r->server->module_config,
+									&log_sql_module);
+
+	if (!global_config.db.connected) {
+		/* preserve query */
+		return LOGSQL_QUERY_NOLINK;
 	}
+
+	result = log_sql_mysql_query(r,&global_config.db,query);
+
+	/* If we ran the query and it returned an error, try to be robust.
+	* (After all, the module thought it had a valid mysql_log connection but the query
+	* could have failed for a number of reasons, so we have to be extra-safe and check.) */
+	switch (result) {
+	case LOGSQL_QUERY_SUCCESS:
+		return LOGSQL_QUERY_SUCCESS;
+	case LOGSQL_QUERY_NOLINK:
+		return LOGSQL_QUERY_FAIL;
+		/* TODO: What do we do here */
+	case LOGSQL_QUERY_FAIL:
+		log_sql_mysql_close(&global_config.db);
+		global_config.db.connected = 0;
+		/* re-open the connection and try again */
+		if (log_sql_opendb_link(r->server) != LOGSQL_OPENDB_FAIL) {
+			log_error(APLOG_MARK,APLOG_ERR,r->server,"db reconnect successful");
+			result = log_sql_mysql_query(r,&global_config.db,query);
+			if (result == LOGSQL_QUERY_SUCCESS) {
+				return LOGSQL_QUERY_SUCCESS;
+			} else {
+				log_error(APLOG_MARK,APLOG_ERR,r->server,"second attempt failed");
+				preserve_entry(r, query);
+				return LOGSQL_QUERY_PRESERVED;
+			}
+		} else {
+			log_error(APLOG_MARK,APLOG_ERR,r->server,"reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
+			log_error(APLOG_MARK,APLOG_ERR,r->server,"log entries are being preserved in %s",cls->preserve_file);
+			preserve_entry(r, query);
+			return LOGSQL_QUERY_PRESERVED;
+		}
+		break;
+	case LOGSQL_QUERY_NOTABLE:
+		if (global_config.createtables) {
+			log_error(APLOG_MARK,APLOG_ERR,r->server,
+					"table doesn't exist...creating now");
+			if ((result = log_sql_mysql_create(r, &global_config.db, table_type, 
+				table_name))!=LOGSQL_TABLE_SUCCESS) {
+				log_error(APLOG_MARK,APLOG_ERR,r->server,
+					"child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
+				preserve_entry(r, query);
+				return LOGSQL_QUERY_PRESERVED;
+			} else {
+				log_error(APLOG_MARK,APLOG_ERR,r->server,
+					"tables successfully created - retrying query");
+				if ((result = log_sql_mysql_query(r,&global_config.db,query))!=LOGSQL_QUERY_SUCCESS) {
+					log_error(APLOG_MARK,APLOG_ERR,r->server,
+						"giving up, preserving query");
+					preserve_entry(r, query);
+					return LOGSQL_QUERY_PRESERVED;
+				} else {
+					log_error(APLOG_MARK,APLOG_ERR,r->server,
+						"query successful after table creation");
+					return LOGSQL_QUERY_SUCCESS;
+				}
+			}
+		} else {
+			log_error(APLOG_MARK,APLOG_ERR,r->server,
+				"table doesn't exist, creation denied by configuration, preserving query");
+			preserve_entry(r, query);
+			return LOGSQL_QUERY_PRESERVED;
+		}
+		break;
+	default:
+		log_error(APLOG_MARK,APLOG_ERR,r->server,
+				"Invalid return code from mog_log_query");
+		return LOGSQL_QUERY_FAIL;
+		break;
+	}
+	return LOGSQL_QUERY_FAIL;
 }
 
 /* This function gets called to create a per-server configuration
@@ -726,7 +769,7 @@ static int log_sql_transaction(request_rec *orig)
 						 item->sql_field_name, NULL);
 			values = apr_pstrcat(r->pool, values, (i ? "," : ""),
 						 (item->string_contents ? "'" : ""),
-					     escape_query(formatted_item, r->pool),
+					     log_sql_mysql_escape(formatted_item, r->pool,&global_config.db),
 						 (item->string_contents ? "'" : ""), NULL);
 		}
 
@@ -743,9 +786,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  escape_query(*ptrptr, r->pool),
+									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  escape_query(theitem, r->pool),
+									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -753,7 +796,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", notes_tablename, itemsets);
+				/*global_config.insertdelayed?"delayed":*/"", notes_tablename, itemsets);
 
 			#ifdef DEBUG
 				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: note string: %s", note_query);
@@ -773,9 +816,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  escape_query(*ptrptr, r->pool),
+									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  escape_query(theitem, r->pool),
+									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -783,11 +826,9 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", hout_tablename, itemsets);
+				/*global_config.insertdelayed?"delayed":*/"", hout_tablename, itemsets);
 
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_out string: %s", hout_query);
-		   	#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_out string: %s", hout_query);
 		}
 
 
@@ -804,9 +845,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  escape_query(*ptrptr, r->pool),
+									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  escape_query(theitem, r->pool),
+									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -814,11 +855,9 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", hin_tablename, itemsets);
+				/*global_config.insertdelayed?"delayed":*/"", hin_tablename, itemsets);
 
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_in string: %s", hin_query);
-		   	#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_in string: %s", hin_query);
 		}
 
 
@@ -835,9 +874,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  escape_query(*ptrptr, r->pool),
+									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  escape_query(theitem, r->pool),
+									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -846,29 +885,23 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", cookie_tablename, itemsets);
+				/*global_config.insertdelayed?"delayed":*/"", cookie_tablename, itemsets);
 
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
-		   	#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
 		}
 
 
 		/* Set up the actual INSERT statement */
 		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
-			global_config.insertdelayed?"delayed":"", transfer_tablename, fields, values);
+			/*global_config.insertdelayed?"delayed":*/"", transfer_tablename, fields, values);
 
-		#ifdef DEBUG
-	        log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: access string: %s", access_query);
-	    #endif
+        log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: access string: %s", access_query);
 
 		/* If the person activated force-preserve, go ahead and push all the entries
 		 * into the preserve file, then return.
 		 */
 		if (global_config.forcepreserve) {
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: preservation forced");
-		   	#endif
+			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: preservation forced");
 			preserve_entry(orig, access_query);
 			if ( note_query != NULL )
 				preserve_entry(orig, note_query);
@@ -882,12 +915,12 @@ static int log_sql_transaction(request_rec *orig)
 		}
 
 		/* How's our mysql link integrity? */
-		if (global_config.server_p == NULL) {
+		if (!global_config.db.connected) {
 
 			/* Make a try to establish the link */
-			open_logdb_link(r->server);
+			log_sql_opendb_link(r->server);
 
-			if (global_config.server_p == NULL) {
+			if (!global_config.db.connected) {
 				/* Unable to re-establish a DB link, so assume that it's really
 				 * gone and send the entry to the preserve file instead.
 				 * This short-circuits safe_sql_query() during a db outage and therefore
@@ -915,24 +948,20 @@ static int log_sql_transaction(request_rec *orig)
 		/* ---> i.e. we have a good MySQL connection.                <--- */
 
   	    /* Make the access-table insert */
-		if (safe_create_tables(orig, LOGSQL_TABLE_ACCESS, transfer_tablename)==APR_SUCCESS) {
-			safe_sql_query(orig, access_query);
-		} else {
-			preserve_entry(orig, access_query);
-		}
+		safe_sql_insert(orig,LOGSQL_TABLE_ACCESS,transfer_tablename,access_query);
 
 		/* Log the optional notes, headers, etc. */
 		if (note_query)
-			safe_sql_query(orig, note_query);
+			safe_sql_insert(orig, LOGSQL_TABLE_NOTES,notes_tablename,note_query);
 
 		if (hout_query)
-		  	safe_sql_query(orig, hout_query);
+		  	safe_sql_insert(orig, LOGSQL_TABLE_HEADERSOUT,hout_tablename,hout_query);
 
 		if (hin_query)
-		  	safe_sql_query(orig, hin_query);
+		  	safe_sql_insert(orig, LOGSQL_TABLE_HEADERSIN,hin_tablename,hin_query);
 
 		if (cookie_query)
-		  	safe_sql_query(orig, cookie_query);
+		  	safe_sql_insert(orig, LOGSQL_TABLE_COOKIES,cookie_tablename,cookie_query);
 
 		return OK;
 	}
@@ -1026,6 +1055,9 @@ static const command_rec log_sql_cmds[] = {
 	,
 	AP_INIT_TAKE3("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
 	 "The database host, user-id and password for logging")
+	,
+	AP_INIT_TAKE2("LogSQLDBParam", set_dbparam, NULL, RSRC_CONF,
+	 "First argument is the DB parameter, second is the value to assign")
 	,
 	AP_INIT_TAKE1("LogSQLDatabase", set_dbparam_slot, 
 	 (void *)"database", RSRC_CONF,
