@@ -55,7 +55,7 @@ static logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnectio
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_SUCCESS;
 	} else {
-		log_error(APLOG_MARK,APLOG_ERR,0, s,"mod_log_sql: database connection error: %s",
+		log_error(APLOG_MARK,APLOG_ERR,0, s,"mod_log_sql_mysql: database connection error: mysql error: %s",
 				MYSQL_ERROR(dblink));
 		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
