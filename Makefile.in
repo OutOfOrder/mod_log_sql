@@ -1,0 +1,144 @@
+# @configure_input@
+
+# Modify these top variables.
+SUBDIRS = 
+SOURCES = \
+	@PACKAGE_NAME@.c
+
+HEADERS =
+
+CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
+
+INCLUDES =
+
+LDADD = 
+
+EXTRA_DIST = INSTALL LICENSE CHANGELOG make_combined_log.pl
+
+TARGET = @PACKAGE_NAME@.la
+
+#Don't modify anything below here
+
+PROVIDERS_SUBDIRS = @subdirs@
+
+srcdir = @abs_srcdir@
+builddir = @abs_builddir@
+
+OBJ = $(SOURCES:.c=.o)
+
+LO = $(SOURCES:.c=.lo)
+
+SLO = $(SOURCES:.c=.slo)
+
+STD_DIST = install-sh \
+	config.sub \
+	config.guess \
+	aclocal.m4 \
+	Makefile.in \
+	configure.ac \
+	configure \
+	stamp-h.in \
+	config.h.in
+
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
+
+all: $(TARGET) all-subdirs
+
+all-subdirs install-subdirs update-subdirs clean-subdirs distclean-subdirs:
+	@otarget=`echo $@|sed s/-subdirs//`; \
+	list=' $(PROVIDERS_SUBDIRS) $(SUBDIRS)'; \
+	for i in $$list; do \
+		if test -d "$$i"; then \
+			target="$$otarget"; \
+			echo "Making $$target in $$i"; \
+			if test "$$i" = "."; then \
+				made_local=yes; \
+				target="local-$$target"; \
+			fi; \
+			(cd $$i && $(MAKE) $$target) || exit 1; \
+		fi; \
+	done; \
+
+TODO: TODO_HEADER $(SOURCES) $(HEADERS)
+	./gen_todo.pl
+
+$(TARGET):
+	@APXS_BIN@ -c -o @PACKAGE_NAME@.la $(INCLUDES) $(CFLAGS) $(LDADD) @DEFS@ $(SOURCES) 
+
+include:
+	rm -rf include
+	ln -s @APACHE_INCDIR@ include
+
+install: install-subdirs
+	@APXS_BIN@ -i -a -n $(subst mod_,,@PACKAGE_NAME@) $(TARGET)
+
+update: update-subdirs
+	@APXS_BIN@ -i -n $(subst mod_,,@PACKAGE_NAME@) $(TARGET)
+
+clean: clean-subdirs
+	$(RM) $(OBJ) $(SLO) $(LO) $(TARGET) .deps
+
+distclean: clean distclean-subdirs
+	$(RM) TODO config.status config.log config.h config.h.in \
+	configure stamp-h stamp-h.in Makefile
+	$(RM) -r autom4te-2.53.cache .libs
+
+DESTDIR = @PACKAGE_TARNAME@-@PACKAGE_VERSION@
+DESTTGZ = $(DESTDIR).tar.gz
+dist:
+	@rm -rf $(DESTDIR); \
+	list=' $(PROVIDERS_SUBDIRS) $(SUBDIRS)'; \
+	for i in $$list; do \
+		if test -d "$$i"; then \
+			target=local-dist; \
+			echo "Making $$target in $$i"; \
+			if test "$$i" = "."; then \
+				made_local=yes; \
+				target="local-dist"; \
+			fi; \
+			NEWDESTDIR=$(builddir)/$(DESTDIR)/$$i; \
+			echo $(NEWDESTDIR); \
+			(cd $$i && $(MAKE) DESTDIR=$(builddir)/$(DESTDIR)/$$i $$target) || exit 1; \
+		fi; \
+	done;
+	if test "$$made_local" != "yes"; then \
+		$(MAKE) "local-dist" || exit 1; \
+	fi
+	tar -zcf $(DESTTGZ) $(DESTDIR)
+	rm -rf $(DESTDIR)
+
+local-dist: $(DISTFILES)
+	mkdir -p $(DESTDIR)
+	cp -dp --parents $(DISTFILES) $(DESTDIR)
+
+$(builddir)/.deps: depend
+
+depend: $(SOURCES) $(HEADERS)
+	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
+		$(CC) -MM -MT $(TARGET) -I@APACHE_INCDIR@ $(srcdir)/*.c > $(builddir)/.deps || true; \
+	fi
+
+include $(builddir)/.deps
+
+.PHONY: include all-subdirs update-subdirs install-subdirs \
+	clean-subdirs distclean-subdirs dist
+
+# Regenerate makefiles
+# autoheader might not change config.h.in, so touch a stamp file.
+$(srcdir)/config.h.in: stamp-h.in
+$(srcdir)/stamp-h.in: configure.ac aclocal.m4
+	cd $(srcdir) && autoheader-2.53
+	echo timestamp > $(srcdir)/stamp-h.in
+
+config.h: stamp-h
+stamp-h: config.h.in config.status
+	./config.status
+
+$(srcdir)/configure: configure.ac aclocal.m4
+	cd $(srcdir) && autoconf-2.53
+
+Makefile: Makefile.in config.status
+	./config.status
+
+config.status: configure
+	./config.status --recheck
