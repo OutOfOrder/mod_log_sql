@@ -1,0 +1,204 @@
+$Id: README,v 1.1 2001/11/28 05:26:54 helios Exp $
+
+
+Homepage
+--------
+http://www.grubbybaby.com/mod_log_mysql/
+
+
+
+Approach
+--------
+
+In order to save speed and overhead, links are kept alive in between
+queries.  This module uses one SQL link per httpd process.  Among other
+things, this means that this module supports logging into only one
+MySQL server, and for now, also, only one SQL database (although the
+latter limitation can be relatively easily removed). 
+
+Different data can be sent to different tables.  i.e., it's possible to
+define one table for TransferLog, one for RefererLog, and a 3rd for
+AgentLog.  [ Note: this is now deprecated behavior.  Please consider
+logging Agent and Referer to the same table as your transfers. ]
+
+Virtual hosts are supported in the same manner they are in the regular
+logging modules.  If you specify a different table for a virtual
+host it will be used, otherwise the 'general' would be used.  Note:
+since all 3 types of logs are implemented within the same module, if
+you specify an overriding table for a virtual host for one type of log,
+it'll ignore any previous 'general' defaults (see the example in the
+end).
+
+SQL links are opened on demand (i.e., the first time each httpd needs
+to log something to SQL, the link is opened).  In case the SQL server
+is down when trying to connect to it, the module remains silent and
+logs no error (I didn't want thousands of error messages in the
+logfile).  In case the SQL link is broken ("mysql server has gone
+away") a proper error message is kept to the error log (textual :), and
+the module tries to reestablish the concact (and reports whether it
+succeeded or not in the error log).  If the link cannot be
+reestablished, the module will, again, remain silent. Technical note:
+The SQL link is registered using apache's pool mechanism, so SQL links
+are properly closed on any normal shutdown, kill -HUP or kill -TERM. 
+This also means that if you restart the MySQL daemon for any reason you
+should restart Apache.
+
+
+
+Supported directives
+--------------------
+
+Please see the web-based documentation for full explanation of all
+supported run-time directives.
+
+http://www.grubbybaby.com/mod_log_mysql/directives.html
+
+
+
+What gets logged by default?
+----------------------------
+
+All the data that would be contained in the "Combined Log Format" 
+is logged by default, plus a little extra.  Your best bet is to
+accept this default and employ the enclosed access_log.sql to
+format your table.  Customize your logging format after you've
+had a chance to experiment with the default first.
+
+The MySQL table looks like this if you use the enclosed access_log.sql:
+
++------------------+------------------+
+| Field            | Type             |
++------------------+------------------+
+| remote_host      | varchar(50)      |
+| remote_user      | varchar(50)      |
+| request_uri      | varchar(50)      |
+| request_duration | smallint(6)      |
+| virtual_host     | varchar(50)      |
+| time_stamp       | int(10) unsigned |
+| status           | smallint(6)      |
+| bytes_sent       | int(11)          |
+| referer          | varchar(255)     |
+| agent            | varchar(255)     |
++------------------+------------------+
+
+remote_host: corresponds to the Apache %h directive.  Contains the remote
+  hostname or IP of the machine accessing your server.
+  Example:  si4002.inktomi.com
+
+remote_user: corresponds to the Apache %u directive.  Contains the 
+  userid of people who have authenticated to your server, if applicable.
+  Example:  freddy
+
+request_uri: corresponds to the Apache %U directive.  Contains the
+  URL path requested, excluding any query string.  This is different than
+  the %r information you might be used to seeing:
+
+  %r: GET /cgi-bin/neomail.pl?sessionid=freddy-session-0.742143231719&sort=date_rev HTTP/1.1
+  %U: /cgi-bin/neomail.pl
+
+  We log %U because it contains the real meat of the information that is
+  needed for log analysis, and saves the database a LOT of wasted growth
+  on unneeded bytes.
+
+request_duration: corresponds to the Apache %T directive.  Contains the
+  time in seconds that it took to serve the request.
+  Example: 2
+
+virtual_host: contains the VirtualHost that is making the log entry. This
+  allows you to log multiple VirtualHosts to a single MySQL database and
+  yet still be able to extract them for separate analysis.
+  Example: www.grubbybaby.com
+
+time_stamp: contains the time that the request was logged.  Please see
+  "Notes" below to get a better understanding of this.
+  Example: 1014249231
+
+status: corresponds to the Apache %t directive.  Contains the HTTP status
+  of the request.
+  Example: 404
+
+bytes_sent: corresponds to the Apache %b directive.  Contains the number
+  of bytes sent to service the request.
+  Example: 23123
+
+referer: corresponds to the Apache "%{Referer}i" directive.  Contains the
+  referring HTML page's URL, if applicable.
+  Example: http://www.foobar.com/links.html
+
+agent: corresponds to the Apache "%{User-Agent}" directive.  Contains the
+  broswer type (user agent) of the software that made the request.
+  Example: Mozilla/3.0 (Slurp/si; slurp@inktomi.com; http://www.inktomi.com/slurp.html)
+
+
+Notes
+-----
+
+* The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the
+  standard unix "seconds since 1/1/1970 12:00:00" format.  This is
+  superior to storing the access time as a string due to size
+  requirements: an UNSIGNED INT type fits in 4 bytes.  The Apache date
+  string (e.g. "18/Nov/2001:13:59:52 -0800") requires 26 bytes --
+  significantly larger, and those extra 22 bytes will add up over the
+  thousands of accesses that a busy server will experience.  Besides,
+  an INT type is far more flexible for comparisons, etc.
+
+  In MySQL 3.21 and above you can easily convert this to a human
+  readable format using from_unixtime(), e.g.:
+
+  select remote_host,request_uri,from_unixtime(time_stamp) from access_log;
+
+  The enclosed perl program make_combined_log.pl shows how you can
+  extract your access records in a format that is completely Combined
+  Log Format compliant.  You can then feed this to your favorite web
+  log analysis tool.
+
+
+* The table's string values can be CHAR or VARCHAR, at a length of your choice.
+  VARCHAR is superior because it truncates long strings; CHAR types are
+  fixed-length and will be padded with spaces.  Just like the
+  time_stamp described above, that kind of space waste will add up over
+  thousands of records.
+
+
+* Most fields should probably be set to NOT NULL.  The only ones that
+  shouldn't are extra fields that you don't intend the logging module
+  to update.  (You can have other fields in the logging tables if you'd
+  like, but if they're set to NOT NULL then the logging module won't be
+  able to insert rows to these tables.)
+
+
+* Apache normally logs numeric fields with a '-' character to mean "not
+  applicable," e.g. bytes_sent on a request with a 304 response code. 
+  Since '-' is an illegal character in an SQL numeric field, such
+  fields are assigned the value 0 instead of '-' which, of course,
+  makes perfect sense anyway.
+
+
+Disclaimer
+----------
+
+It works for me (I've tested it on my '2 hits/busy day' home Linux box,
+and afterwards on our pretty busy tucows mirror (>100K hits a day) and
+it appears to be working fine.
+
+If it doesn't, and causes you damage of any sort, including but not
+limited to losing logs, losing money or your girlfriend leaving you
+(read 'boyfriend' where applicable), I'm not liable to anything.  Bug
+reports and constructive flame mail are ok, though (both about the code
+and this quickly-written README file).
+
+
+Author / Maintainer
+-------------------
+
+The actual logging code was taken from the already existing flat file
+text modules, so all that credit goes to the Apache Server group.  
+
+The MySQL routines and directives was added in by Zeev Suraski
+<bourbon@netvision.net.il>
+
+Changes from 1.06 on and the new documentation were added by 
+Chris Powell <chris@grubbybaby.com>.  It seems that the module had fallen
+into the "unmaintained" category -- it hadn't been updated since 1998 --
+so I've adopted it as the new maintainer.
+

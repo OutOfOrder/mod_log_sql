@@ -1,0 +1,99 @@
+$Id: CHANGELOG,v 1.1 2001/11/28 05:26:54 helios Exp $
+
+
+TODO:
+* Full commenting of the code.
+
+
+CHANGES:
+
+1.09:
+
+* If the MySQL INSERT causes an error, we re-try that INSERT after
+  a short 1/2-second sleep just to make sure it wasn't due to a 
+  network glitch or other gremlin.
+* Made the default log format: huSUsbTvRA.  This provides everything
+  required to reproduce Combined Log Format data.
+
+
+1.08: 
+
+* Now log a single '-' (instead of a zero-length string) when
+  User-Agent is blank. This is similar to what Apache does in its own
+  logs.  (Should have caught this when I did the same thing for
+  Referer.)
+* Separated documentation into README, INSTALL, CHANGELOG, etc. as
+  appropriate.
+
+
+1.07:
+
+* Renamed TransferIgnore directive to RequestIgnore, since that's
+  really a more specific and accurate description of what that
+  directive means. 
+* Now log a single '-' (instead of a zero-length string) when Referer
+  is blank. This is similar to what Apache does in its own logs.
+
+
+1.06:
+
+* Added 'R' and 'A' options to TransferLogMySQLFormat so that we now
+  can log Referer and Agent respectively. 
+* Code cleanup: all compilation warnings are now gone, even with -Wall. 
+  (They were mainly "const" issues that needed straightening up.)
+* Added RemhostIgnore configuration directive to permit non-logging of
+  any request coming from a specific host, e.g. a local network
+  machine, etc. 
+* Now use the non-obsolete ap_compat.h headerfile instead of
+  compat.h.  This simply gets rid of a compilation warning, nothing
+  more.
+* Now include a headerfile (http_log.h) that was missing.  Its
+  absence was giving us this warning message: "implicit declaration of
+  function `ap_log_error_old'." 
+* For numerics that Apache customarily logs as a "-" we now log a zero
+  instead of a -1.  This seems to be more intuitive, e.g. in the
+  "bytes_sent" column.
+* We now have a Makefile and a full "make" process that does all
+  the real work.
+* New maintainer.
+ 
+
+1.05:
+
+* Removed some redundant code, after being noted by Vivek Khera that
+  this code doesn't even get called with the current apache code.  It
+  can be done in apache 1.3, but it works ok without it anyway.
+* Added the necessary include file to make the module compile under
+  Apache 1.3b6.  I haven't actually tested that it works, though.
+  indent'd the code.
+
+
+1.04:
+
+* Rearranged some code to allow for a successful apache 1.3beta
+  compilation.  Please note that this is *untested*, I only got it to
+  compile, I haven't actually tried to run apache 1.3.
+
+
+1.03:
+
+* Changed the check for 'mysql server has gone away' to be case
+  insensitive, so that it works with MySQL 3.21 
+* Changed the behavior so that a link isn't established until it's
+  necessary (e.g., if SQL logging is used for one virtual IP, a link
+  won't be opened until there's an access to that IP).
+
+
+1.02:
+
+* Managed to track down that segmentation fault that occured once, and
+  fixed it.  No known bugs now exist.
+
+
+1.01:
+
+* Segmentation fault in case of certain parameters lacking fixed.
+* Worked around the SIGPIPE signal that's sent in certain events from
+* mysql_query(). Minor modifications
+
+

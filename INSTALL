@@ -1,0 +1,180 @@
+$Id: INSTALL,v 1.1 2001/11/28 05:26:54 helios Exp $
+
+
+Requirements
+============
+
+0) I run a Red Hat 6.2 system, but these instructions should easily
+   adapt to any modern distro.
+
+1) Apache 1.2.x or higher installed.  (I run 1.3.22 and it works fine). 
+   You should have already successfully compiled Apache and know what
+   you're doing there.  In fact, you should already have any other
+   modules and add-ons like mod_ssl or PHP configured and installed
+   before you start this process.
+
+2) The MySQL development headers.  (I run MySQL-devel-3.23.44-1.i386.rpm).  
+
+3) MySQL configured, installed and running on either localhost or an
+   accessible networked machine.  You should already have a basic
+   understanding of MySQL and how it functions.
+
+4) Again, basic administrative skills with Apache and MySQL.  I try to
+   make things as easy as possible in this README, but its purpose is
+   not to be an administrative tutorial.
+
+Installation
+============
+
+0) Perform all the following steps as root so that you have install
+   privs, etc.
+
+1) Unpack the archive into a working directory.
+
+   # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
+   # cd /usr/local/src/mod_log_mysql
+
+2) Edit Makefile and make any adjustments for your system:  make sure
+   that APACHEDIR points to the location of your Apache source code,
+   and that CFLAGS points to the location of your Apache installation
+   directory (where your httpd binary lives).
+
+3) # make all 
+   (You should receive NO warnings or errors of any kind. 
+   If you see messages like this: "mod_log_mysql.c:69: httpd.h: No such
+   file or directory" then you do not have your CFLAGS correctly
+   pointing to the right include directory.)
+
+4) # make install
+
+5) Change to your Apache source dir.
+
+   # cd /usr/local/src/apache-1.3.22/src
+
+6) Re-make your httpd binary as follows.
+
+   6a) Edit Configuration.apaci as follows...
+
+       * Append the following string to the EXTRA_LIBS= line. (/usr/lib/mysql is where your libmysqlclient.a file lives):
+       -L/usr/lib/mysql -lmysqlclient -lm
+
+       * Add this line at the end of the file:
+       Module mysql_log_module  mod_log_mysql.o
+
+   6b) # cp Configuration.apaci Configuration
+
+   6c) # ./Configure
+
+   6d) # make
+
+   6e) # strip httpd
+
+7) Test your new apache binary:
+
+   # ./httpd -l
+
+   You should see something like:
+
+	Compiled-in modules:
+	  http_core.c
+	  mod_log_mysql.c    <-- That's the line you're looking for.
+	  mod_env.c
+	  mod_log_config.c
+	  mod_mime.c
+	  mod_negotiation.c
+       ...etc...
+
+8) Install your httpd binary.  Copy it over your old httpd binary,
+   wherever it lives.  You can and should rename your old httpd first so
+   that you can easily revert to that working version in case of bugs or
+   whatever.
+ 
+   # /etc/rc.d/init.d/httpd stop
+   # cp -f ./httpd /usr/local/Apache/bin/
+
+9) Configure your apache daemon to log to your database.  Here's a very
+   basic set of config lines to start you off.  Full docs on them are
+   included after this section.
+
+   EXAMPLE: Connect to the MySQL database called "apache" running
+   on "dbmachine.foo.com".  The module uses username "loguser" and
+   password "l0gger" to authenticate to the database; this user must,
+   of course, exist in the MySQL user table and have the proper
+   permissions -- more on that in step 11.  The log entries will be
+   INSERTed into the table called "access_log".
+
+
+   LogMySQLInfo dbmachine.foo.com loguser l0gger
+   LogMySQLDB apache
+
+   <VirtualHost 1.2.3.4>
+        [snip]
+
+        TransferLogMySQLTable access_log
+        TransferLogMySQLFormat huSUsbTvRA
+
+        [snip]
+   </VirtualHost>
+
+
+10) Create a database and table to hold the new log data.  I log the
+    same data as the regular "combined log" plus a little extra information
+    that can be useful.
+
+    The order that the fields appear in the table is irrelevant
+    because you can SELECT them in any order you choose.  To create
+    this table I first created a new database called "apache":
+
+    # mysql -uadmin -pmypassword
+    mysql> create database apache;
+
+    Then I created the table called "access_log".  You should use the 
+    enclosed SQL file to do this for you.
+
+    mysql> source access_log.sql
+
+
+11) Create a specific mysql userid that httpd will use to authenticate
+    and enter data.  This userid need not be an actual Unix user.  It
+    is a userid specific to mysql with specific privileges. To create a
+    user called "loguser" with the password "l0gger" with only the
+    capability of INSERT to "access_log":
+
+    mysql> grant insert on apache.access_log to loguser@my.apachemachine.com identified by 'l0gger';
+
+
+12) Enable full logging of your MySQL daemon (at least temporarily
+    for debugging purposes) if you don't do this already:
+
+    Edit /etc/my.cnf and add the following line to your [mysqld] section:
+
+      log=/var/log/mysql-messages
+
+    Then restart MySQL.
+
+13) Restart apache.
+
+    # /etc/rc.d/init.d/httpd start
+
+13) Load your web site in a browser to trigger some hits, then confirm that 
+    the entries are being successfully logged:
+
+    # mysql -hmysql.host.com -umysqladmin -p -e "select * from access_log" apache;
+    Enter password:
+
+    +---------------------------------------------------+-------------+-------------+------------------+------------------+------------+--------+------------+------------------------------------+
+    | remote_host                                       | remote_user | request_uri | request_duration | virtual_host     | time_stamp | status | bytes_sent | referer                            |
+    +---------------------------------------------------+-------------+-------------+------------------+------------------+------------+--------+------------+------------------------------------+
+	[snipped lines]
+	.
+	.
+	.
+    +---------------------------------------------------+-------------+-------------+------------------+------------------+------------+--------+------------+------------------------------------+
+
+14) You have basic functionality.  Don't disable your regular Apache logs until
+    you feel comfortable that the database is behaving as you'd like and that
+    things are going well.  
+
+
+
+
