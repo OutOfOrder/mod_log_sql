@@ -1,5 +1,11 @@
-Christopher B. Powell 
-	Main author
+The Apache Foundation
+	standard apache logging module for which this module is based on
+
+Zeev Suraski <bourbon at netvision.net dot il>
+	Adding the mysql routines (intial revisions)
+
+Christopher B. Powell <chris at grubbybabby dot com>
+	Maintainer since version 1.06
 
 Edward Rudd <eddie at omegaware dot com>
 	Apache 2.0 port.

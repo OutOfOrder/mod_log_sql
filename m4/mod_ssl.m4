@@ -14,6 +14,11 @@ AC_ARG_WITH(
 		[AC_HELP_STRING([--with-ssl-inc=DIR],[Location of SSL header files])],
 		ssl_incdir="$withval",
 	)
+AC_ARG_WITH(
+		db-inc,
+		[AC_HELP_STRING([--with-db-inc=DIR],[Location of DB header files])],
+		db_incdir="$withval",
+	)
 
 	if test "x$ssl_val" = "xyes"; then
 		ac_save_CFLAGS=$CFLAGS
@@ -22,9 +27,11 @@ AC_ARG_WITH(
 		if test "x$ssl_incdir" != "x"; then
 			MOD_SSL_CFLAGS="-I$ssl_incdir -I$ssl_incdir/openssl $MOD_SSL_CFLAGS"
 		fi
-		
-		CFLAGS="-I$APACHE_INCDIR  $MOD_SSL_CFLAGS $CFLAGS"
-		CPPFLAGS="-I$APACHE_INCDIR  $MOD_SSL_CFLAGS $CPPFLAGS"
+		if test "x$db_incdir" != "x"; then
+			MOD_SSL_CFLAGS="-I$db_incdir $MOD_SSL_CFLAGS"
+		fi
+		CFLAGS="$APACHE_CFLAGS $APACHE_CPPFLAGS $MOD_SSL_CFLAGS $CFLAGS"
+		CPPFLAGS="$APACHE_CFLAGS $APACHE_CPPFLAGS $MOD_SSL_CFLAGS $CPPFLAGS"
 		AC_CHECK_HEADERS([mod_ssl.h],
 			mod_ssl_h=yes
 		)

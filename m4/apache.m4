@@ -129,7 +129,8 @@ AC_ARG_ENABLE(
 		AC_MSG_ERROR([*** your path, or use the --with-apxs configure option])		
 	else
 		APACHE_INCDIR=`$APXS_BIN -q INCLUDEDIR`
-		APACHE_CFLAGS=-I$APACHE_INCDIR
+		APACHE_CPPFLAGS=`$APXS_BIN -q CFLAGS`
+		APACHE_CFLAGS="-I$APACHE_INCDIR"
 		APACHE_MODDIR=`$APXS_BIN -q LIBEXECDIR`
 
 		if test "x$enable_apachetest" = "xyes" ; then
@@ -155,6 +156,7 @@ AC_ARG_ENABLE(
 					AC_DEFINE(WITH_APACHE13,1,[Define to 1 if we are compiling with Apache 1.3.x])
 					APACHE_VERSION="13"
 					APXS_EXTENSION=.so
+					APACHE_CFLAGS="-g $APACHE_CFLAGS"
 					APACHE_DEFS="-DWITH_APACHE13"
 					ifelse([$3], , , $3),
 					AC_MSG_RESULT(no)
@@ -164,6 +166,7 @@ AC_ARG_ENABLE(
    		fi
   		AC_SUBST(APACHE_DEFS)
   		AC_SUBST(APACHE_CFLAGS)
+  		AC_SUBST(APACHE_CPPFLAGS)
 		AC_SUBST(APACHE_INCDIR)
 		AC_SUBST(APACHE_MODDIR)
 		AC_SUBST(APACHE_VERSION)

@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.93)
+AC_INIT(mod_log_sql, 1.94)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
 
@@ -24,9 +24,11 @@ CHECK_PATH_MYSQL(:,
 
 CHECK_PATH_MOD_SSL(
 		AC_DEFINE(WANT_SSL_LOGGING,,[Define if we want to compile in SSL support.])
-		conf_SSL=1,
-		conf_SSL=0
+		WANT_SSL_MOD=1,
+		WANT_SSL_MOD=0
 		)
+
+AC_SUBST(WANT_SSL_MOD)
 
 AC_CHECK_HEADERS(limits.h)
 
@@ -38,7 +40,7 @@ AC_OUTPUT(Makefile Documentation/Makefile)
 
 AC_MSG_RESULT([------------------------------------])
 AC_MSG_RESULT([Apache version	: $APACHE_VERSION])
-if test $conf_SSL -eq 1; then
+if test $WANT_SSL_MOD -eq 1; then
 	AC_MSG_RESULT([SSL Support	: yes])
 else
 	AC_MSG_RESULT([SSL Support	: no])

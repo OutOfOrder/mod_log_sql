@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.11 2004/01/21 04:34:21 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.12 2004/01/22 05:26:56 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -84,6 +84,15 @@ typedef struct {
 
 static global_config_t global_config;
 
+/* structure to hold helper function info */
+typedef struct {
+	char key;					/* item letter character */
+	log_sql_item_func *func;	/* its extraction function */
+	const char *sql_field_name;	/* its column in SQL */
+	int want_orig_default;		/* if it requires the original request prior to internal redirection */
+	int string_contents;		/* if it returns a string */
+} log_sql_item;
+
 /* But the contents of this structure will vary by virtual server.
  * This permits each virtual server to vary its configuration slightly
  * for per-server customization.
@@ -98,14 +107,16 @@ typedef struct {
 	apr_array_header_t *hout_list;
 	apr_array_header_t *hin_list;
 	apr_array_header_t *cookie_list;
-	char *notes_table_name;
-	char *hout_table_name;
-	char *hin_table_name;
-	char *cookie_table_name;
-	char *transfer_table_name;
-	char *transfer_log_format;
-	char *preserve_file;
-	char *cookie_name;
+	const char *notes_table_name;
+	const char *hout_table_name;
+	const char *hin_table_name;
+	const char *cookie_table_name;
+	const char *transfer_table_name;
+	const char *transfer_log_format;
+	apr_pool_t *parsed_pool;
+	log_sql_item **parsed_log_format;
+	const char *preserve_file;
+	const char *cookie_name;
 } logsql_state;
 
 
@@ -115,39 +126,39 @@ typedef struct {
 
 static int safe_create_tables(logsql_state *cls, request_rec *r);
 
-typedef struct {
-	char key;					/* item letter character */
-	log_sql_item_func *func;	/* its extraction function */
-	const char *sql_field_name;	/* its column in SQL */
-	int want_orig_default;		/* if it requires the original request prior to internal redirection */
-	int string_contents;		/* if it returns a string */
-} log_sql_item;
-
 static apr_array_header_t *log_sql_item_list;
 
-/* Registration Function for extract functions */
-LOGSQL_DECLARE(void) log_sql_register_item(apr_pool_t *p, char key,
-		log_sql_item_func *func, const char *sql_field_name,
+/* Registration Function for extract functions *
+ * and update parse cache for transfer_log_format *
+ * this is exported from the module */
+LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
+		char key, log_sql_item_func *func, const char *sql_field_name,
 		int want_orig_default, int string_contents)
 {
-	log_sql_item *item = apr_array_push(log_sql_item_list);
+	server_rec *ts;
+	log_sql_item *item;
+	if (!log_sql_item_list)
+		log_sql_item_list = apr_array_make(p,10, sizeof(log_sql_item));
+
+	item= apr_array_push(log_sql_item_list);
 	item->key = key;
 	item->func = func;
 	item->sql_field_name = sql_field_name;
 	item->want_orig_default = want_orig_default;
 	item->string_contents = string_contents;
-}
+	/* some voodoo here to post parse logitems in all servers *
+	 * so a "cached" list is used in the main logging loop for speed */
+	for (ts = s; ts; ts = ts->next) {
+		logsql_state *cfg = ap_get_module_config(ts->module_config,
+								&log_sql_module);
+		char *pos;
 
-/* Search through item array */
-static inline log_sql_item *log_sql_get_item(char key)
-{
-	int itr;
-	for(itr=0; itr<log_sql_item_list->nelts; itr++) {
-		if (((log_sql_item *)log_sql_item_list->elts)[itr].key == key) {
-			return &((log_sql_item *)log_sql_item_list->elts)[itr];
+		if (cfg->transfer_log_format) {
+			if ( (pos = strchr(cfg->transfer_log_format,key))!=NULL) {
+				cfg->parsed_log_format[pos - cfg->transfer_log_format] = item;
+			}
 		}
 	}
-	return NULL;
 }
 
 /* Include all the extract functions */
@@ -570,6 +581,19 @@ static const char *set_server_string_slot(cmd_parms *cmd,
     return NULL;
 }
 
+static const char *set_logformat_slot(cmd_parms *cmd,
+                                     		 void *struct_ptr,
+                                     		 const char *arg)
+{
+	logsql_state *cfg = ap_get_module_config(cmd->server->module_config,
+					&log_sql_module);
+    
+	cfg->transfer_log_format = arg;
+/*	apr_pool_clear(cfg->parsed_pool);*/
+	cfg->parsed_log_format = apr_pcalloc(cfg->parsed_pool,
+		strlen(arg) * sizeof(log_sql_item *));
+    return NULL;
+}
 
 static const char *set_server_nmv_string_slot(cmd_parms *parms,
 											void *struct_ptr,
@@ -681,9 +705,9 @@ void *log_sql_initializer(server_rec *main_server, apr_pool_t *p)
 
 }
  */
-
+/* post_config / module_init */
 #if defined(WITH_APACHE20)
-static int log_sql_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp)
+static int log_sql_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 #elif defined(WITH_APACHE13)
 static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
@@ -693,41 +717,38 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 		global_config.socketfile = "/tmp/mysql.sock";
 	if (!global_config.tcpport)
 		global_config.tcpport = 3306;
-	if (!log_sql_item_list)
-		log_sql_item_list = apr_array_make(p,10,sizeof(log_sql_item));
 
 	/* Register handlers */
-	log_sql_register_item(p,'A', extract_agent,             "agent",            1, 1);
-	log_sql_register_item(p,'a', extract_request_args,      "request_args",     1, 1);
-	log_sql_register_item(p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
-    log_sql_register_item(p,'c', extract_cookie,            "cookie",           0, 1);
-    log_sql_register_item(p,'e', extract_env_var,           "env_var",          0, 1);
-    log_sql_register_item(p,'f', extract_request_file,      "request_file",     0, 1);
-	log_sql_register_item(p,'H', extract_request_protocol,  "request_protocol", 0, 1);
-	log_sql_register_item(p,'h', extract_remote_host,       "remote_host",      0, 1);
-	log_sql_register_item(p,'I', extract_unique_id,         "id",               0, 1);
-	log_sql_register_item(p,'l', extract_remote_logname,    "remote_logname",   0, 1);
-	log_sql_register_item(p,'m', extract_request_method,    "request_method",   0, 1);
-	log_sql_register_item(p,'M', extract_machine_id,        "machine_id",       0, 1);
-	log_sql_register_item(p,'P', extract_child_pid,         "child_pid",        0, 0);
-	log_sql_register_item(p,'p', extract_server_port,       "server_port",      0, 0);
-	log_sql_register_item(p,'R', extract_referer,           "referer",          1, 1);
-	log_sql_register_item(p,'r', extract_request_line,      "request_line",     1, 1);
-	log_sql_register_item(p,'S', extract_request_timestamp, "time_stamp",       0, 0);
-	log_sql_register_item(p,'s', extract_status,            "status",           1, 0);
-	log_sql_register_item(p,'T', extract_request_duration,  "request_duration", 1, 0);
-	log_sql_register_item(p,'t', extract_request_time,      "request_time",     0, 1);
-	log_sql_register_item(p,'u', extract_remote_user,       "remote_user",      0, 1);
-	log_sql_register_item(p,'U', extract_request_uri,       "request_uri",      1, 1);
-	log_sql_register_item(p,'v', extract_virtual_host,      "virtual_host",     0, 1);
+	log_sql_register_item(s,p,'A', extract_agent,             "agent",            1, 1);
+	log_sql_register_item(s,p,'a', extract_request_args,      "request_args",     1, 1);
+	log_sql_register_item(s,p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
+    log_sql_register_item(s,p,'c', extract_cookie,            "cookie",           0, 1);
+    log_sql_register_item(s,p,'e', extract_env_var,           "env_var",          0, 1);
+    log_sql_register_item(s,p,'f', extract_request_file,      "request_file",     0, 1);
+	log_sql_register_item(s,p,'H', extract_request_protocol,  "request_protocol", 0, 1);
+	log_sql_register_item(s,p,'h', extract_remote_host,       "remote_host",      0, 1);
+	log_sql_register_item(s,p,'I', extract_unique_id,         "id",               0, 1);
+	log_sql_register_item(s,p,'l', extract_remote_logname,    "remote_logname",   0, 1);
+	log_sql_register_item(s,p,'m', extract_request_method,    "request_method",   0, 1);
+	log_sql_register_item(s,p,'M', extract_machine_id,        "machine_id",       0, 1);
+	log_sql_register_item(s,p,'P', extract_child_pid,         "child_pid",        0, 0);
+	log_sql_register_item(s,p,'p', extract_server_port,       "server_port",      0, 0);
+	log_sql_register_item(s,p,'R', extract_referer,           "referer",          1, 1);
+	log_sql_register_item(s,p,'r', extract_request_line,      "request_line",     1, 1);
+	log_sql_register_item(s,p,'S', extract_request_timestamp, "time_stamp",       0, 0);
+	log_sql_register_item(s,p,'s', extract_status,            "status",           1, 0);
+	log_sql_register_item(s,p,'T', extract_request_duration,  "request_duration", 1, 0);
+	log_sql_register_item(s,p,'t', extract_request_time,      "request_time",     0, 1);
+	log_sql_register_item(s,p,'u', extract_remote_user,       "remote_user",      0, 1);
+	log_sql_register_item(s,p,'U', extract_request_uri,       "request_uri",      1, 1);
+	log_sql_register_item(s,p,'v', extract_virtual_host,      "virtual_host",     0, 1);
 
 #if defined(WITH_APACHE20)
 	return OK;
 #endif
 }
 
-/*
- * This function gets called to create a per-server configuration
+/* This function gets called to create a per-server configuration
  * record.  It will always be called for the main server and
  * for each virtual server that is established.  Each server maintains
  * its own state that is separate from the others' states.
@@ -741,6 +762,9 @@ static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
 
 	/* These defaults are overridable in the httpd.conf file. */
 	cls->transfer_log_format = DEFAULT_TRANSFER_LOG_FMT;
+	apr_pool_create(&cls->parsed_pool, p);
+	cls->parsed_log_format = apr_pcalloc(cls->parsed_pool,
+			strlen(cls->transfer_log_format) * sizeof(log_sql_item *));
 	cls->notes_table_name = DEFAULT_NOTES_TABLE_NAME;
 	cls->hin_table_name = DEFAULT_HIN_TABLE_NAME;
 	cls->hout_table_name = DEFAULT_HOUT_TABLE_NAME;
@@ -773,8 +797,12 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 	/* No default for transfer_table_name because we want its absence
 	 * to disable logging. */
 
-	if (child->transfer_log_format == DEFAULT_TRANSFER_LOG_FMT)
+	if (child->transfer_log_format == DEFAULT_TRANSFER_LOG_FMT) {
 		child->transfer_log_format = parent->transfer_log_format;
+		/*apr_pool_clear(child->parsed_pool);*/
+		child->parsed_log_format = apr_pcalloc(child->parsed_pool,
+			strlen(child->transfer_log_format) * sizeof(log_sql_item *));
+	}
 
 	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
 		child->preserve_file = parent->preserve_file;
@@ -827,11 +855,11 @@ static int log_sql_transaction(request_rec *orig)
 	logsql_state *cls = ap_get_module_config(orig->server->module_config, &log_sql_module);
 	const char *access_query;
 	request_rec *r;
-	char *transfer_tablename = cls->transfer_table_name;
-	char *notes_tablename = cls->notes_table_name;
-	char *hout_tablename = cls->hout_table_name;
-	char *hin_tablename = cls->hin_table_name;
-	char *cookie_tablename = cls->cookie_table_name;
+	const char *transfer_tablename = cls->transfer_table_name;
+	const char *notes_tablename = cls->notes_table_name;
+	const char *hout_tablename = cls->hout_table_name;
+	const char *hin_tablename = cls->hin_table_name;
+	const char *cookie_tablename = cls->cookie_table_name;
 
 	/* We handle mass virtual hosting differently.  Dynamically determine the name
 	 * of the table from the virtual server's name, and flag it for creation.
@@ -882,8 +910,7 @@ static int log_sql_transaction(request_rec *orig)
 		char *cookie_query = NULL;
 		const char *unique_id;
 		const char *formatted_item;
-		char *s;
-		int i;
+		int i,length;
 		int proceed;
 
 		for (r = orig; r->next; r = r->next) {
@@ -932,9 +959,14 @@ static int log_sql_transaction(request_rec *orig)
 
 		/* Iterate through the format characters and set up the INSERT string according to
 		 * what the user has configured. */
-		i = 0;
-		for (s = cls->transfer_log_format; *s != '\0' ; s++) {
-			log_sql_item *item = log_sql_get_item(*s);
+		length = strlen(cls->transfer_log_format);
+		for (i = 0; i<length; i++) {
+			log_sql_item *item = cls->parsed_log_format[i];
+			if (item==NULL) {
+				log_error(APLOG_MARK, APLOG_ERR, orig->server,
+					"Log Format '%c' unknown",cls->transfer_log_format[i]);
+				continue;
+			}
 
 			/* Yes, this key is one of the configured keys.
 			 * Call the key's function and put the returned value into 'formatted_item' */
@@ -956,7 +988,6 @@ static int log_sql_transaction(request_rec *orig)
 						 (item->string_contents ? "'" : ""),
 					     escape_query(formatted_item, r->pool),
 						 (item->string_contents ? "'" : ""), NULL);
-			i = 1;
 		}
 
 		/* Work through the list of notes defined by LogSQLWhichNotes */
@@ -1188,8 +1219,8 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state, cookie_table_name), RSRC_CONF,
 	 "The database table that holds the cookie info")
 	,
-	AP_INIT_TAKE1("LogSQLTransferLogFormat", set_server_string_slot,
-	 (void *)APR_OFFSETOF(logsql_state,transfer_log_format), RSRC_CONF,
+	AP_INIT_TAKE1("LogSQLTransferLogFormat", set_logformat_slot,
+	 NULL, RSRC_CONF,
 	 "Instruct the module what information to log to the database transfer log")
 	,
 	AP_INIT_TAKE1("LogSQLMachineID", set_global_string_slot,
@@ -1271,7 +1302,7 @@ static const command_rec log_sql_cmds[] = {
 /* The configuration array that sets up the hooks into the module. */
 #if defined(WITH_APACHE20)
 static void register_hooks(apr_pool_t *p) {
-	ap_hook_pre_config(log_sql_pre_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
+	ap_hook_post_config(log_sql_post_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_child_init(log_sql_child_init, NULL, NULL, APR_HOOK_MIDDLE);
 	ap_hook_open_logs(log_sql_open, NULL, NULL, APR_HOOK_MIDDLE);
 	ap_hook_log_transaction(log_sql_transaction, NULL, NULL, APR_HOOK_MIDDLE);

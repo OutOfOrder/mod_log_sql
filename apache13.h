@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.2 2004/01/20 19:38:07 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.3 2004/01/22 05:26:56 urkle Exp $ */
 #ifndef APACHE13_H
 #define APACHE13_H
 
@@ -41,6 +41,7 @@
 /* Functions */
 #define ap_get_remote_host(a,b,c,d) ap_get_remote_host(a,b,c)
 
+#define apr_pool_create(a,b) *(a) = ap_make_sub_pool(b)
 #define apr_palloc ap_palloc
 #define apr_pcalloc ap_pcalloc
 #define apr_pstrdup ap_pstrdup

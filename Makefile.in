@@ -18,9 +18,19 @@ INCLUDES = @MYSQL_CFLAGS@
 
 LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 
-EXTRA_DIST = INSTALL LICENSE CHANGELOG make_combined_log.pl
+EXTRA_DIST = AUTHORS INSTALL LICENSE CHANGELOG make_combined_log.pl
 
 TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
+
+sslSOURCES = mod_log_sql_ssl.c
+
+sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
+
+ifeq (@WANT_SSL_MOD@,1)
+TARGETS = $(TARGET) $(sslTARGET)
+else
+TARGETS = $(TARGET)
+endif
 
 #Don't modify anything below here
 
@@ -29,11 +39,11 @@ PROVIDERS_SUBDIRS = @subdirs@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-OBJ = $(SOURCES:.c=.o)
+OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o)
 
-LO = $(SOURCES:.c=.lo)
+LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo)
 
-SLO = $(SOURCES:.c=.slo)
+SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
 	config.sub \
@@ -47,7 +57,7 @@ STD_DIST = install-sh \
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
 
-all: $(TARGET) all-subdirs
+all: $(TARGETS) all-subdirs
 
 all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 	@otarget=`echo $@|sed s/-subdirs//`; \
@@ -65,21 +75,31 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 	done;
 
 $(TARGET): $(SOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(TARGET) $(INCLUDES) @MOD_SSL_CFLAGS@ $(CFLAGS) \
+	@@APXS_BIN@ -c -o $(TARGET) $(INCLUDES) $(CFLAGS) \
 		$(LDADD) @DEFS@ @APACHE_DEFS@ $(SOURCES)
+
+$(sslTARGET): $(sslSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(sslTARGET) $(INCLUDES) @MOD_SSL_CFLAGS@ $(CFLAGS) \
+		@DEFS@ @APACHE_DEFS@ $(sslSOURCES)
 
 include:
 	rm -rf include
 	ln -s @APACHE_INCDIR@ include
 
-install: install-subdirs
-	@@APXS_BIN@ -i $(TARGET)
+install: $(TARGETS) install-subdirs
+	@@APXS_BIN@ -i $(TARGET); \
+	if test @WANT_SSL_MOD@ -eq 1; then \
+		@APXS_BIN@ -i $(sslTARGET); \
+	fi
 
 activate: activate-subdirs
-	@@APXS_BIN@ -i -a $(TARGET)
+	@@APXS_BIN@ -i -a $(TARGET); \
+	if test @WANT_SSL_MOD@ -eq 1; then \
+		@APXS_BIN@ -i -a $(sslTARGET); \
+	fi
 
 clean: clean-subdirs
-	$(RM) $(OBJ) $(SLO) $(LO) $(TARGET)
+	$(RM) $(OBJ) $(SLO) $(LO) $(TARGETS)
 	$(RM) -r .libs
 
 distclean: clean distclean-subdirs
