@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 2001/12/03 19:56:58 helios Exp $
+# $Id: Makefile,v 1.4 2001/12/07 03:52:56 helios Exp $
 
 # Verify that this points to the right place...
 APACHEDIR = /usr/local/src/apache_1.3.22
@@ -9,9 +9,10 @@ APACHEDIR = /usr/local/src/apache_1.3.22
 DEFS      = -DWANT_SSL_LOGGING
 #DEFS      =
 
-# Use this one if you do WANT_SSL_LOGGING, and confirm the last two paths.
-# Make "/usr/local/ssl/include" point to where your openssl/*.h files are,
-# and make "/usr/include/db1" point to where ndbm.h can be found.
+# Use this one if you do WANT_SSL_LOGGING, and confirm the last three paths.
+# Point "/usr/local/ssl/include" to where your openssl/*.h files are,
+# Point "/usr/include/db1" to where ndbm.h can be found,
+# Point "/usr/local/src/apache_1.3.22/src/modules/ssl" to where mod_ssl.h can be found.
 #
 # How to find your directories:
 #
@@ -23,11 +24,13 @@ DEFS      = -DWANT_SSL_LOGGING
 #
 # $ locate ndbm.h
 # /usr/include/db1/ndbm.h
+#
+# $ locate mod_ssl.h
+# /usr/local/src/apache_1.3.22/src/modules/ssl/mod_ssl.h
 
-CFLAGS    = -fpic -O2 -Wall -I/usr/local/Apache/include -I/usr/local/ssl/include -I/usr/include/db1
+CFLAGS    = -fpic -O2 -Wall -I/usr/local/Apache/include -I/usr/local/ssl/include -I/usr/include/db1 -I/usr/local/src/apache_1.3.22/src/modules/ssl
 
 # Use this one if you don't WANT_SSL_LOGGING:
-
 #CFLAGS    = -fpic -O2 -Wall -I/usr/local/Apache/include
 
 
@@ -40,8 +43,8 @@ INSTALL   = /usr/bin/install -m 664
 all: mod_log_mysql.o
 
 mod_log_mysql.o:	mod_log_mysql.c Makefile
-			$(CC) ${CFLAGS} ${DEFS} -c mod_log_mysql.c
-
+	$(CC) ${CFLAGS} ${DEFS} -c mod_log_mysql.c
+			
 install: all
 	$(INSTALL) mod_log_mysql.o ${APACHEDIR}/src/mod_log_mysql.o
 
@@ -49,7 +52,7 @@ distro: all
 	cp -f INSTALL /usr/local/Apache/html/mod_log_mysql/
 	cp -f README /usr/local/Apache/html/mod_log_mysql/
 	cp -f CHANGELOG /usr/local/Apache/html/mod_log_mysql/
-	cd ..; tar zcf mod_log_mysql.tar.gz mod_log_mysql/; $(INSTALL) mod_log_mysql.tar.gz /usr/local/Apache/html/mod_log_mysql/; rm -f mod_log_mysql.tar.gz
+	cd ..; tar zcf mod_log_mysql.tar.gz --exclude mod_log_mysql/CVS mod_log_mysql/; $(INSTALL) mod_log_mysql.tar.gz /usr/local/Apache/html/mod_log_mysql/; rm -f mod_log_mysql.tar.gz
 	
 clean:
 	rm -f *.o *~

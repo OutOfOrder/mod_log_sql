@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.3 2001/12/03 19:54:02 helios Exp $
+$Id: CHANGELOG,v 1.4 2001/12/07 03:52:56 helios Exp $
 
 
 TODO:
@@ -7,6 +7,14 @@ TODO:
 
 
 CHANGES:
+
+1.12:
+
+* Added a mysql_close() call to get rid of those annoying MySQL
+  complaints every time an httpd child process terminates. (Apache
+  1.3 or later.)
+* Considerable code reorganization and cleanup.  
+
 
 1.11:
 

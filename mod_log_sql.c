@@ -1,85 +1,11 @@
-/* $Id: mod_log_sql.c,v 1.3 2001/12/03 19:54:02 helios Exp $
- *
- * mod_log_mysql.c
- * Release v 1.10
- *
- * Hi, I'm the new maintainer of this code.  If you have any questions,
- * comments or suggestions (which are always welcome), please contact Chris
- * Powell <chris@grubbybaby.com>.  This code still falls under the rules of
- * the Apache license, and all credit for the code up to my changes is still
- * preserved below.
- *
- * ====================================================================
- *
- * The original preface from version 1.05: This module was patched, wrapped
- * and coded by Zeev Suraski <bourbon@netvision.net.il>
- *
- * It may be used freely, with the same restrictions as its predecessors
- * (specified below).  This module is based on code from standard apache
- * modules.  Their copyright notice follows.
- *
- * ====================================================================
- * Copyright (c) 1995-1997 The Apache Group.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the Apache Group
- *    for use in the Apache HTTP server project (http://www.apache.org/)."
- *
- * 4. The names "Apache Server" and "Apache Group" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission.
- *
- * 5. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the Apache Group
- *    for use in the Apache HTTP server project (http://www.apache.org/)."
- *
- * THIS SOFTWARE IS PROVIDED BY THE APACHE GROUP ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE APACHE GROUP OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This software consists of voluntary contributions made by many
- * individuals on behalf of the Apache Group and was originally based
- * on public domain software written at the National Center for
- * Supercomputing Applications, University of Illinois, Urbana-Champaign.
- * For more information on the Apache Group and the Apache HTTP server
- * project, please see <http://www.apache.org/>.
- *
- */
+/* $Id: mod_log_sql.c,v 1.4 2001/12/07 03:52:56 helios Exp $ */
 
 
 /* DEFINES */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
-
 #define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
-
-#undef DEBUG
-#ifdef DEBUG
-	#define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
-#endif
+#define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
+/* (DEBUG and WANT_SSL_LOGGING are defined in the Makefile DEFS line.) */
 
 
 
@@ -92,24 +18,35 @@
 #include "http_config.h"
 #include "http_log.h"
 #include "http_core.h"
-#if MODULE_MAGIC_NUMBER >= 19980324
+
+/* M_M_N is defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
+#if MODULE_MAGIC_NUMBER >= 19980324 /* 1.3b6 or later */
 	#include "ap_compat.h"
 #endif
 
-#ifdef WANT_SSL_LOGGING
-	#include "/usr/local/src/apache_1.3.22/src/modules/ssl/mod_ssl.h"
+#ifdef WANT_SSL_LOGGING /* Defined in Makefile */
+	#include "mod_ssl.h"
 #endif
 
 
 
 /* DECLARATIONS */
 module mysql_log_module;
-MYSQL log_sql_server, *mysql_log = NULL;
-char *log_db_name = NULL, *db_host = NULL, *db_user = NULL, *db_pwd = NULL, *cookie_name = NULL;
+
+MYSQL sql_server, *mysql_log = NULL;
+
+char *db_name = NULL;
+char *db_host = NULL;
+char *db_user = NULL;
+char *db_pwd  = NULL;
+char *cookie_name = NULL;
 
 typedef const char *(*item_key_func) (request_rec *, char *);
+
 typedef struct {
-	char *referer_table_name, *agent_table_name, *transfer_table_name;
+	char *referer_table_name;
+	char *agent_table_name;
+	char *transfer_table_name;
 	array_header *referer_ignore_list;
 	array_header *transfer_ignore_list;
 	array_header *remhost_ignore_list;
@@ -118,29 +55,7 @@ typedef struct {
 
 
 
-#if MODULE_MAGIC_NUMBER < 19970103  /* Defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
-extern const char *log_request_protocol(request_rec *r, char *a);
-extern const char *log_request_method(request_rec *r, char *a);
-extern const char *log_remote_host(request_rec *r, char *a);
-extern const char *log_remote_logname(request_rec *r, char *a);
-extern const char *log_remote_user(request_rec *r, char *a);
-extern const char *log_request_time(request_rec *r, char *a);
-extern const char *log_request_timestamp(request_rec *r, char *a);
-extern const char *log_request_duration(request_rec *r, char *a);
-extern const char *log_request_line(request_rec *r, char *a);
-extern const char *log_request_file(request_rec *r, char *a);
-extern const char *log_request_uri(request_rec *r, char *a);
-extern const char *log_status(request_rec *r, char *a);
-extern const char *log_bytes_sent(request_rec *r, char *a);
-extern const char *log_header_in(request_rec *r, char *a);
-extern const char *log_header_out(request_rec *r, char *a);
-extern const char *log_note(request_rec *r, char *a);
-extern const char *log_env_var(request_rec *r, char *a);
-extern const char *log_virtual_host(request_rec *r, char *a);
-extern const char *log_server_port(request_rec *r, char *a);
-extern const char *log_child_pid(request_rec *r, char *a);
-#else
-
+/* FUNCTIONS */
 static char *format_integer(pool *p, int i)
 {
 	char dummy[40];
@@ -162,17 +77,17 @@ static char *pfmt(pool *p, int i)
  * value to the calling entity.
  */
 
-static const char *log_remote_host(request_rec *r, char *a)
+static const char *extract_remote_host(request_rec *r, char *a)
 {
 	return (char *) get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME);
 }
 
-static const char *log_remote_logname(request_rec *r, char *a)
+static const char *extract_remote_logname(request_rec *r, char *a)
 {
 	return (char *) get_remote_logname(r);
 }
 
-static const char *log_remote_user(request_rec *r, char *a)
+static const char *extract_remote_user(request_rec *r, char *a)
 {
 	char *rvalue = r->connection->user;
 
@@ -185,7 +100,7 @@ static const char *log_remote_user(request_rec *r, char *a)
 }
 
 #ifdef WANT_SSL_LOGGING
-static const char *log_ssl_keysize(request_rec *r, char *a)
+static const char *extract_ssl_keysize(request_rec *r, char *a)
 {
 	char *result = NULL;
 	
@@ -202,7 +117,7 @@ static const char *log_ssl_keysize(request_rec *r, char *a)
 	}
 }
 
-static const char *log_ssl_maxkeysize(request_rec *r, char *a)
+static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 {
 	char *result = NULL;
 	
@@ -219,7 +134,7 @@ static const char *log_ssl_maxkeysize(request_rec *r, char *a)
 	}
 }
 
-static const char *log_ssl_cipher(request_rec *r, char *a)
+static const char *extract_ssl_cipher(request_rec *r, char *a)
 {
 	char *result = NULL;
 	
@@ -232,42 +147,42 @@ static const char *log_ssl_cipher(request_rec *r, char *a)
 	      result = NULL;
 		return result;
 	} else {
-		return "0";
+		return "-";
 	}
 }
 #endif /* WANT_SSL_LOGGING */
 
-static const char *log_request_method(request_rec *r, char *a)
+static const char *extract_request_method(request_rec *r, char *a)
 {
 	return r->method;
 }
 
-static const char *log_request_protocol(request_rec *r, char *a)
+static const char *extract_request_protocol(request_rec *r, char *a)
 {
 	return r->protocol;
 }
 
-static const char *log_request_line(request_rec *r, char *a)
+static const char *extract_request_line(request_rec *r, char *a)
 {
 	return r->the_request;
 }
 
-static const char *log_request_file(request_rec *r, char *a)
+static const char *extract_request_file(request_rec *r, char *a)
 {
 	return r->filename;
 }
 
-static const char *log_request_uri(request_rec *r, char *a)
+static const char *extract_request_uri(request_rec *r, char *a)
 {
 	return r->uri;
 }
 
-static const char *log_status(request_rec *r, char *a)
+static const char *extract_status(request_rec *r, char *a)
 {
 	return pfmt(r->pool, r->status);
 }
 
-static const char *log_bytes_sent(request_rec *r, char *a)
+static const char *extract_bytes_sent(request_rec *r, char *a)
 {
 	if (!r->sent_bodyct) {
 		return "-";
@@ -280,12 +195,12 @@ static const char *log_bytes_sent(request_rec *r, char *a)
 	}
 }
 
-static const char *log_header_in(request_rec *r, char *a)
+static const char *extract_header_in(request_rec *r, char *a)
 {
 	return table_get(r->headers_in, a);
 }
 
-static const char *log_header_out(request_rec *r, char *a)
+static const char *extract_header_out(request_rec *r, char *a)
 {
 	const char *cp = table_get(r->headers_out, a);
 	if (!strcasecmp(a, "Content-type") && r->content_type) {
@@ -297,7 +212,7 @@ static const char *log_header_out(request_rec *r, char *a)
 	return table_get(r->err_headers_out, a);
 }
 
-static const char *log_request_time(request_rec *r, char *a)
+static const char *extract_request_time(request_rec *r, char *a)
 {
 	int timz;
 	struct tm *t;
@@ -320,7 +235,7 @@ static const char *log_request_time(request_rec *r, char *a)
 	return pstrdup(r->pool, tstr);
 }
 
-static const char *log_request_duration(request_rec *r, char *a)
+static const char *extract_request_duration(request_rec *r, char *a)
 {
 	char duration[22];			 /* Long enough for 2^64 */
 
@@ -328,12 +243,12 @@ static const char *log_request_duration(request_rec *r, char *a)
 	return pstrdup(r->pool, duration);
 }
 
-static const char *log_virtual_host(request_rec *r, char *a)
+static const char *extract_virtual_host(request_rec *r, char *a)
 {
 	return pstrdup(r->pool, r->server->server_hostname);
 }
 
-static const char *log_server_port(request_rec *r, char *a)
+static const char *extract_server_port(request_rec *r, char *a)
 {
 	char portnum[22];
 
@@ -341,14 +256,14 @@ static const char *log_server_port(request_rec *r, char *a)
 	return pstrdup(r->pool, portnum);
 }
 
-static const char *log_child_pid(request_rec *r, char *a)
+static const char *extract_child_pid(request_rec *r, char *a)
 {
 	char pidnum[22];
 	ap_snprintf(pidnum, sizeof(pidnum), "%ld", (long) getpid());
 	return pstrdup(r->pool, pidnum);
 }
 
-static const char *log_referer(request_rec *r, char *a)
+static const char *extract_referer(request_rec *r, char *a)
 {
 	const char *tempref;
 
@@ -361,7 +276,7 @@ static const char *log_referer(request_rec *r, char *a)
 	}
 }
 
-static const char *log_agent(request_rec *r, char *a)
+static const char *extract_agent(request_rec *r, char *a)
 {
     const char *tempag;
     
@@ -374,7 +289,7 @@ static const char *log_agent(request_rec *r, char *a)
     }
 }
 
-static const char *log_cookie(request_rec *r, char *a)
+static const char *extract_cookie(request_rec *r, char *a)
 {
     const char *cookiestr;
     char *cookieend;
@@ -396,7 +311,6 @@ static const char *log_cookie(request_rec *r, char *a)
 		  	return cookiebuf;
 		}
 	}
-	
 
  	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
     if (cookiestr != NULL) {
@@ -414,7 +328,6 @@ static const char *log_cookie(request_rec *r, char *a)
 		}
 	}
 	
-
  	cookiestr = table_get(r->headers_out,  "set-cookie");
     if (cookiestr != NULL) {
 		#ifdef DEBUG
@@ -434,8 +347,7 @@ static const char *log_cookie(request_rec *r, char *a)
 	return "-"; 
 }
 
-
-const char *log_request_timestamp(request_rec *r, char *a)
+static const char *extract_request_timestamp(request_rec *r, char *a)
 {
 	char tstr[32];
 
@@ -443,19 +355,18 @@ const char *log_request_timestamp(request_rec *r, char *a)
 	return pstrdup(r->pool, tstr);
 }
 
-static const char *log_note(request_rec *r, char *a)
+static const char *extract_note(request_rec *r, char *a)
 {
 	return table_get(r->notes, a);
 }
 
-static const char *log_env_var(request_rec *r, char *a)
+static const char *extract_env_var(request_rec *r, char *a)
 {
 	return table_get(r->subprocess_env, a);
 }
-#endif /* MODULE_MAGIC_NUMBER */
 
+/* End declarations of various extract_ functions */
 
-/* End declarations of various log_ functions */
 
 
 struct log_mysql_item_list {
@@ -466,39 +377,39 @@ struct log_mysql_item_list {
 	  int string_contents;
     } log_mysql_item_keys[] = {
 
-	{   'A', log_agent,             "agent",            1, 1    },
-    {   'b', log_bytes_sent,        "bytes_sent",       0, 0    },
-    {   'c', log_cookie,            "cookie",           0, 1    },
-    {   'e', log_env_var,           "env_var",          0, 1    },
-    {   'f', log_request_file,      "request_file",     0, 1    },
-	{   'H', log_request_protocol,  "request_protocol", 0, 1    },
-	{   'h', log_remote_host,       "remote_host",      0, 1    },
-    {   'i', log_header_in,         "header_in",        0, 1    },
-    {   'l', log_remote_logname,    "remote_logname",   0, 1    },
-	{	'm', log_request_method,    "request_method",   0, 1    },
-	{   'n', log_note,              "note",             0, 1    },
-    {   'o', log_header_out,        "header_out",       0, 1    },
-    {   'P', log_child_pid,         "child_pid",        0, 0    },
-    {   'p', log_server_port,       "server_port",      0, 0    },
-    {   'R', log_referer,           "referer",          1, 1    },
-    {   'r', log_request_line,      "request_line",     1, 1    },
-    {   'S', log_request_timestamp, "time_stamp",       0, 0    },
-    {   's', log_status,            "status",           1, 0    },
-    {   'T', log_request_duration,  "request_duration", 1, 0    },
-    {   't', log_request_time,      "request_time",     0, 1    },
-    {   'u', log_remote_user,       "remote_user",      0, 1    },
-    {   'U', log_request_uri,       "request_uri",      1, 1    },
-    {   'v', log_virtual_host,      "virtual_host",     0, 1    },
+	{   'A', extract_agent,             "agent",            1, 1    },
+    {   'b', extract_bytes_sent,        "bytes_sent",       0, 0    },
+    {   'c', extract_cookie,            "cookie",           0, 1    },
+    {   'e', extract_env_var,           "env_var",          0, 1    },
+    {   'f', extract_request_file,      "request_file",     0, 1    },
+	{   'H', extract_request_protocol,  "request_protocol", 0, 1    },
+	{   'h', extract_remote_host,       "remote_host",      0, 1    },
+    {   'i', extract_header_in,         "header_in",        0, 1    },
+    {   'l', extract_remote_logname,    "remote_logname",   0, 1    },
+	{	'm', extract_request_method,    "request_method",   0, 1    },
+	{   'n', extract_note,              "note",             0, 1    },
+    {   'o', extract_header_out,        "header_out",       0, 1    },
+    {   'P', extract_child_pid,         "child_pid",        0, 0    },
+    {   'p', extract_server_port,       "server_port",      0, 0    },
+    {   'R', extract_referer,           "referer",          1, 1    },
+    {   'r', extract_request_line,      "request_line",     1, 1    },
+    {   'S', extract_request_timestamp, "time_stamp",       0, 0    },
+    {   's', extract_status,            "status",           1, 0    },
+    {   'T', extract_request_duration,  "request_duration", 1, 0    },
+    {   't', extract_request_time,      "request_time",     0, 1    },
+    {   'u', extract_remote_user,       "remote_user",      0, 1    },
+    {   'U', extract_request_uri,       "request_uri",      1, 1    },
+    {   'v', extract_virtual_host,      "virtual_host",     0, 1    },
 	#ifdef WANT_SSL_LOGGING
-    {   'q', log_ssl_keysize,       "ssl_keysize",      0, 1    },
-    {   'Q', log_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
-    {   'z', log_ssl_cipher,        "ssl_cipher",       0, 1    },
+    {   'q', extract_ssl_keysize,       "ssl_keysize",      0, 1    },
+    {   'Q', extract_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1    },
+    {   'z', extract_ssl_cipher,        "ssl_cipher",       0, 1    },
 	#endif
 	{'\0'}
 };
 
 
-/* Routine to escape 'dangerous' characters that would otherwise
+/* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
 const char *mysql_escape_log(const char *str, pool *p)
@@ -528,7 +439,7 @@ const char *mysql_escape_log(const char *str, pool *p)
 		/* Pre-allocate a new string that could hold twice the original, which would only
 		 * happen if the whole original string was 'dangerous' characters.
 		 */
-		tmp_str = (char *) palloc(p, length *2 + 1);
+		tmp_str = (char *) palloc(p, length * 2 + 1);
 		if (!tmp_str) {
 			return str;
 		}
@@ -552,16 +463,15 @@ const char *mysql_escape_log(const char *str, pool *p)
 	}
 }
 
-
-void open_log_dblink()
+void open_logdb_link()
 {
 	if (mysql_log != NULL) {		 /* virtual database link shared with main server */
 		return;
 	}
-	if (log_db_name) {			 /* open an SQL link */
-		mysql_log = mysql_connect(&log_sql_server, db_host, db_user, db_pwd);
+	if (db_name) {			 /* open an SQL link */
+		mysql_log = mysql_connect(&sql_server, db_host, db_user, db_pwd);
 		if (mysql_log) {		 /* link opened */
-			if (mysql_select_db(mysql_log, log_db_name) != 0) {	/* unable to select database */
+			if (mysql_select_db(mysql_log, db_name) != 0) {	/* unable to select database */
 				mysql_close(mysql_log);
 				mysql_log = NULL;
 			}
@@ -569,23 +479,72 @@ void open_log_dblink()
 	}
 }
 
-
-void *make_log_mysql_state(pool *p, server_rec *s)
+int safe_mysql_query(request_rec *r, const char *query)
 {
-	log_mysql_state *cls = (log_mysql_state *) palloc(p, sizeof(log_mysql_state));
+	int retval = 1;
+	struct timespec delay, remainder;
+	int ret;
+	char *str;
+	void (*handler) (int);
 
-	cls->referer_table_name = cls->agent_table_name = cls->transfer_table_name = "";
-	cls->referer_ignore_list = make_array(p, 1, sizeof(char *));
-	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
-	cls->remhost_ignore_list = make_array(p, 1, sizeof(char *));
-	cls->transfer_log_format = "";
-	return (void *) cls;
+	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
+	handler = signal(SIGPIPE, SIG_IGN);	 
+
+	/* If there's no DB link, or if we run the query and it gacks, try to be graceful */
+	if ( !mysql_log || 
+	     (
+	        (retval = mysql_query(mysql_log, query)) && 
+	        (mysql_errno(mysql_log) != 0)
+	     )
+	   ) 
+	   
+	   {    /* We need to restart the server link */
+		    mysql_log = NULL;
+		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: connection lost, attempting reconnect");
+
+    		open_logdb_link();
+
+    		if (mysql_log == NULL) {	 /* still unable to link */
+    			signal(SIGPIPE, handler);
+    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect failed");
+    			return retval;
+    		}
+
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect successful");
+    		retval = mysql_query(mysql_log, query);
+	}
+
+	/* Restore SIGPIPE to its original handler function */
+	signal(SIGPIPE, handler);
+
+	if (retval) {
+	    /* Attempt a single re-try... First sleep for a tiny amount of time. */
+        delay.tv_sec = 0;
+        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
+        ret = nanosleep(&delay, &remainder);
+        if (ret && errno != EINTR)
+           perror("nanosleep");
+
+        /* Now re-attempt */
+	    retval = mysql_query(mysql_log,query);
+
+	    if (retval) {
+    		str = pstrcat(r->pool, "MySQL insert failed:  ", query, NULL);
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
+    		str = pstrcat(r->pool, "MySQL failure reason:  ", MYSQL_ERROR(mysql_log), NULL);
+    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
+    	} else {
+    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
+    	}
+	}
+	return retval;
 }
+
+
 
 const char *set_referer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	cls->referer_table_name = arg;
 	return NULL;
@@ -594,8 +553,7 @@ const char *set_referer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg
 
 const char *set_agent_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	cls->agent_table_name = arg;
 	return NULL;
@@ -604,8 +562,7 @@ const char *set_agent_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 
 const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	cls->transfer_table_name = arg;
 	return NULL;
@@ -614,8 +571,7 @@ const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *ar
 
 const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config,
-						 &mysql_log_module);
+	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
 
 	cls->transfer_log_format = arg;
 	return NULL;
@@ -624,7 +580,7 @@ const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 
 const char *set_log_mysql_db(cmd_parms *parms, void *dummy, char *arg)
 {
-	log_db_name = arg;
+	db_name = arg;
 	return NULL;
 }
 
@@ -682,103 +638,68 @@ const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 	return NULL;
 }
 
+
+/*
+ * Apache-specific hooks into the module code
+ * that are defined in the array 'mysql_lgog_module' (at EOF)
+ */
+
+
+/* Set up space for the various major configuration options */
+void *log_mysql_make_state(pool *p, server_rec *s)
+{
+	log_mysql_state *cls = (log_mysql_state *) palloc(p, sizeof(log_mysql_state));
+
+	cls->referer_table_name = cls->agent_table_name = cls->transfer_table_name = "";
+	
+	cls->referer_ignore_list  = make_array(p, 1, sizeof(char *));
+	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
+	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
+
+	cls->transfer_log_format = "";
+	return (void *) cls;
+}
+
+
+/* Setup of the available httpd.conf configuration commands.
+ * command, function called, NULL, where available, how many arguments, verbose description
+ */
 command_rec log_mysql_cmds[] = {
-	{"MySQLRefererLogTable", set_referer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	{"MySQLRefererLogTable", set_referer_log_mysql_table,   NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the referer log"}
 	,
-	{"MySQLAgentLogTable", set_agent_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	{"MySQLAgentLogTable", set_agent_log_mysql_table, 		NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the agent log"}
 	,
-	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, RSRC_CONF, TAKE1,
+	{"MySQLTransferLogTable", set_transfer_log_mysql_table, NULL, 	RSRC_CONF, 	TAKE1,
 	 "The MySQL table that holds the transfer log"}
 	,
-	{"MySQLTransferLogFormat", set_transfer_log_format, NULL, RSRC_CONF, TAKE1,
+	{"MySQLTransferLogFormat", set_transfer_log_format, 	NULL, 	RSRC_CONF, 	TAKE1,
 	 "Instruct the module what information to log to the MySQL transfer log"}
 	,
-	{"MySQLRefererIgnore", add_referer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "List of referers to ignore, accesses that match will not be logged to MySQL"}
+	{"MySQLRefererIgnore", add_referer_mysql_ignore, 		NULL, 	RSRC_CONF, 	ITERATE,
+	 "List of referers to ignore. Accesses that match will not be logged to MySQL"}
 	,
-	{"MySQLRequestIgnore", add_transfer_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "List of URIs to ignore, accesses that match will not be logged to MySQL"}
+	{"MySQLRequestIgnore", add_transfer_mysql_ignore, 		NULL, 	RSRC_CONF, 	ITERATE,
+	 "List of URIs to ignore. Accesses that match will not be logged to MySQL"}
 	,
-	{"MySQLRemhostIgnore", add_remhost_mysql_ignore, NULL, RSRC_CONF, ITERATE,
-	 "List of remote hosts to ignore, accesses that match will not be logged to MySQL"}
+	{"MySQLRemhostIgnore", add_remhost_mysql_ignore, 		NULL, 	RSRC_CONF, 	ITERATE,
+	 "List of remote hosts to ignore. Accesses that match will not be logged to MySQL"}
 	,
-	{"MySQLDatabase", set_log_mysql_db, NULL, RSRC_CONF, TAKE1,
+	{"MySQLDatabase", set_log_mysql_db, 					NULL, 	RSRC_CONF, 	TAKE1,
 	 "The name of the MySQL database for logging"}
 	,
-	{"MySQLWhichCookie", set_log_mysql_cookie, NULL, RSRC_CONF, TAKE1,
+	{"MySQLWhichCookie", set_log_mysql_cookie, 				NULL, 	RSRC_CONF, 	TAKE1,
 	 "The CookieName that you want logged when using the 'c' config directive"}
 	,
-	{"MySQLLoginInfo", set_log_mysql_info, NULL, RSRC_CONF, TAKE3,
+	{"MySQLLoginInfo", set_log_mysql_info, 					NULL, 	RSRC_CONF, 	TAKE3,
 	 "The MySQL host, user-id and password for logging"}
 	,
 	{NULL}
 };
 
 
-int safe_mysql_query(request_rec *r, const char *query)
-{
-	int error = 1;
-	struct timespec delay, remainder;
-	int ret;
-	char *str;
-	void (*handler) (int);
-
-	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
-	handler = signal(SIGPIPE, SIG_IGN);	 
-
-	/* If there's no DB link, or if we run the query and it gacks, try to be graceful */
-	if ( !mysql_log || 
-	     (
-	        (error = mysql_query(mysql_log, query)) && 
-	        !strcasecmp(mysql_error(mysql_log), "MySQL server has gone away")
-	     )
-	   ) 
-	   
-	   {    /* We need to restart the server link */
-		    mysql_log = NULL;
-		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: connection lost, attempting reconnect");
-
-    		open_log_dblink();
-
-    		if (mysql_log == NULL) {	 /* still unable to link */
-    			signal(SIGPIPE, handler);
-    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect failed.");
-    			return error;
-    		}
-
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL:  reconnect successful.");
-    		error = mysql_query(mysql_log, query);
-	}
-
-	/* Restore SIGPIPE to its original handler function */
-	signal(SIGPIPE, handler);
-
-	if (error) {
-	    /* Attempt a single re-try... First sleep for a tiny amount of time. */
-        delay.tv_sec = 0;
-        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
-        ret = nanosleep(&delay, &remainder);
-        if (ret && errno != EINTR)
-           perror("nanosleep");
-
-        /* Now re-attempt */
-	    error = mysql_query(mysql_log,query);
-
-	    if (error) {
-    		str = pstrcat(r->pool, "MySQL query failed:  ", query, NULL);
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
-    		str = pstrcat(r->pool, "MySQL failure reason:  ", MYSQL_ERROR(mysql_log), NULL);
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
-    	} else {
-    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
-    	}
-	}
-	return error;
-}
-
-
+	
 /* Routine to perform the actual construction and execution of the relevant
  * INSERT statements.
  */
@@ -805,7 +726,7 @@ int log_mysql_transaction(request_rec *orig)
 	}
 
 	if (mysql_log == NULL) {		 /* mysql link not up, hopefully we can do something about it */
-		open_log_dblink();
+		open_logdb_link();
 		if (mysql_log == NULL) {
 			return OK;
 		}
@@ -932,13 +853,20 @@ int log_mysql_transaction(request_rec *orig)
 }
 
 
+/* Called on the exit of an httpd child process */
+static void log_mysql_child_exit(server_rec *s, pool *p)
+{
+		mysql_close(mysql_log);
+}
 
+
+/* The configuration array that sets up the hooks into the module. */
 module mysql_log_module = {
 	STANDARD_MODULE_STUFF,
 	NULL,					 /* initializer */
 	NULL,					 /* create per-dir config */
 	NULL,					 /* merge per-dir config */
-	make_log_mysql_state,	 /* server config */
+	log_mysql_make_state,	 /* server config */
 	NULL,					 /* merge server config */
 	log_mysql_cmds,			 /* command table */
 	NULL,					 /* handlers */
@@ -949,5 +877,11 @@ module mysql_log_module = {
 	NULL,					 /* type_checker */
 	NULL,					 /* fixups */
 	log_mysql_transaction,	 /* logger */
-	NULL					 /* header parser */
+	NULL,					 /* header parser */
+#if MODULE_MAGIC_NUMBER >= 19970728 /* 1.3-dev or later support these additionals... */
+	NULL,                    /* child_init */
+	log_mysql_child_exit,    /* process exit/cleanup */
+	NULL					 /* [#0] post read-request */
+#endif
+	  
 };

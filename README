@@ -1,4 +1,4 @@
-$Id: README,v 1.2 2001/12/03 19:54:02 helios Exp $
+$Id: README,v 1.3 2001/12/07 03:52:56 helios Exp $
 
 
 Homepage
@@ -105,10 +105,6 @@ request_uri: corresponds to the Apache %U directive.  Contains the
   needed for log analysis, and saves the database a LOT of wasted growth
   on unneeded bytes.
 
-request_duration: corresponds to the Apache %T directive.  Contains the
-  time in seconds that it took to serve the request.
-  Example: 2
-
 virtual_host: contains the VirtualHost that is making the log entry. This
   allows you to log multiple VirtualHosts to a single MySQL database and
   yet still be able to extract them for separate analysis.
@@ -149,7 +145,7 @@ Notes
 * The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the
   standard unix "seconds since 1/1/1970 12:00:00" format.  This is
   superior to storing the access time as a string due to size
-  requirements: an UNSIGNED INT type fits in 4 bytes.  The Apache date
+  requirements: an UNSIGNED INT type fits in 4 bytes, whereas the Apache date
   string (e.g. "18/Nov/2001:13:59:52 -0800") requires 26 bytes --
   significantly larger, and those extra 22 bytes will add up over the
   thousands of accesses that a busy server will experience.  Besides,
@@ -187,19 +183,6 @@ Notes
   makes perfect sense anyway.
 
 
-Disclaimer
-----------
-
-It works for me (I've tested it on my '2 hits/busy day' home Linux box,
-and afterwards on our pretty busy tucows mirror (>100K hits a day) and
-it appears to be working fine.
-
-If it doesn't, and causes you damage of any sort, including but not
-limited to losing logs, losing money or your girlfriend leaving you
-(read 'boyfriend' where applicable), I'm not liable to anything.  Bug
-reports and constructive flame mail are ok, though (both about the code
-and this quickly-written README file).
-
 
 Author / Maintainer
 -------------------
@@ -207,11 +190,11 @@ Author / Maintainer
 The actual logging code was taken from the already existing flat file
 text modules, so all that credit goes to the Apache Server group.  
 
-The MySQL routines and directives was added in by Zeev Suraski
-<bourbon@netvision.net.il>
+The MySQL routines and directives were added by Zeev Suraski
+<bourbon@netvision.net.il>.
 
 Changes from 1.06 on and the new documentation were added by 
 Chris Powell <chris@grubbybaby.com>.  It seems that the module had fallen
 into the "unmaintained" category -- it hadn't been updated since 1998 --
-so I've adopted it as the new maintainer.
+so Chris adopted it as the new maintainer.
 

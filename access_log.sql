@@ -10,16 +10,16 @@ create table access_log (
 	remote_user varchar(50) not null,
 	request_duration smallint not null,
 	request_line varchar(255),
-	request_method not null,
-	request_protocol not null,
+	request_method varchar(6) not null,
+	request_protocol varchar(10) not null,
 	request_time char(28),
 	request_uri varchar(50) not null,
 	server_port smallint unsigned,
 	ssl_cipher varchar(25),
-	ssl_keysize smallint
-	ssl_maxkeysize smallint,
+	ssl_keysize smallint unsigned,
+	ssl_maxkeysize smallint unsigned,
 	status smallint not null,
 	time_stamp int unsigned not null,
-	virtual_host varchar(50) not null,
+	virtual_host varchar(50) not null
 )
 
