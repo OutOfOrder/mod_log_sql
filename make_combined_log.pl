@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: make_combined_log.pl,v 1.3 2001/12/04 00:11:59 helios Exp $
+# $Id: make_combined_log.pl,v 1.4 2002/01/02 20:47:44 helios Exp $
 #
 # make_combined_log.pl
 #
@@ -93,7 +93,7 @@ while (@data = $records->fetchrow_array) {
 
 	# Create format for leading-zero formatting
 	if ($mday < 10) { $mday = "0$mday"; }
-	if ($month < 10) { $month = "0$month"; }	
+	if ($mon < 10) { $mon = "0$mon"; }	
 	if ($hour < 10) { $hour = "0$hour"; }
 	if ($min < 10) { $min = "0$min"; }
 	if ($sec < 10) { $sec = "0$sec"; }

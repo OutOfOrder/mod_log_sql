@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.2 2001/12/03 19:54:02 helios Exp $
+$Id: INSTALL,v 1.3 2002/01/02 20:47:44 helios Exp $
 
 
 Requirements
@@ -44,10 +44,12 @@ instructions.)
    # tar zxf mod_log_mysql.tar.gz -C /usr/local/src
    # cd /usr/local/src/mod_log_mysql
 
-2) Instruct apxs to compile and install the module as a DSO.  (My apxs is
-   in /usr/local/Apache/bin, perform a "locate" to find yours...)
+2) Instruct apxs to compile and install the module as a DSO.  You need
+   to know two things before you run apxs:
+   - The location of the apxs binary, find using 'locate apxs'
+   - The location of your MySQL libraries, find using 'locate libmysqlclient'
 
-   # <path>/apxs -i -a -c mod_log_mysql.c
+   # <path>/apxs -i -a -c -L<path to MySQL libs> -lmysqlclient -lz mod_log_mysql.c
 
    You should see something like this:
 
