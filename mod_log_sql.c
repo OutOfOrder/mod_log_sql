@@ -1,10 +1,13 @@
-/* $Id: mod_log_sql.c,v 1.5 2002/01/15 18:40:14 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.6 2002/04/02 20:19:30 helios Exp $ */
 
 
 /* DEFINES */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
 #define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
+#define WARNINGLEVEL APLOG_WARNING|APLOG_NOERRNO
+#define NOTICELEVEL APLOG_NOTICE|APLOG_NOERRNO
 #define DEBUGLEVEL APLOG_INFO|APLOG_NOERRNO
+#define PRESERVEFILE "/tmp/mysql-preserve"
 /* (MYSQLSOCKET, DEBUG and WANT_SSL_LOGGING are defined in the Makefile DEFS line.) */
 
 
@@ -463,15 +466,35 @@ const char *mysql_escape_log(const char *str, pool *p)
 	}
 }
 
-void open_logdb_link()
+int open_logdb_link()
 {
-	if (mysql_log != NULL) {		 /* virtual database link shared with main server */
-		return;
+	if (mysql_log != NULL) {
+		return 2;
 	}
-	if (db_name) {			 /* open an SQL link */
+
+	if (db_name) {
 		mysql_init(&sql_server);
 		mysql_log = mysql_real_connect(&sql_server, db_host, db_user, db_pwd, db_name, 0, MYSQLSOCKET, 0);
+
+		if (mysql_log != NULL) {
+			return 1;
+		} else {
+			return 0;
+		}
 	}
+	return 0;
+}
+
+void preserve_entry(request_rec *r, const char *query)
+{
+	FILE *fp;
+	
+	fp = fopen(PRESERVEFILE, "a");
+	if (fp == NULL)
+		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: attempted append of local offline file but failed.");
+	else 
+		fprintf(fp,"%s\n", query);
+	fclose(fp);
 }
 
 int safe_mysql_query(request_rec *r, const char *query)
@@ -481,57 +504,61 @@ int safe_mysql_query(request_rec *r, const char *query)
 	int ret;
 	char *str;
 	void (*handler) (int);
+	
 
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
 	handler = signal(SIGPIPE, SIG_IGN);	 
 
-	/* If there's no DB link, or if we run the query and it gacks, try to be graceful */
-	if ( !mysql_log || 
-	     (
-	        (retval = mysql_query(mysql_log, query)) && 
-	        (mysql_errno(mysql_log) != 0)
-	     )
-	   ) 
-	   
-	   {    /* We need to restart the server link */
-		    mysql_log = NULL;
-		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: connection lost, attempting reconnect");
+	/* First attempt for the query */
+	retval = mysql_query(mysql_log, query);
 
+	/* If we ran the query and it returned an error, try to be graceful.
+	 * We only reach this point if the module thinks it has a valid connection to the
+	 * database (i.e. mysql_log is non-null).  But that connection could go sour
+	 * at any time, hence the check. */
+	if ( retval != 0 ) 
+    {
+			/* Something went wrong, so start by trying to restart the db link. */
+		    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: attempting reconnect because API said: %s", MYSQL_ERROR(mysql_log));
+
+			mysql_log = NULL;
     		open_logdb_link();
 
     		if (mysql_log == NULL) {	 /* still unable to link */
     			signal(SIGPIPE, handler);
-    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect failed");
+    			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: httpd child reconnect failed, unable to reach database. SQL logging stopped until an httpd child regains a db connection.");
+				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: log entries are being preserved in %s",PRESERVEFILE);
     			return retval;
-    		}
+    		} else {
+	    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect successful.");
+			}
 
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: reconnect successful");
-    		retval = mysql_query(mysql_log, query);
+		    /* Attempt a single re-try... First sleep for a tiny amount of time. */
+	        delay.tv_sec = 0;
+	        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
+	        ret = nanosleep(&delay, &remainder);
+	        if (ret && errno != EINTR)
+	           perror("nanosleep");
+
+	        /* Now make our second attempt */
+		    retval = mysql_query(mysql_log,query);
+
+			/* If this one also failed, log that and append to our local offline file */
+		    if ( retval != 0 )
+		    {
+	    		str = pstrcat(r->pool, "MySQL delayed insert attempt failed, API said: ", MYSQL_ERROR(mysql_log), NULL);
+	    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
+
+				preserve_entry(r, query);
+				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: entry preserved in %s",PRESERVEFILE);
+			} else {
+	    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
+	    	}
 	}
 
 	/* Restore SIGPIPE to its original handler function */
 	signal(SIGPIPE, handler);
-
-	if (retval) {
-	    /* Attempt a single re-try... First sleep for a tiny amount of time. */
-        delay.tv_sec = 0;
-        delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
-        ret = nanosleep(&delay, &remainder);
-        if (ret && errno != EINTR)
-           perror("nanosleep");
-
-        /* Now re-attempt */
-	    retval = mysql_query(mysql_log,query);
-
-	    if (retval) {
-    		str = pstrcat(r->pool, "MySQL insert failed:  ", query, NULL);
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
-    		str = pstrcat(r->pool, "MySQL failure reason:  ", MYSQL_ERROR(mysql_log), NULL);
-    		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,str);
-    	} else {
-    	    ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"MySQL: insert successful after a delayed retry.");
-    	}
-	}
+	
 	return retval;
 }
 
@@ -657,7 +684,7 @@ void *log_mysql_make_state(pool *p, server_rec *s)
 
 
 /* Setup of the available httpd.conf configuration commands.
- * command, function called, NULL, where available, how many arguments, verbose description
+ * Structure: command, function called, NULL, where available, how many arguments, verbose description
  */
 command_rec log_mysql_cmds[] = {
 	{"MySQLRefererLogTable", set_referer_log_mysql_table,   NULL, 	RSRC_CONF, 	TAKE1,
@@ -708,7 +735,8 @@ int log_mysql_transaction(request_rec *orig)
 	request_rec *r;
 	int retvalue = DECLINED;
 	int referer_needed, agent_needed, transfer_needed;
-
+	
+	
 	/* Are there configuration directives for these SQL logs?  For each found
 	 * config directive that is found, mark that type as 'needed'.
 	 */
@@ -719,13 +747,7 @@ int log_mysql_transaction(request_rec *orig)
 	if (!referer_needed && !agent_needed && !transfer_needed) {
 		return OK;
 	}
-
-	if (mysql_log == NULL) {		 /* mysql link not up, hopefully we can do something about it */
-		open_logdb_link();
-		if (mysql_log == NULL) {
-			return OK;
-		}
-	}
+	
 
 	for (r = orig; r->next; r = r->next) {
 		continue;
@@ -750,7 +772,20 @@ int log_mysql_transaction(request_rec *orig)
 				}
 			}
 			str = pstrcat(orig->pool, "insert into ", cls->referer_table_name, " (referer,url,time_stamp) values ('", mysql_escape_log(referer, orig->pool), "','", mysql_escape_log(r->uri, orig->pool), "',unix_timestamp(now()) )", NULL);
-			safe_mysql_query(orig, str);
+
+			if (mysql_log == NULL) {		 /* child's mysql link not up, re-establish it */
+				open_logdb_link();
+				if (mysql_log == NULL) {
+					preserve_entry(r, str);
+					return OK;
+				} else {
+					ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
+		   			safe_mysql_query(orig, str);
+				}
+			} else {
+				  safe_mysql_query(orig, str);
+			}
+			
 		}
 	}
 
@@ -763,7 +798,19 @@ int log_mysql_transaction(request_rec *orig)
 		
 		if (agent != NULL) {
 			str = pstrcat(orig->pool, "insert into ", cls->agent_table_name, "(agent,time_stamp) values ('", mysql_escape_log(agent, orig->pool), "',unix_timestamp(now()) )", NULL);
-			safe_mysql_query(orig, str);
+
+			if (mysql_log == NULL) {		 /* child's mysql link not up, re-establish it */
+				open_logdb_link();
+				if (mysql_log == NULL) {
+					preserve_entry(r, str);
+					return OK;
+				} else {
+					ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
+		   			safe_mysql_query(orig, str);
+				}
+			} else {
+			    safe_mysql_query(orig, str);
+			}
 		}
 	}
 
@@ -771,7 +818,7 @@ int log_mysql_transaction(request_rec *orig)
 	if (transfer_needed) {
 		const char *thehost;
 
-		char *fields = "", *values = "", *query;
+		char *fields = "", *values = "";
 		const char *formatted_item;
 		int i, j, length;
 
@@ -840,8 +887,29 @@ int log_mysql_transaction(request_rec *orig)
 		}
 
 		/* Set up the actual INSERT statement and execute it. */
-		query = pstrcat(orig->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
-		safe_mysql_query(orig, query);
+		str = pstrcat(orig->pool, "insert into ", cls->transfer_table_name, " (", fields, ") values (", values, ")", NULL);
+
+
+		/* How's our mysql link integrity? */
+		if (mysql_log == NULL) {
+
+			/* Try to regain the link */
+			open_logdb_link();
+			
+			if (mysql_log == NULL) {
+				/* Unable to re-establish a DB link, so assume that it's really
+				 * gone and send the entry to the preserve file instead. */
+				preserve_entry(r, str);
+				return OK;
+			} else {
+				/* Whew, we got the DB link back */
+				ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"MySQL: httpd child established database connection");
+				safe_mysql_query(orig, str);
+			}
+		} else {
+			/* Everything was fine */
+			safe_mysql_query(orig, str);
+		}
 
 	}
 	return retvalue;
@@ -851,7 +919,20 @@ int log_mysql_transaction(request_rec *orig)
 /* Called on the exit of an httpd child process */
 static void log_mysql_child_exit(server_rec *s, pool *p)
 {
-		mysql_close(mysql_log);
+	mysql_close(mysql_log);
+}
+
+/* Called on the init of an httpd child process */
+static void log_mysql_child_init(server_rec *s, pool *p)
+{
+	int retval; 
+	
+	retval = open_logdb_link();
+	#ifdef DEBUG
+	if (retval > 0) {
+   	    ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"MySQL: open_logdb_link successful");
+	}
+	#endif
 }
 
 
@@ -874,7 +955,7 @@ module mysql_log_module = {
 	log_mysql_transaction,	 /* logger */
 	NULL,					 /* header parser */
 #if MODULE_MAGIC_NUMBER >= 19970728 /* 1.3-dev or later support these additionals... */
-	NULL,                    /* child_init */
+	log_mysql_child_init,    /* child_init */
 	log_mysql_child_exit,    /* process exit/cleanup */
 	NULL					 /* [#0] post read-request */
 #endif

@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.5 2002/02/24 20:17:16 helios Exp $
+$Id: INSTALL,v 1.6 2002/04/02 20:19:30 helios Exp $
 
 
 Requirements
@@ -126,7 +126,7 @@ Installation (as a static module compiled into httpd)
    6a) Edit Configuration.apaci as follows...
 
        * Append the following string to the EXTRA_LIBS= line. (/usr/lib/mysql is where your libmysqlclient.a file lives):
-       -L/usr/lib/mysql -lmysqlclient -lm
+       -L/usr/lib/mysql -lmysqlclient -lm -lz
 
        * Add this line at the end of the file:
        Module mysql_log_module  mod_log_mysql.o

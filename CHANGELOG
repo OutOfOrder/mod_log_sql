@@ -1,13 +1,26 @@
-$Id: CHANGELOG,v 1.6 2002/02/24 20:17:16 helios Exp $
+$Id: CHANGELOG,v 1.7 2002/04/02 20:19:30 helios Exp $
 
 
 TODO:
 * Full commenting of the code.
 * Rethink documentation flow and rewrite?
-* Message queueing during server downtime?
+* Config directives for proxy clients
+* Port connection portion to other DBMS?  Genericize the module?
 
 
 CHANGES:
+
+1.15:
+* Vastly improved error reporting is a lot clearer about lost db
+  connections, etc.  Some unreachable code has been corrected.
+* The way that query-retries and openlink-retries are handled has 
+  been tweaked and improved.
+* Missed database entries are now preserved for later inclusion. This
+  file is not held open but is closed after each use, so it's safe
+  to delete while Apache is running.
+* Now each child instantiates its MySQL link upon birth rather than
+  waiting for its first request.
+
 
 1.14:
 * Improved the apxs instructions based on user feedback, including the
