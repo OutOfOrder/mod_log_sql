@@ -1,13 +1,8 @@
-$Id: README,v 1.1 2003/12/20 07:16:05 urkle Exp $
+$Id: README,v 1.2 2004/03/05 00:33:50 urkle Exp $
 
-The "original" document is the LyX file "documentation.lyx" -- all other
-files here are derived from it.  The most visually accurate document
-and the one I'd recommend reading is the PostScript (.ps) file, although
-a whole host of formats are made available here to suit your preference.
+The "original" document is the Docbook file "manual.xml" -- all other
+files here are derived from it.
 
-To read the HTML docs, open HTML/documentation.html in your browser.
-To read the .dvi file, use Xdvi or kdvi.
-To read the .ps file, use gv or kghostview.
-To read the .lyx file, use LyX.
-To read the .txt file, use less.
+To read the HTML docs, open manual.html in your browser.
 
+To generate other formats of the documentation use xmlto to convert the xml file.
