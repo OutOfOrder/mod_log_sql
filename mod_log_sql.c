@@ -154,7 +154,7 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 {
 	logsql_opendb_ret result;
 	if (global_config.forcepreserve) {
-		global_config.db.connected = 1;
+		//global_config.db.connected = 1;
 		return LOGSQL_OPENDB_PRESERVE;
 	}
 	if (global_config.db.connected) {
@@ -1054,10 +1054,10 @@ static int log_sql_transaction(request_rec *orig)
 
 		/* How's our mysql link integrity? */
 		if (!global_config.db.connected) {
-
-			/* Make a try to establish the link */
-			log_sql_opendb_link(r->server);
-
+            if (!global_config.forcepreserve) {
+			    /* Make a try to establish the link */
+			    log_sql_opendb_link(r->server);
+            }
 			if (!global_config.db.connected) {
 				/* Unable to re-establish a DB link, so assume that it's really
 				 * gone and send the entry to the preserve file instead.

@@ -6,6 +6,8 @@ AC_CONFIG_HEADERS(config.h)
 
 AC_CONFIG_SRCDIR(mod_log_sql.c)
 
+OOO_MAINTAIN_MODE
+
 dnl Add a test for a compiler.
 AC_PROG_CC
 
@@ -19,30 +21,30 @@ CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
 		AC_MSG_ERROR([*** or Apache 2.0/2.1 version $APACHE20_VERSION or greater!])
 		)
 
-CHECK_PATH_MYSQL(:,
+CHECK_PATH_MYSQL(
+        WANT_MYSQL_MOD=1,
 		AC_MSG_ERROR([*** Mysql client libraries not found!])
+        WANT_MYSQL_MOD=0
 		)
+AC_SUBST(WANT_MYSQL_MOD)
+
+CHECK_PATH_LIBDBI(WANT_DBI_MOD=1,
+        AC_MSG_ERROR([** libDBI client libraries not found!])
+        WANT_DBI_MOD=0
+        )
+AC_SUBST(WANT_DBI_MOD)
+
+dnl to write, checking for pgsql libs
+WANT_PGSQL_MOD=0
+AC_SUBST(WANT_PGSQL_MOD)
+
 
 CHECK_PATH_MOD_SSL(
 		AC_DEFINE(WANT_SSL_LOGGING,,[Define if we want to compile in SSL support.])
 		WANT_SSL_MOD=1,
 		WANT_SSL_MOD=0
 		)
-
 AC_SUBST(WANT_SSL_MOD)
-
-WANT_MYSQL_MOD=1
-AC_SUBST(WANT_MYSQL_MOD)
-WANT_PGSQL_MOD=0
-AC_SUBST(WANT_PGSQL_MOD)
-WANT_DBI_MOD=1
-DBI_LDFLAGS=""
-DBI_LIBS="-ldbi"
-DBI_CFLAGS=""
-AC_SUBST(DBI_LDFLAGS)
-AC_SUBST(DBI_LIBS)
-AC_SUBST(DBI_CFLAGS)
-AC_SUBST(WANT_DBI_MOD)
 
 case "$target" in
 	*-*-solaris* | *-*-osf* )
@@ -70,10 +72,24 @@ contrib/Makefile)
 
 
 AC_MSG_RESULT([------------------------------------])
-AC_MSG_RESULT([Apache version	: $AP_VERSION])
+AC_MSG_RESULT([Apache version  : $AP_VERSION])
 if test $WANT_SSL_MOD -eq 1; then
-	AC_MSG_RESULT([SSL Support	: yes])
+    AC_MSG_RESULT([SSL Support     : yes])
 else
-	AC_MSG_RESULT([SSL Support	: no])
-	AC_MSG_RESULT([*** Use --enable-ssl to enable SSL support])
+    AC_MSG_RESULT([SSL Support     : no])
+    AC_MSG_RESULT([*** Use --enable-ssl to enable SSL support])
 fi
+AC_MSG_RESULT([Enabled drivers :])
+if test $WANT_MYSQL_MOD -eq 1; then
+    AC_MSG_RESULT([      MySQL Driver])
+fi
+if test $WANT_PGSQL_MOD -eq 1; then
+    AC_MSG_RESULT([      PostgreSQL Driver])
+fi
+if test $WANT_DBI_MOD -eq 1; then
+    AC_MSG_RESULT([      libDBI Driver])
+fi
+if test $OOO_MAINTAIN -eq 1; then
+    AC_MSG_RESULT([Maintainer mode is on. -Werror is in effect])
+fi
+AC_MSG_RESULT([------------------------------------])

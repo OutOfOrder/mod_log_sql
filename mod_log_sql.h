@@ -79,6 +79,8 @@ typedef enum {
 /* Registration function for database drivers */
 
 typedef struct {
+    /* name of the provider */
+    const char *providername;
 	/* NULL terminated list of drivers strings */
 	const char **provided_drivers;
 	/* create a connection to the underlying database layer */

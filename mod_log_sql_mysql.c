@@ -247,6 +247,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
 
 static const char *supported_drivers[] = {"mysql",NULL};
 static logsql_dbdriver mysql_driver = {
+    "mysql",
 	supported_drivers,
 	log_sql_mysql_connect,	/* open DB connection */
 	log_sql_mysql_close,	/* close DB connection */

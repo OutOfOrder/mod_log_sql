@@ -2,7 +2,6 @@
 
 # Modify these top variables.
 SUBDIRS = docs contrib
-SOURCES = @PACKAGE_NAME@.c
 
 HEADERS = mod_log_sql.h \
 		functions.h \
@@ -11,15 +10,21 @@ HEADERS = mod_log_sql.h \
 		apache13.h \
 		apache20.h
 
-CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
+CFLAGS = -Wc,-Wall -Wc,-fno-strict-aliasing
 
-LDADD = @RT_LIBS@
+ifeq (@OOO_MAINTAIN@,1)
+CFLAGS += -Wc,-Werror
+endif
 
-EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG
+EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG \
+	build-apache13.bat build-apache2.bat
 
-TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
-
-TARGETS = $(TARGET)
+coreSOURCES = @PACKAGE_NAME@.c
+coreTARGET = @PACKAGE_NAME@@APXS_EXTENSION@
+coreLDADD = @RT_LIBS@
+coreCFLAGS =
+coreNAME = log_sql
+TARGETS = $(coreTARGET)
 
 sslSOURCES = @PACKAGE_NAME@_ssl.c
 sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
@@ -68,11 +73,14 @@ PROVIDERS_SUBDIRS = @subdirs@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o)
+OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
+	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o)
 
-LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo)
+LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
+	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo)
 
-SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo)
+SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
+	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
 	config.sub \
@@ -84,8 +92,8 @@ STD_DIST = install-sh \
 	stamp-h.in \
 	config.h.in
 
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS) \
-    $(sslSOURCES) $(mysqlSOURCES)
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
+    $(sslSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbsqlSOURCES)
 
 all: $(TARGETS) all-subdirs
 
@@ -107,9 +115,9 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 TODO: TODO.in
 	@./gen_todo.pl
 
-$(TARGET): $(SOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(TARGET) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(LDADD) $(SOURCES)
+$(coreTARGET): $(coreSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(coreTARGET) $(coreCFLAGS) $(CFLAGS) \
+		@DEFS@ @AP_DEFS@ $(coreLDADD) $(coreSOURCES)
 
 $(sslTARGET): $(sslSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
@@ -128,8 +136,13 @@ $(dbiTARGET): $(dbiSOURCES) $(HEADERS)
 		@DEFS@ @AP_DEFS@ $(dbiLDADD) $(dbiSOURCES)
 
 install: $(TARGETS) install-subdirs
-	@@APXS_BIN@ -i $(TARGET); \
-	@APXS_BIN@ -n $(mysqlNAME) -i $(mysqlTARGET); \
+	@@APXS_BIN@ -n $(coreNAME) -i $(coreTARGET); \
+	if test @WANT_MYSQL_MOD@ -eq 1; then \
+	    @APXS_BIN@ -n $(mysqlNAME) -i $(mysqlTARGET); \
+    fi; \
+	if test @WANT_PGSQL_MOD@ -eq 1; then \
+	    @APXS_BIN@ -n $(pgsqlNAME) -i $(pgsqlTARGET); \
+    fi; \
 	if test @WANT_DBI_MOD@ -eq 1; then \
 	    @APXS_BIN@ -n $(dbiNAME) -i $(dbiTARGET); \
     fi; \
@@ -152,9 +165,9 @@ install: $(TARGETS) install-subdirs
 	echo "*************************************************************************";
 
 activate: activate-subdirs
-	@@APXS_BIN@ -i -a $(TARGET); \
+	@@APXS_BIN@ -n $(coreNAME) -i -a $(coreTARGET); \
 	if test @WANT_SSL_MOD@ -eq 1; then \
-		@APXS_BIN@ -i -a $(sslTARGET); \
+		@APXS_BIN@ -n $(sslNAME) -i -a $(sslTARGET); \
 	fi
 
 clean: clean-subdirs
