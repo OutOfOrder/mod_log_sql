@@ -1,3 +1,4 @@
+/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.2 2004/01/20 19:38:07 urkle Exp $ */
 #ifndef APACHE13_H
 #define APACHE13_H
 

@@ -1,3 +1,4 @@
+/* $Header: /home/cvs/mod_log_sql/functions13.h,v 1.2 2004/01/20 19:38:08 urkle Exp $ */
 static const char *extract_request_time(request_rec *r, char *a)
 {
 	int timz;

@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.6 2004/01/20 16:27:34 urkle Exp $
+$Id: CHANGELOG,v 1.7 2004/01/20 19:38:07 urkle Exp $
 
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
@@ -28,6 +28,7 @@ CHANGES:
 * updated configure m4 scripts to detect both apache versions at the same time 
 	and assign defines as to which version was found.
 * made install default to not activate module in configuration files.
+	(use make activate)
 
 1.92: 2004-01-05
 * fixed compilation issue with mysql 4.x where mysql_error returns const char *

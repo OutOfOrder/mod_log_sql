@@ -1,3 +1,4 @@
+/* $Header: /home/cvs/mod_log_sql/functions20.h,v 1.2 2004/01/20 19:38:08 urkle Exp $ */
 /* functions */
 static const char *extract_request_time_custom(request_rec *r, char *a,
                                            apr_time_exp_t *xt)
