@@ -213,7 +213,8 @@ $ cd mod_log_sql-1.9</screen>
                 <screen format="linespecific">$ locate ndbm.h
 /usr/include/db1/ndbm.h
 /usr/include/gdbm/ndbm.h</screen>
-                <para>As far as I can tell, there is no difference as to which you specify, but it should be the one that you compiled mod_ssl with. If unsure specify the <filename>/usr/include/db1</filename>.</para>
+                <para>As far as I can tell, there is no difference as to which you specify, but it should be the one that you compiled mod_ssl with.</para>
+                <para>The default is <filename>/usr/include/db1</filename>, which should work on most systems.</para>
               </listitem>
             </varlistentry>
             <varlistentry>

@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql_mysql.c,v 1.3 2004/03/04 05:41:12 urkle Exp $ */
+/* $Id: mod_log_sql_mysql.c,v 1.4 2004/03/05 00:30:58 urkle Exp $ */
 #include "mysql.h"
 #include "mysqld_error.h"
 
@@ -62,6 +62,7 @@ logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 	}
 }
 
+/* Close the DB link */
 void log_sql_mysql_close(logsql_dbconnection *db)
 {
 	mysql_close((MYSQL *)db->handle);
@@ -108,6 +109,7 @@ const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 	}
 }
 
+/* Run a mysql insert query and return a categorized error or success */
 logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 								const char *query)
 {
@@ -144,6 +146,7 @@ logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 	return LOGSQL_QUERY_FAIL;
 }
 
+/* Create table table_name of type table_type. */
 logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
 						logsql_tabletype table_type, const char *table_name)
 {

@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.15 2004/03/04 05:41:12 urkle Exp $
+$Id: CHANGELOG,v 1.16 2004/03/05 00:30:58 urkle Exp $
 1.96: ?
 * fixed LogSQLPreserveFile config parameter
 * reworked safe_create_tables and core SQL insert routine.
@@ -12,6 +12,8 @@ $Id: CHANGELOG,v 1.15 2004/03/04 05:41:12 urkle Exp $
 * LogSQLDelayedInserts config option removed
 * Added DB generic LogSQLDBParam. Usage is LogSQLDBParam param value
   example: LogSQLDBParam tcpport 12345
+* notes, cookes, headersin, headersout tables are no longer created unless they
+  are used.
 
 1.95: 2004-02-05
 * audit and update of extract_* functions to acheive same output as 

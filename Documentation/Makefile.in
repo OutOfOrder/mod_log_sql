@@ -3,7 +3,9 @@
 # Modify these top variables.
 SUBDIRS = 
 
-EXTRA_DIST = README documentation.lyx
+EXTRA_DIST = README \
+		manual.xml \
+		manual.html
 
 #Don't modify anything below here
 
@@ -15,6 +17,12 @@ STD_DIST = Makefile.in
 DISTFILES = $(STD_DIST) $(EXTRA_DIST)
 
 all: all-subdirs
+
+%.html: %.xml
+		@xmlto html-nochunks $<
+
+%.pdf: %.xml
+		@xmlto pdf $<
 
 all-subdirs install-subdirs update-subdirs clean-subdirs distclean-subdirs:
 	@otarget=`echo $@|sed s/-subdirs//`; \

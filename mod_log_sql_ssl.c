@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql_ssl.c,v 1.6 2004/03/04 05:43:20 urkle Exp $ */
+/* $Id: mod_log_sql_ssl.c,v 1.7 2004/03/05 00:30:58 urkle Exp $ */
 /* mod_log_sql_ssl */
 
 #if defined(WITH_APACHE20)
@@ -37,7 +37,7 @@ static const char *extract_ssl_keysize(request_rec *r, char *a)
 	if (TEST_SSL(r) != NULL)
 	{
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_USEKEYSIZE");
-   	    log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_KEYSIZE: %s", result);
+   	    log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_KEYSIZE: %s", result);
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
 		return result;
@@ -52,7 +52,7 @@ static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 	if (TEST_SSL(r) != NULL) 
 	{
 		result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
-   	    log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_ALGKEYSIZE: %s", result);
+   	    log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_ALGKEYSIZE: %s", result);
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
 		return result;
@@ -67,7 +67,7 @@ static const char *extract_ssl_cipher(request_rec *r, char *a)
 	if (TEST_SSL(r) != NULL)
 	{
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER");
-   	    log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"SSL_CIPHER: %s", result);
+   	    log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_CIPHER: %s", result);
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
 		return result;

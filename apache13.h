@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.5 2004/02/29 23:36:17 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/apache13.h,v 1.6 2004/03/05 00:30:58 urkle Exp $ */
 #ifndef APACHE13_H
 #define APACHE13_H
 
@@ -24,6 +24,9 @@
 /** method of declaring a directive which takes 1 argument */
 # define AP_INIT_TAKE1(directive, func, mconfig, where, help) \
     { directive, func, mconfig, where, TAKE1, help }
+/** method of declaring a directive which takes 2 argument */
+# define AP_INIT_TAKE2(directive, func, mconfig, where, help) \
+    { directive, func, mconfig, where, TAKE2, help }
 /** method of declaring a directive which takes multiple arguments */
 # define AP_INIT_ITERATE(directive, func, mconfig, where, help) \
     { directive, func, mconfig, where, ITERATE, help }
@@ -37,6 +40,7 @@
 /* Types */
 #define apr_pool_t pool
 #define apr_array_header_t array_header
+#define apr_table_t table
 
 /* Functions */
 #define ap_get_remote_host(a,b,c,d) ap_get_remote_host(a,b,c)
@@ -62,6 +66,16 @@
 
 #define apr_tolower ap_tolower
 
-#define log_error ap_log_error
+static void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 5,6)));
+static inline void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...)
+{
+	static char buff[MAX_STRING_LEN];
+	va_list args;
+	va_start(args, fmt);
+	ap_vsnprintf(buff,MAX_STRING_LEN, fmt,args);
+	ap_log_error(file,line,level | APLOG_NOERRNO ,s,"%s",buff);
+	va_end(args);
+}
+
 
 #endif /* APACHE13_H */

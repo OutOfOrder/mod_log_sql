@@ -97,10 +97,11 @@ module.doc.expanded=1
 module.doc.files=\
 	Documentation/README\
 	INSTALL\
-	Documentation/documentation.lyx\
 	CHANGELOG\
 	LICENSE\
-	AUTHORS
+	AUTHORS\
+	TODO\
+	Documentation/manual.xml
 
 module.po.expanded=0
 module.po.files=

@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.19 2004/03/04 05:43:20 urkle Exp $ */
+/* $Id: mod_log_sql.c,v 1.20 2004/03/05 00:30:58 urkle Exp $ */
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -459,6 +459,20 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		/* re-open the connection and try again */
 		if (log_sql_opendb_link(r->server) != LOGSQL_OPENDB_FAIL) {
 			log_error(APLOG_MARK,APLOG_ERR,r->server,"db reconnect successful");
+#			if defined(WITH_APACHE20)
+			apr_sleep(apr_time_from_sec(0.25)); /* pause for a quarter second */
+#			elif defined(WITH_APACHE13)
+			{
+				struct timespec delay, remainder;
+				int nanoret;
+				delay.tv_sec = 0;
+				delay.tv_nsec = 250000000; /* pause for a quarter second */
+				nanoret = nanosleep(&delay, &remainder);
+				if (nanoret && errno != EINTR) {
+					log_error(APLOG_MARK,APLOG_ERR,r->server,"nanosleep unsuccessful");
+				}
+			}
+#			endif
 			result = log_sql_mysql_query(r,&global_config.db,query);
 			if (result == LOGSQL_QUERY_SUCCESS) {
 				return LOGSQL_QUERY_SUCCESS;
