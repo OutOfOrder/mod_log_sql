@@ -1,5 +1,3 @@
-$Id: TODO,v 1.1 2004/02/12 03:21:35 urkle Exp $
-
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
   PostgreSQL. (provider mechanism, and libDBI)

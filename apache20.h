@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/apache20.h,v 1.3 2004/01/21 04:34:21 urkle Exp $ */
+/* $Id$ */
 #ifndef APACHE20_H
 #define APACHE20_H
 

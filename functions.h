@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/functions.h,v 1.4 2004/03/04 05:43:20 urkle Exp $ */
+/* $Id$ */
 /* Begin the individual functions that, given a request r,
  * extract the needed information from it and return the
  * value to the calling entity.

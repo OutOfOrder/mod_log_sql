@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/functions20.h,v 1.3 2004/02/05 21:59:46 urkle Exp $ */
+/* $Id$ */
 /* functions */
 static const char *extract_bytes_sent(request_rec *r, char *a)
 {
