@@ -180,13 +180,6 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 	}
 }
 
-/*static const char *extract_table(void *data, const char *key, const char *val)
-{
-    request_rec *r = (request_rec *)data;
-
-	return apr_pstrcat(r->pool, key, " = ", val, " ", NULL);
-}*/
-
 static void preserve_entry(request_rec *r, const char *query)
 {
 	logsql_state *cls = ap_get_module_config(r->server->module_config, 
@@ -927,7 +920,7 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  unique_id,
+									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
 									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  ",",
@@ -955,7 +948,7 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  unique_id,
+									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
 									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  ",",
@@ -984,7 +977,7 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  unique_id,
+									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
 									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  ",",
@@ -1013,7 +1006,7 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  unique_id,
+									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
 									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  ",",
