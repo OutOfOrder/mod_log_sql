@@ -23,13 +23,13 @@ CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
 
 CHECK_MYSQL(
         WANT_MYSQL_MOD=1,
-		AC_MSG_ERROR([*** Mysql client libraries not found!])
+		AC_MSG_WARN([*** Mysql client libraries not found!])
         WANT_MYSQL_MOD=0
 		)
 AC_SUBST(WANT_MYSQL_MOD)
 
 CHECK_LIBDBI(WANT_DBI_MOD=1,
-        AC_MSG_ERROR([** libDBI client libraries not found!])
+        AC_MSG_WARN([** libDBI client libraries not found!])
         WANT_DBI_MOD=0
         )
 AC_SUBST(WANT_DBI_MOD)
