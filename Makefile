@@ -1,88 +1,71 @@
-# $Id: Makefile,v 1.11 2002/09/04 18:46:00 helios Exp $
-MLMVERS = 1.17
+# $Id: Makefile,v 1.12 2002/11/14 03:51:34 helios Exp $
 
-# Where you unpacked your Apache tarball -- the source.
-APACHESOURCE = /usr/local/src/apache_1.3.26
+#####################################
+# Important:
+# Adjust these values as outlined in the INSTALL file.
+# Not all are needed at all times.
 
-# Where Apache [got|will get] installed
-APACHEINST   = /usr/local/Apache
+APACHEINST = /usr/local/Apache
+MYSQLLIBS  = /usr/lib
+MYSQLHDRS  = /usr/include/mysql
+#MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
 
-# Do you want to log SSL information?
-# Yes?
-#      - #define WANT_SSL_LOGGING in mod_log_sql.c
-#      - pick (A) below
-# No?
-#      - #undef WANT_SSL_LOGGING in mod_log_sql.c
-#      - pick (B) below
-
-
-# (A)
-#
-# Modify "/usr/include/mysql" to where YOUR mysql.h can be found,
-# Modify "/usr/local/ssl/include" to where YOUR openssl/*.h files are,
-# Modify "/usr/include/db1" to where YOUR ndbm.h can be found,
-# Modify "/usr/local/src/apache_1.3.22/src/modules/ssl" to where YOUR mod_ssl.h can be found.
-#
-# How to find your directories:
-#
-# $ locate mysql.h
-# /usr/include/mysql/mysql.h
-# ^^^^^^^^^^^^^^^^^^
-#
-# $ locate x509.h
-# /usr/local/ssl/include/openssl/x509.h
-# ^^^^^^^^^^^^^^^^^^^^^^
-#
-# $ locate ndbm.h
-# /usr/include/db1/ndbm.h
-# ^^^^^^^^^^^^^^^^
-#
-# $ locate mod_ssl.h
-# /usr/local/src/apache_1.3.22/src/modules/ssl/mod_ssl.h
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Now uncomment this CFLAGS and comment out the one further down:
-
-CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/include/mysql -I/usr/local/ssl/include -I/usr/include/db1 -I${APACHESOURCE}/src/modules/ssl
-
-# (B)
-#
-# Modify "/usr/include/mysql" to where YOUR mysql.h can be found,
-#
-# How to find your directories:
-#
-# $ locate mysql.h
-# /usr/include/mysql/mysql.h
-# ^^^^^^^^^^^^^^^^^^
-#
-# Comment out CFLAGS above and uncomment CFLAGS below:
-
-#CFLAGS    = -fpic -O2 -Wall -I${APACHEINST}/include -I/usr/include/mysql
+APACHESOURCE = /usr/local/src/apache_1.3.27-dso
+OPNSSLHDRS   = /usr/include/openssl
+DB1HDRS      = /usr/include/db1
 
 
-# ---------------------------------------------------------
-# You shouldn't have to touch below here.
+#####################################
+# Shouldn't have to touch below here.
 
-CC        = gcc
-INSTALL   = /usr/bin/install -m 664
+MLMVERS  = 1.17
+APXS     = $(APACHEINST)/bin/apxs
+#APXSGDB  = -Wc,-g
+APXSOPTS = -Wc,-O2 -Wc,-Wall -Wc,-DEAPI
+CC       = gcc
+INSTALL  = /usr/bin/install -m 664
+RM       = /bin/rm
 
-all: mod_log_sql.o
+ifdef MODSSLHDRS
+   SSLDEF  = -DWANT_SSL_LOGGING
+   CFLAGS  = -fPIC -O2 -Wall -I$(APACHEINST)/include -I$(MYSQLHDRS) -I$(MODSSLHDRS) -I$(OPNSSLHDRS) $(SSLDEF) -I$(DB1HDRS)
+else
+   CFLAGS  = -fPIC -O2 -Wall -I$(APACHEINST)/include -I$(MYSQLHDRS)
+endif
+
+all:
+	@echo "You can choose to make mod_log_sql as a static or dynamic module."
+	@echo "Either 'make dso' or 'make static'."
+	@echo
+	@echo "Please read the INSTALL file carefully!"
+
+dso: mod_log_sql.so
+
+static: mod_log_sql.o
+
+mod_log_sql.so: mod_log_sql.c Makefile
+	$(APXS) $(APXSGDB) $(APXOPTS) -c -I$(MYSQLHDRS) -I$(MODSSLHDRS) $(SSLDEF) -L$(MYSQLLIBS) -lmysqlclient -lz mod_log_sql.c
 
 mod_log_sql.o:	mod_log_sql.c Makefile
 	$(CC) ${CFLAGS} -c mod_log_sql.c
-			
-install: all
-	$(INSTALL) -d -m 755 ${APACHESOURCE}/src/modules/sql
-	$(INSTALL) mod_log_sql.c ${APACHESOURCE}/src/modules/sql/mod_log_sql.c
-	$(INSTALL) Makefile ${APACHESOURCE}/src/modules/sql/Makefile
-	$(INSTALL) mod_log_sql.o ${APACHESOURCE}/src/modules/sql/mod_log_sql.o
 
-distro: all
-	cp -f INSTALL ${APACHEINST}/html/mod_log_sql/
-	cp -f README ${APACHEINST}/html/mod_log_sql/
-	cp -f CHANGELOG ${APACHEINST}/html/mod_log_sql/
-	cd ..; tar zcf mod_log_sql-${MLMVERS}.tar.gz --exclude mod_log_sql/CVS mod_log_sql/; $(INSTALL) mod_log_sql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_sql/; rm -f mod_log_sql-${MLMVERS}.tar.gz
-	rm -f ${APACHEINST}/html/mod_log_sql/mod_log_sql.tar.gz 
-	ln -s mod_log_sql-${MLMVERS}.tar.gz ${APACHEINST}/html/mod_log_sql/mod_log_sql.tar.gz
+dsoinstall: dso
+	$(APXS) -i mod_log_sql.so
+
+statinstall: static
+	$(INSTALL) -d -m 755 $(APACHESOURCE)/src/modules/sql
+	$(INSTALL) mod_log_sql.c $(APACHESOURCE)/src/modules/sql/mod_log_sql.c
+	$(INSTALL) Makefile $(APACHESOURCE)/src/modules/sql/Makefile
+	$(INSTALL) mod_log_sql.o $(APACHESOURCE)/src/modules/sql/mod_log_sql.o
 
 clean:
-	rm -f *.o *~
+	$(RM) -rf *.o *.so
+
+distro: all
+	cp -f INSTALL $(APACHEINST)/html/mod_log_sql/
+	cp -f README $(APACHEINST)/html/mod_log_sql/
+	cp -f CHANGELOG $(APACHEINST)/html/mod_log_sql/
+	cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS mod_log_sql/; $(INSTALL) mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+	rm -f $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
+	ln -s mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
+

@@ -1,0 +1,2969 @@
+#LyX 1.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 218
+\textclass article
+\language english
+\inputencoding default
+\fontscheme default
+\graphics default
+\paperfontsize 10
+\spacing single 
+\papersize letterpaper
+\paperpackage a4
+\use_geometry 1
+\use_amsmath 0
+\paperorientation portrait
+\paperwidth 8.5in
+\paperheight 11in
+\leftmargin 1in
+\topmargin 0.5in
+\rightmargin 1in
+\bottommargin 1in
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language swedish
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+\added_space_top vfill \added_space_bottom vfill 
+Installing and Running mod_log_sql
+\layout Author
+
+Christopher Powell 
+\layout Date
+
+11/13/02
+\layout Standard
+\pagebreak_bottom 
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Section
+
+Introduction
+\layout Subsection
+
+Homepage 
+\layout LyX-Code
+
+http://www.grubbybaby.com/mod_log_sql/
+\layout Subsection
+
+Summary
+\layout Standard
+
+This Apache module will permit you to log Apache accesses (and a lot of
+ related information) to a SQL database.
+ Unlike logging to a flat text file (which is standard in Apache), there
+ are a lot of powerful advantages to logging to SQL.
+ This module can either replace or happily coexist with Apache's text file
+ logging facility.
+\layout Subsection
+
+Approach
+\layout Standard
+
+This project was formerly known as mod_log_mysql.
+ It has been renamed to mod_log_sql in order to reflect the project goal
+ of database-inspecificity.
+ The module currently supports MySQL, and development for other database
+ backends is underway.
+\layout Standard
+
+In order to save speed and overhead, links are kept alive in between queries.
+ This module uses one SQL link per httpd child.
+ Among other things, this means that this module supports logging into only
+ one MySQL server, and for now, also, only one SQL database.
+ But that's a small tradeoff compared to the blinding speed of this module.
+\layout Standard
+
+Virtual hosts are supported in the same manner they are in the regular logging
+ modules.
+ You define some basic 'global' directives in the main server config, then
+ you define more specific 'local' directives inside each virtualhost stanza.
+\layout Standard
+
+SQL links are opened by each child process when it is born.
+ Error reporting is robust throughout and will let you know about database
+ issues in the standard Apache error-log for the server or virtual server.
+\layout Standard
+
+A robust "preserve" capability has now been implemented.
+ This permits the module to preserve any failed INSERT commands to a local
+ file on its machine.
+ In any situation that the database is unavailable -- e.g.
+ the network fails, you reboot the db host, etc.
+ -- mod_log_sql will note this in the error log and begin appending its
+ log entries to the preserve file (which is created with the user & group
+ ID of the running Apache process, e.g.
+ "nobody" on many Linux installations).
+ When your database becomes available again, mod_log_sql seamlessly resumes
+ logging to it.
+ When convenient for the sysadmin, he/she can easily import the preserve
+ file into the database because it is simply a series of SQL insert statements:
+\layout LyX-Code
+
+# mysql -uadminuser -p mydbname < /tmp/mysql-preserve
+\layout Subsection
+
+Supported directives
+\layout Standard
+
+Please see the web-based documentation for full explanation of all supported
+ run-time directives.
+\layout Standard
+
+http://www.grubbybaby.com/mod_log_sql/directives.html
+\layout Standard
+
+See the FAQ for some handy examples:
+\layout Standard
+
+http://www.grubbybaby.com/mod_log_sql/faq.html
+\layout Subsection
+
+What gets logged by default? 
+\layout Standard
+
+All the data that would be contained in the "Combined Log Format" is logged
+ by default, plus a little extra.
+ Your best bet is to begin by accepting this default, then later customize
+ the log configuration based on your needs.
+\layout Standard
+
+The online documentation of the run-time directives includes a full explanation
+ of what you can log, including examples.
+\layout Subsection
+
+Minor Notes
+\layout Itemize
+
+Note which directives go in the 'main server config' and which directives
+ apply to the 'virtual host config'.
+ This is made clear in the directive documentation.
+\layout Itemize
+
+The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in the standard
+ unix "seconds since 1/1/1970 12:00:00" format.
+ This is superior to storing the access time as a string due to size requirement
+s: an UNSIGNED INT type fits in 4 bytes, whereas the Apache date string
+ (e.g.
+ "18/Nov/2001:13:59:52 -0800") requires 26 bytes -- significantly larger,
+ and those extra 22 bytes will add up over the thousands of accesses that
+ a busy server will experience.
+ Besides, an INT type is far more flexible for comparisons, etc.
+\begin_deeper 
+\layout Standard
+
+In MySQL 3.21 and above you can easily convert this to a human readable format
+ using from_unixtime(), e.g.:
+\layout LyX-Code
+
+select remote_host,request_uri,from_unixtime(time_stamp) from access_log;
+\layout Standard
+
+The enclosed perl program 
+\begin_inset Quotes sld
+\end_inset 
+
+make_combined_log.pl
+\begin_inset Quotes srd
+\end_inset 
+
+ shows how you can extract your access records in a format that is completely
+ Combined Log Format compliant.
+ You can then feed this to your favorite web log analysis tool.
+\end_deeper 
+\layout Itemize
+
+The table's string values can be CHAR or VARCHAR, at a length of your choice.
+ VARCHAR is superior because it truncates long strings; CHAR types are fixed-len
+gth and will be padded with spaces.
+ Just like the time_stamp described above, that kind of space waste will
+ add up over thousands of records.
+\layout Itemize
+
+Be careful not to go overboard setting fields to NOT NULL.
+ If a field is marked NOT NULL then it must contain data in the INSERT or
+ the INSERT will fail, sometimes in a really mysterious way to the frustrated
+ sysad.
+\layout Itemize
+
+Apache normally logs numeric fields with a '-' character to mean "not applicable
+," e.g.
+ bytes_sent on a request with a 304 response code.
+ Since '-' is an illegal character in an SQL numeric field, such fields
+ are assigned the value 0 instead of '-' which, of course, makes perfect
+ sense anyway.
+\layout Subsection
+
+Author / Maintainer
+\layout Standard
+
+The actual logging code was taken from the already existing flat file text
+ modules, so all that credit goes to the Apache Server group.
+\layout Standard
+
+The MySQL routines and directives were added by Zeev Suraski <bourbon@netvision.n
+et.il>.
+\layout Standard
+
+All changes from 1.06+ and the new documentation were added by Chris Powell
+ <chris@grubbybaby.com>.
+ It seems that the module had fallen into the "unmaintained" category --
+ it hadn't been updated since 1998 -- so Chris adopted it as the new maintainer.
+\layout Section
+
+Installation
+\layout Subsection
+
+Requirements
+\layout Itemize
+
+A compatible system.
+ I have run mod_log_sql on Red Hat based systems (Red Hat, Mandrake).
+ These instructions should easily adapt to any modern distro.
+\layout Itemize
+
+Apache 1.2 or 1.3 installed.
+ (I run 1.3.22 and it works fine).
+ You should have already successfully compiled Apache and know what you're
+ doing there.
+\layout Itemize
+
+The MySQL development headers.
+ This is called different things on different distros.
+ For example, Red Hat 6.x called this RPM "MySQL-devel" whereas Mandrake
+ calls it "libmysql10-devel".
+\layout Itemize
+
+MySQL >= 3.23.15 configured, installed and running on either localhost or
+ an accessible networked machine.
+ You should already have a basic understanding of MySQL and how it functions.
+\layout Itemize
+
+Again, basic administrative skills with Apache and MySQL.
+ I try to make things as easy as possible in this file, but its purpose
+ is not to be an administrative tutorial.
+\layout Itemize
+
+Additionally, if you want to be able to log SSL information such as keysize
+ or cipher, you need OpenSSL and glibc-devel installed.
+ Both are available as RPMs.
+\layout Subsection
+
+Do I want a DSO?
+\layout Standard
+
+You need to know the answer to this question before you proceed.
+ The answer is pretty straightforward: what have you done in the past? If
+ you like all your Apache modules to be dynamic, then you should keep doing
+ that.
+ If you're more of an old-school type and prefer to compile the modules
+ right into apache, do that.
+ Both methods work equally well.
+\layout Standard
+
+FWIW, the DSO method is more modern and increasing in popularity because
+ apxs takes care of a lot of dirty little details for you.
+ As you'll see below, the static-module method is a little more complex.
+\layout Subsection
+
+Installation as an Apache DSO (Preferred) 
+\layout Enumerate
+
+Perform all the following steps as root so that you have install privs,
+ etc.
+ Unpack the archive into a working directory.
+\begin_deeper 
+\layout LyX-Code
+
+# tar zxf mod_log_sql.tar.gz -C /usr/local/src # cd /usr/local/src/mod_log_sql
+\end_deeper 
+\layout Enumerate
+
+Edit Makefile for your system.
+\newline 
+
+\begin_deeper 
+\layout Standard
+
+NECESSARY:
+\layout Itemize
+
+The location where you installed Apache -- usually /usr/local/apache, 'locate
+ apxs' can help you find it.
+\layout Itemize
+
+The location of your MySQL libraries, find using 'locate libmysqlclient'
+\layout Itemize
+
+The location of your MySQL header files, find using 'locate mysql.h'
+\layout Standard
+
+OPTIONAL if you have included mod_ssl in Apache and want to log SSL data
+ such as keysize and cipher type: 
+\layout Itemize
+
+The location of your SSL header files, find using 'locate mod_ssl.h'
+\layout Standard
+
+Now that you know these things, edit Makefile and replace the stock values
+ with your own.
+\layout Standard
+
+IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS by putting
+ a # character in front of it:
+\layout LyX-Code
+
+#MODSSLHDRS=/usr/include/...
+\end_deeper 
+\layout Enumerate
+
+Instruct apxs to compile the module as a DSO.
+\begin_deeper 
+\layout LyX-Code
+
+# make dso
+\end_deeper 
+\layout Enumerate
+
+You should see output similar to the following:
+\begin_deeper 
+\layout LyX-Code
+
+/usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/include/mysql
+ -I/usr/local/src/apache_1.3.27-dso/src/modules/ssl -L/usr/lib -lmysqlclient
+ -lz mod_log_sql.c 
+\layout LyX-Code
+
+gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HSREGEX -DEAPI
+ -DUSE_EXPAT -I../lib/expat-lite -fpic -DSHARED_CORE -DSHARED_MODULE -I/usr/local/
+Apache/include -O2 -Wall -DEAPI -I/usr/include/mysql -I/usr/local/src/apache_1.3.2
+7-dso/src/modules/ssl -c mod_log_sql.c 
+\layout LyX-Code
+
+gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -L/usr/li
+b -lmysqlclient -lz -lm -lcrypt -ldb
+\layout Standard
+
+You should see no errors and have a file called "mod_log_sql.so" in your
+ directory.
+\end_deeper 
+\layout Enumerate
+
+Instruct apxs to install the DSO.
+\begin_deeper 
+\layout LyX-Code
+
+# make dsoinstall
+\layout Standard
+
+You should see output similar to the following:
+\layout LyX-Code
+
+/usr/local/Apache/bin/apxs -i mod_log_sql.so
+\layout LyX-Code
+
+cp mod_log_sql.so /usr/local/Apache/libexec/mod_log_sql.so
+\layout LyX-Code
+
+chmod 755 /usr/local/Apache/libexec/mod_log_sql.so
+\end_deeper 
+\layout Enumerate
+
+Module ordering within httpd.conf is important.
+ If you are logging SSL, you must make sure that
+\begin_deeper 
+\layout LyX-Code
+
+LoadModule ssl_module libexec/libssl.so
+\layout Standard
+
+comes before
+\layout LyX-Code
+
+LoadModule sql_log_module libexec/mod_log_sql.so
+\layout Standard
+
+If you don't, you will get this error when you start Apache:
+\layout LyX-Code
+
+/usr/local/apache/libexec/mod_log_mysql.so: undefined symbol: ssl_var_lookup
+\layout LyX-Code
+
+/usr/local/apache/bin/apachectl startssl: httpd could not be started
+\layout Standard
+
+(Because mod_log_sql doesn't yet have the required symbols that mod_ssl
+ provides.)
+\layout Standard
+
+Now skip below to the "Configuration" section.
+\end_deeper 
+\layout Subsection
+
+Installation as a static module compiled into httpd
+\layout Enumerate
+
+Perform all the following steps as root so that you have install privs,
+ etc.
+\layout Enumerate
+
+Unpack the archive into a working directory.
+\begin_deeper 
+\layout LyX-Code
+
+# tar zxf mod_log_sql.tar.gz -C /usr/local/src # cd /usr/local/src/mod_log_sql
+\end_deeper 
+\layout Enumerate
+
+
+\begin_inset LatexCommand \label{step:editMF}
+
+\end_inset 
+
+Edit Makefile for your system.
+\newline 
+
+\begin_deeper 
+\layout Standard
+
+NECESSARY: 
+\layout Itemize
+
+The location where you installed Apache -- usually /usr/local/apache, 'locate
+ apxs' can help you find it.
+ 
+\layout Itemize
+
+The location of your Apache *sources*, find using 'locate ABOUT_APACHE'
+ 
+\layout Itemize
+
+The location of your MySQL header files, find using 'locate mysql.h'
+\layout Itemize
+
+The location of your MySQL libraries, find using 'locate libmysqlclient'
+\layout Standard
+
+OPTIONAL if you have included mod_ssl in Apache and want to log SSL data
+ such as keysize and cipher type: 
+\layout Itemize
+
+The location of your mod_ssl header files, find using 'locate mod_ssl.h'
+\layout Itemize
+
+The location of your OpenSSL header files, find using 'locate x509.h'
+\layout Itemize
+
+The location of your db1 header files, find using 'locate mpool.h'
+\layout Standard
+
+Now that you know these things, edit Makefile and replace the stock values
+ with your own.
+\layout Standard
+
+IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS, OPNSSLHDRS
+ and DB1HDRS by putting a # character in front of each one, e.g.
+ #OPNSSLHDRS=/usr/include/...
+\end_deeper 
+\layout Enumerate
+
+# make static
+\layout Enumerate
+
+# make statinstall
+\layout Enumerate
+
+Change to your Apache source dir.
+\begin_deeper 
+\layout LyX-Code
+
+# cd /usr/local/src/apache-1.3.22/src
+\end_deeper 
+\layout Enumerate
+
+Re-make your httpd binary as follows.
+\begin_deeper 
+\layout Enumerate
+
+Edit Configuration.apaci as follows...
+\begin_deeper 
+\layout Itemize
+
+Append the following string to the EXTRA_LIBS= line.
+ ("/usr/lib/mysql" is from step 
+\begin_inset LatexCommand \ref{step:editMF}
+
+\end_inset 
+
+, where your MySQL libraries live):
+\layout LyX-Code
+
+-L/usr/lib/mysql -lmysqlclient -lm -lz
+\layout Itemize
+
+Find the mod_log_config.o line, and add this line immediately after it:
+\layout LyX-Code
+
+AddModule modules/sql/mod_log_sql.o
+\end_deeper 
+\layout Enumerate
+
+# cp Configuration.apaci Configuration
+\layout Enumerate
+
+# ./Configure
+\layout Enumerate
+
+# make
+\layout Enumerate
+
+# strip httpd
+\end_deeper 
+\layout Enumerate
+
+Test your new apache binary:
+\begin_deeper 
+\layout LyX-Code
+
+# ./httpd -l
+\end_deeper 
+\layout Enumerate
+
+You should see something like:
+\begin_deeper 
+\layout LyX-Code
+
+Compiled-in modules: 
+\layout LyX-Code
+
+http_core.c
+\layout LyX-Code
+
+mod_log_sql.c <-- That's the line you're looking for.
+\layout LyX-Code
+
+mod_env.c 
+\layout LyX-Code
+
+mod_log_config.c 
+\layout LyX-Code
+
+mod_mime.c 
+\layout LyX-Code
+
+mod_negotiation.c ...
+\layout LyX-Code
+
+etc...
+\end_deeper 
+\layout Enumerate
+
+Install your httpd binary.
+ Copy it over your old httpd binary, wherever it lives.
+ You can and should rename your old httpd first so that you can easily revert
+ to that working version in case of bugs with the new version.
+\begin_deeper 
+\layout LyX-Code
+
+# /etc/rc.d/init.d/httpd stop 
+\layout LyX-Code
+
+# mv /usr/local/Apache/bin/httpd ~/httpd-save 
+\layout LyX-Code
+
+# cp -f ./httpd /usr/local/Apache/bin/
+\end_deeper 
+\layout Section
+
+Configuration
+\layout Subsection
+
+Preparing MySQL
+\layout Standard
+
+You have to prepare the database to receive data from mod_log_sql, and set
+ up run-time directives in httpd.conf to control how and what mod_log_sql
+ logs.
+\layout Standard
+
+This section will discuss how to get started with a basic config.
+ Full documentation of the run-time directives is available here: http://www.grub
+bybaby.com/mod_log_sql/directives.html
+\layout Enumerate
+
+mod_log_sql can make its own tables on-the-fly, or you can pre-make the
+ tables by hand.
+ The advantage of letting the module make the tables is ease-of-use, but
+ for raw performance you will want to pre-make the tables in order to save
+ overhead.
+ In this basic setup we'll let the module create tables for us.
+\layout Enumerate
+
+We still need to have a logging database created and ready, so run the MySQL
+ command line client and create a database:
+\begin_deeper 
+\layout LyX-Code
+
+# mysql -uadmin -pmypassword mysql> create database apachelogs;
+\end_deeper 
+\layout Enumerate
+
+If you want to hand-create the tables, run the enclosed 'create-tables'
+ SQL script as follows:
+\begin_deeper 
+\layout LyX-Code
+
+mysql> source create_tables.sql
+\end_deeper 
+\layout Enumerate
+
+Create a specific MySQL userid that httpd will use to authenticate and enter
+ data.
+ This userid need not be an actual Unix user.
+ It is a userid internal to MySQL with specific privileges.
+ In the following example command, "apachelogs" is the database, "loguser"
+ is the userid to create, "my.apachemachine.com" is the name of the Apache
+ machine, and "l0gger" is the password to assign.
+ Choose values that are different from these examples.
+\begin_deeper 
+\layout LyX-Code
+
+mysql> grant insert,create on apachelogs.* to loguser@my.apachemachine.com
+ identified by 'l0gger';
+\end_deeper 
+\layout Enumerate
+
+You may be especially security-paranoid and not want "loguser" to have "create"
+ capability within the "apachelogs" databse.
+ You can disable that but the cost is that you cannot use the module's automatic
+-table-creation feature.
+ If that's an acceptable cost, hand-create the tables as described in step
+ 1 and use the following GRANT statement instead of the one above:
+\begin_deeper 
+\layout LyX-Code
+
+mysql> grant insert on apachelogs.* to loguser@my.apachemachine.com identified
+ by 'l0gger';
+\end_deeper 
+\layout Enumerate
+
+Enable full logging of your MySQL daemon (at least temporarily for debugging
+ purposes) if you don't do this already.
+ Edit /etc/my.cnf and add the following line to your [mysqld] section:
+\begin_deeper 
+\layout LyX-Code
+
+log=/var/log/mysql-messages
+\layout Standard
+
+Then restart MySQL.
+\layout LyX-Code
+
+# /etc/rc.d/init.d/mysql restart
+\end_deeper 
+\layout Subsection
+
+Preparing Apache
+\layout Enumerate
+
+Tell the module what database to use and the appropriate authentication
+ information.
+\begin_deeper 
+\layout Description
+
+EXAMPLE: Use the MySQL database called "apachelogs" running on "dbmachine.foo.com".
+ The module uses username "loguser" and password "l0gger" to authenticate
+ to the database.
+ The log entries will be INSERTed into the table called "access_log".
+\layout Standard
+
+So, edit httpd.conf and insert the following lines somewhere AFTER any LoadModule
+ / AddModule statements.
+ Make sure these statements are "global," i.e.
+ not inside any VirtualHost stanza.
+\layout LyX-Code
+
+LogSQLDatabase apachelogs
+\layout LyX-Code
+
+LogSQLLoginInfo dbmachine.foo.com loguser l0gger 
+\layout LyX-Code
+
+LogSQLCreateTables on
+\end_deeper 
+\layout Enumerate
+
+If your database resides on localhost instead of another host, specify the
+ MySQL server's socket file as follows:
+\begin_deeper 
+\layout LyX-Code
+
+LogSQLSocketFile /your/path/to/mysql.sock
+\end_deeper 
+\layout Enumerate
+
+The actual logging is set up on a virtual-host-by-host basis.
+ So, skip down to the virtual host you want to set up.
+ Instruct this virtual host to log entries to the table 
+\begin_inset Quotes sld
+\end_inset 
+
+access_log
+\begin_inset Quotes srd
+\end_inset 
+
+ by inserting a LogSQLTransferLogTable directive.
+ (The LogSQLTransferLogTable directive is the minimum required to log --
+ other directives simply tune the module's behavior.)
+\begin_deeper 
+\layout LyX-Code
+
+<VirtualHost 1.2.3.4>
+\layout LyX-Code
+
+[snip]
+\layout LyX-Code
+
+LogSQLTransferLogTable access_log
+\layout LyX-Code
+
+[snip]
+\layout LyX-Code
+
+</VirtualHost>
+\end_deeper 
+\layout Enumerate
+
+Restart apache.
+\begin_deeper 
+\layout LyX-Code
+
+# /etc/rc.d/init.d/httpd start
+\end_deeper 
+\layout Subsection
+
+Testing the module
+\layout Enumerate
+
+Load your web site in a browser to trigger some hits, then confirm that
+ the entries are being successfully logged:
+\begin_deeper 
+\layout LyX-Code
+
+# mysql -hmysql.host.com -umysqladmin -p -e "select * from access_log" apachelogs
+ 
+\layout LyX-Code
+
+Enter password:
+\layout LyX-Code
+
+(Several lines of output should follow, corresponding to your hits on the
+ site.)
+\layout Standard
+
+You now have basic functionality.
+ Don't disable your regular Apache logs until you feel comfortable that
+ the database is behaving as you'd like and that things are going well.
+\end_deeper 
+\layout Enumerate
+
+If you do not see any entries in the access_log, then something is preventing
+ the inserts from happening.
+ This problem could be caused by several things: 
+\begin_deeper 
+\layout Itemize
+
+Improper privileges set up in the MySQL database 
+\layout Itemize
+
+You aren't hitting a VirtualHost that has a LogSQLTransferLogTable entry
+ 
+\layout Itemize
+
+You didn't specify the right host
+\layout Standard
+
+If you have confirmed your LogSQL* directives and know them to be correct,
+ you should examine the httpd server logs for mod_log_sql messages; the
+ module will offer hints as to why it cannot connect, etc.
+ Also examine the MySQL log that you established in step 3.
+ Ensure that the INSERTs are not being rejected because of a malformed table
+ entry or other clerical error.
+ If you see no INSERT attempts in the log, the module isn't successfully
+ connecting to the database.
+\layout Standard
+
+The next thing to do is recompile the module with debugging output activated.
+ change the "#undef DEBUG" on line 8 of mod_log_sql.c to "#define DEBUG"
+ and recompile/reinstall.
+ The module will now output copious notes about what it is doing, and this
+ will help you (and the maintainer) solve the problem.
+\end_deeper 
+\layout Standard
+
+You can now activate the advanced features of mod_log_sql.
+ These are all described in the next section.
+\layout Subsection
+
+Configuration directive reference
+\layout Subsubsection
+
+LogSQLLoginInfo 
+\layout LyX-Code
+
+
+\series bold 
+MANDATORY
+\series default 
+ 
+\layout LyX-Code
+
+Syntax: LogSQLLoginInfo host user password
+\layout LyX-Code
+
+Example: LogSQLLoginInfo foobar.baz.com logwriter passw0rd 
+\layout LyX-Code
+
+Context: server config
+\layout Quote
+
+Defines the general parameters of the MySQL host to which you will be logging.
+ host is the hostname or IP address of the MySQL machine.
+ user is the MySQL userid (not a Unix userid!) with INSERT privileges on
+ the table defined in LogSQLTransferLogTable.
+ password is that user's password.
+ This is defined only once in the httpd.conf file.
+\layout Subsubsection
+
+LogSQLDatabase 
+\layout LyX-Code
+
+
+\series bold 
+MANDATORY
+\layout LyX-Code
+
+Syntax: LogSQLDatabase database 
+\layout LyX-Code
+
+Example: LogSQLDatabase loggingdb 
+\layout LyX-Code
+
+Context: server config
+\layout Quote
+
+Defines the database that is used for logging.
+ database must be operating on the MySQL host defined in LogSQLLoginInfo.
+ This is defined only once in the httpd.conf file.
+\layout Subsubsection
+
+LogSQLTransferLogTable
+\layout LyX-Code
+
+
+\series bold 
+MANDATORY 
+\layout LyX-Code
+
+Syntax: LogSQLTransferLogTable table-name 
+\layout LyX-Code
+
+Example: LogSQLTransferLogTable access_log_table 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+Defines which table is used for logging of Apache's transfers; this is analogous
+ to Apache's TransferLog directive.
+ table-name must be a valid table within the database defined in LogSQLDatabase.
+\layout Quote
+
+This directive is not necessary if you declare LogSQLMassVirtualHosting
+ On, since that directive activates dynamically-named tables.
+ If you attempt to use LogSQLTransferLogTable at the same time a warning
+ will be logged and it will be ignored, since LogSQLMassVirtualHosting takes
+ priority.
+\layout Subsubsection
+
+LogSQLRequestIgnore
+\layout LyX-Code
+
+Syntax: LogSQLRequestIgnore req1 req2 req3 ...
+ reqN 
+\layout LyX-Code
+
+Example: LogSQLRequestIgnore root.exe cmd.exe default.ida favicon.ico 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+Lists a series of strings that, if present in the URI, will cause that request
+ NOT to be logged.
+ This directive is useful for cutting down on log clutter when you KNOW
+ that you do not want to log requests for certain objects.
+ (The example above is a genuinely useful one; it will prevent logging of
+ many common Microsoft-based worm intrusion attempts, as well as those ridiculou
+s requests for the favicon.)
+\layout Quote
+
+Each string is separated by a space, and NO regular expressions or globbing
+ are allowed.
+ Each string is evaluated as a substring of the URI using strstr().
+\layout Subsubsection
+
+LogSQLRemhostIgnore
+\layout LyX-Code
+
+Syntax: LogSQLRemhostIgnore host1 host2 host3 ...
+ hostN 
+\layout LyX-Code
+
+Example: LogSQLRemhostIgnore localnet.com 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+Lists a series of strings that, if present in the REMOTE_HOST, will cause
+ that request NOT to be logged.
+ This directive is useful for cutting down on log clutter when you KNOW
+ that you do not want to log requests from certain hosts, such as your own
+ internal network machines.
+\layout Quote
+
+Each string is separated by a space, and NO regular expressions or globbing
+ are allowed.
+ Each string is evaluated as a substring of the REMOTE_HOST using strstr().
+\layout Subsubsection
+
+LogSQLRefererIgnore
+\layout LyX-Code
+
+Syntax: LogSQLRefererIgnore ref1 ref2 ref3 ...
+ refN 
+\layout LyX-Code
+
+Example: LogSQLRefererIgnore google.com 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+Lists a series of strings that, if present in the HTTP_REFERER, will cause
+ that request NOT to be logged.
+ This directive is useful for cutting down on log clutter when you know
+ that you do not want to log requests from certain referers.
+\layout Quote
+
+Each string is separated by a space, and NO regular expressions or globbing
+ are allowed.
+ Each string is evaluated as a substring of the HTTP_REFERER using strstr().
+\layout Subsubsection
+
+LogSQLWhichCookie
+\layout LyX-Code
+
+Syntax: LogSQLWhichCookie cookiename 
+\layout LyX-Code
+
+Example: LogSQLWhichCookie Clicks
+\layout LyX-Code
+
+Default: None.
+ You must set this if you wish to capture cookies.
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+In HTTP, cookies have names to distinguish them from each other.
+ Using mod_usertrack, for example, you can give your user-tracking cookies
+ a name with the CookieName directive.
+\layout Quote
+
+If you have activated cookie logging in LogSQLTransferLogFormat, then LogSQLWhic
+hCookie tells mod_log_sql which cookie to log.
+ This is useful because many times you will be setting and receiving more
+ than one cookie from a client; without this directive you'd be unable to
+ choose which cookie is your mod_usertrack cookie.
+\layout Quote
+
+Note: although this was intended for people who are using mod_usertrack
+ to set user-tracking cookies, you aren't restricted in any way.
+ You can choose which cookie you wish to log to the database, and it doesn't
+ necessarily have to have anything to do with mod_usertrack.
+\layout Subsubsection
+
+LogSQLCreateTables
+\layout LyX-Code
+
+Syntax: LogSQLCreateTables flag
+\layout LyX-Code
+
+Example: LogSQLCreateTables On 
+\layout LyX-Code
+
+Default: Off 
+\layout LyX-Code
+
+Context: server config
+\layout Quote
+
+mod_log_sql now has the ability to create its tables on-the-fly.
+ The advantage to this is convenience: you don't have to execute any SQL
+ by hand to prepare the table.
+ This is especially helpful for people with lots of virtual hosts (who should
+ also see the LogSQLMassVirtualHosting directive).
+\layout Quote
+
+There is a slight disadvantage: if you wish to activate this feature, then
+ the user specified by LogSQLLoginInfo must have CREATE privileges on the
+ database.
+ In an absolutely paranoid, locked-down situation you may only want to grant
+ your mod_log_sql user INSERT privileges on the database; in that situation
+ you are unable to take advantage of LogSQLCreateTables.
+ But most people -- even the very security-conscious -- will find that granting
+ CREATE on the logging database is reasonable.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
+\layout Subsubsection
+
+LogSQLMassVirtualHosting
+\layout LyX-Code
+
+Syntax: LogSQLMassVirtualHosting flag 
+\layout LyX-Code
+
+Example: LogSQLMassVirtualHosting On 
+\layout LyX-Code
+
+Default: Off 
+\layout LyX-Code
+
+Context: server config
+\layout Quote
+
+If you administer a site hosting many, many virtual hosts then this option
+ will appeal to you.
+ If you activate LogSQLMassVirtualHosting then several things happen:
+\begin_deeper 
+\layout Itemize
+
+the on-the-fly table creation feature is activated automatically 
+\layout Itemize
+
+the transfer log table name is dynamically set from the virtual host's name
+ (example: a virtual host www.grubbybaby.com gets logged to table access_www_grubb
+ybaby_com) 
+\layout Itemize
+
+which, in turn, means that each virtual host logs to its own segregated
+ table.
+ Because there is no data shared between virtual servers you can grant your
+ users access to the tables they need; they will be unable to view others'
+ data.
+\end_deeper 
+\layout Quote
+
+This is a huge boost in convenience for sites with many virtual servers.
+ Activating LogSQLMassVirtualHosting obviates the need to create every virtual
+ server's table and provides more granular security possibilities.
+\layout Quote
+
+This is defined only once in the httpd.conf file.
+\layout Subsubsection
+
+LogSQLPreserveFile
+\layout LyX-Code
+
+Syntax: LogSQLPreserveFile filename 
+\layout LyX-Code
+
+Example: LogSQLPreserveFile offline-preserve 
+\layout LyX-Code
+
+Default: mysql-preserve (in /tmp) 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+mod_log_sql writes queries to this local preserve file in the event that
+ it cannot reach the database, and thus ensures that your high-availability
+ web frontend does not lose logs during a temporary database outage.
+ This could happen for a number of reasons: the database goes offline, the
+ network breaks, etc.
+ You will not lose entries since the module has this backup.
+ The file consists of a series of SQL statements that can be imported into
+ your database at your convenience; furthermore, because the SQL queries
+ contain the access timestamps you do not need to worry about out-of-order
+ data after the import.
+\layout Quote
+
+For security purposes the name you supply will be prepended with "/tmp/"
+ to force creation of the file in /tmp.
+\layout Quote
+
+If you do not define LogSQLPreserveFile then all virtual servers will log
+ to the same default preserve file (/tmp/mysql-preserve).
+ You can redefine this on a virtual-host basis in order to segregate your
+ preserve files if you desire.
+ Note that segregation is not really necessary, as the SQL statements that
+ are written to the preserve file already distinguish between different
+ virtual hosts.
+\layout Quote
+
+The module will log to error-log if/when it notices a database outage, and
+ upon database return.
+ You will therefore know when the preserve file is being used, although
+ it is your responsibility to import the file.
+\layout Quote
+
+The file does not need to be created in advance.
+ It is safe to remove or rename the file without interrupting Apache, as
+ the module closes the filehandle immediately after completing the write.
+ The file is created with the user & group ID of the running Apache process
+ (e.g.
+ 'nobody' on many Linux distributions).
+\layout Subsubsection
+
+LogSQLSocketFile 
+\layout LyX-Code
+
+Syntax: LogSQLSocketFile filename 
+\layout LyX-Code
+
+Example: LogSQLSocketFile /tmp/mysql.sock 
+\layout LyX-Code
+
+Default: /var/lib/mysql/mysql.sock 
+\layout LyX-Code
+
+Context: server config
+\layout Quote
+
+At Apache runtime you can specify the MySQL socket file to use.
+ Set this once in your main server config to override the default value.
+ This value is irrelevant if your database resides on a separate machine.
+\layout Quote
+
+mod_log_sql will automatically employ the socket for db communications if
+ the database resides on the local host.
+ If the db resides on a separate host the module will automatically use
+ TCP/IP.
+ This is a function of the MySQL API and is not user-configurable.
+\layout Subsubsection
+
+LogSQLTransferLogFormat 
+\layout LyX-Code
+
+Syntax: LogSQLTransferLogFormat format-string 
+\layout LyX-Code
+
+Example: LogSQLTransferLogFormat huSUTv 
+\layout LyX-Code
+
+Default: AbHhmRSsTUuv 
+\layout LyX-Code
+
+Context: virtual host
+\layout Quote
+
+Each character in the format-string defines an attribute of the request
+ that you wish to log.
+ The default logs the information required to create Combined Log Format
+ logs, plus several extras.
+ Here is the full list of allowable keys, which sometimes resemble their
+ Apache counterparts, but do not always:
+\layout Quote
+
+
+\begin_inset  Tabular
+<lyxtabular version="2" rows="20" columns="5">
+<features rotate="false" islongtable="false" endhead="1" endfirsthead="1" endfoot="0" endlastfoot="0">
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="" special="">
+<column alignment="left" valignment="top" leftline="false" rightline="false" width="" special="">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
+<column alignment="left" valignment="top" leftline="false" rightline="false" width="" special="">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
+<row topline="true" bottomline="true" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+Character
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+What is this?
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+MySQL DB field
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+Recommended column type
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+Example
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+A
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+User agent
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+agent
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 4.0)
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+b
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Bytes transfered
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+bytes_sent
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+int unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+32561
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+c
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Text of cookie
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+cookie
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Apache=sdyn.fooonline.net.130051007102700823
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+f
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_file
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+H
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+HTTP request protocol
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_protocol
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(10)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+HTTP/1.1
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+h
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Name of remote host
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+remote_host
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(50)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+blah.foobar.com
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+I
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Ident user info
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+remote_logname
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(50)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+bobby
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+m
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+HTTP request method
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_method
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(6)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+GET
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+P
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+httpd child PID
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+child_pid
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+3215
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+p
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+httpd port
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+server_port
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+80
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+R
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Referer
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+referer
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+http://www.biglinkstoyou.com/linkpage.html
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+r
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Request in full form
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_line
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+GET /books-cycroad.html HTTP/1.1
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+S
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Time of request in UNIX format
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+time_stamp
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+int unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+1005598029
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+s
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+HTTP status of request
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+status
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+404
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+T
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Seconds to service request
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_duration
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+2
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+t
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Time of request in human format
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_time
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+char(28)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+[02/Dec/2001:15:01:26 -0800]
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+U
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Request in simple form
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+request_uri
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(255)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+/books-cycroad.html
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+u
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+User info from HTTP authentication
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+remote_user
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(50)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+bobby
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="true" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+v
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Virtual host servicing the request
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+virtual_host
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(50)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+www.foobar.com
+\end_inset 
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset 
+
+
+\layout Quote
+
+If you have compiled mod_log_sql with WANT_SSL_LOGGING, you also get these:
+\layout Quote
+
+
+\begin_inset  Tabular
+<lyxtabular version="2" rows="4" columns="4">
+<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
+<column alignment="center" valignment="top" leftline="true" rightline="false" width="" special="">
+<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
+<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
+<row topline="true" bottomline="true" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+Character
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+MySQL DB field it activates
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+MySQL DB field it activatesRecommended column type
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+
+\series bold 
+Example
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+z
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+ssl_cipher
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+varchar(25)
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+RC4-MD5
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="false" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+q
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+ssl_keysize
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+56
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="true" newpage="false">
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+Q
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+ssl_maxkeysize
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+smallint unsigned
+\end_inset 
+</cell>
+<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+\begin_inset Text
+
+\layout Standard
+
+128
+\end_inset 
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset 
+
+
+\layout Section
+
+FAQ
+\layout Subsection
+
+Why log to an SQL database?
+\layout Standard
+
+To begin with, let's get it out of the way: logging to a database is not
+ a panacea.
+ But while there are complexities with this solution, the benefit can be
+ substantial for certain classes of administrator or people with advanced
+ requirements:
+\layout Itemize
+
+Chores like log rotation go away, as you can DELETE records from the SQL
+ database once they are no longer useful.
+ For example, the excellent and popular log-analysis tool Webalizer (http://www.w
+ebalizer.com/) does not need historic logs after it has processed them, enabling
+ you to delete older logs.
+ 
+\layout Itemize
+
+People with clusters of web servers (for high availability) will benefit
+ the most -- all their webservers can log to a single SQL database.
+ This obviates the need to collate/interleave the many separate logfiles,
+ which can be / highly/ problematic.
+ 
+\layout Itemize
+
+People acquainted with the power of SQL SELECT statements will know the
+ flexibility of the extraction possibilities at their fingertips.
+\layout Standard
+
+For example, do you want to see all your 404's? Do this:
+\layout LyX-Code
+
+select remote_host,status,request_uri,bytes_sent,from_unixtime(time_stamp)
+ from acc_log_tbl where status=404 order by time_stamp;
+\layout LyX-Code
+
++-----------------------------------+--------+--------------------------+-------
+-----+---------------------------
+\layout LyX-Code
+
++                       remote_host | status | request_uri             
+ | bytes_sent | from_unixtime(time_stamp)|
+\layout LyX-Code
+
++-----------------------------------+--------+--------------------------+-------
+-----+---------------------------
+\layout LyX-Code
+
+| marge.mmm.co.uk                   | 404    | /favicon.ico             | 321
+        | 2001-11-20 02:30:56      |
+\layout LyX-Code
+
+| 62.180.239.251                    | 404    | /favicon.ico             | 333
+        | 2001-11-20 02:45:25      |
+\layout LyX-Code
+
+| 212.234.12.66                     | 404    | /favicon.ico             | 321
+        | 2001-11-20 03:01:00      | 
+\layout LyX-Code
+
+| 212.210.78.254                    | 404    | /favicon.ico             | 333
+        | 2001-11-20 03:26:05      | 
+\layout LyX-Code
+
++-----------------------------------+--------+--------------------------+-------
+-----+---------------------------+
+\layout Standard
+
+Or do you want to see how many bytes you've sent within a certain directory
+ or site? Do this:
+\layout LyX-Code
+
+select request_uri,sum(bytes_sent) as bytes,count(request_uri) as howmany
+ from acc_log_tbl where request_uri like '%mod_log_sql%' group by request_uri
+ order by howmany desc; 
+\layout LyX-Code
+
++-----------------------------------+---------+---------+ 
+\layout LyX-Code
+
+| request_uri                       | bytes   | howmany | 
+\layout LyX-Code
+
++-----------------------------------+---------+---------+ 
+\layout LyX-Code
+
+| /mod_log_sql/style_1.css          | 157396  |    1288 | 
+\layout LyX-Code
+
+| /mod_log_sql/                     | 2514337 |     801 | 
+\layout LyX-Code
+
+| /mod_log_sql/mod_log_sql.tar.gz   | 9769312 |     456 | 
+\layout LyX-Code
+
+| /mod_log_sql/faq.html             | 5038728 |     436 | 
+\layout LyX-Code
+
+| /mod_log_sql/INSTALL              | 1196161 |     202 | 
+\layout LyX-Code
+
+| /mod_log_sql/directives.html      | 1096821 |     171 | 
+\layout LyX-Code
+
+| /mod_log_sql/CHANGELOG            | 424481  |     107 | 
+\layout LyX-Code
+
+| /mod_log_sql/README               | 796072  |      97 | 
+\layout LyX-Code
+
+| /mod_log_sql/directives-old.html  | 42480   |       6 |
+\layout LyX-Code
+
+| /mod_log_sql/index.html           | 9531    |       3 | 
+\layout LyX-Code
+
++-----------------------------------+---------+---------+
+\layout Standard
+
+Or maybe you want to see who's linking to you? Do this:
+\layout LyX-Code
+
+select count(referer) as num,referer from acc_log_tbl where request_uri='/mod_lo
+g_sql/' group by referer order by num desc;
+\layout LyX-Code
+
++-----+-------------------------------------------------------------------------
+------+
+\layout LyX-Code
+
+| num | referer                                                        
+               | 
+\layout LyX-Code
+
++-----+-------------------------------------------------------------------------
+------+
+\layout LyX-Code
+
+| 271 | http://freshmeat.net/projects/mod_log_sql/                      
+              | 
+\layout LyX-Code
+
+| 96  | http://modules.apache.org/search?id=339                          
+             | 
+\layout LyX-Code
+
+| 48  | http://freshmeat.net/                                           
+              | 
+\layout LyX-Code
+
+| 8   | http://freshmeat.net                                            
+              |
+\layout LyX-Code
+
+| 7   | http://freshmeat.net/daily/2001/11/30/                          
+              | 
+\layout LyX-Code
+
+| 6   | http://freshmeat.net/daily/2001/11/20/                          
+              |
+\layout LyX-Code
+
++-----+-------------------------------------------------------------------------
+------+
+\layout Standard
+
+As you can see, there are myriad possibilities that can be constructed with
+ the wonderful SQL SELECT statement.
+ Logging to an SQL database can be really quite useful!
+\layout Subsection
+
+Why use MySQL? Are there alternatives?
+\layout Standard
+
+MySQL is a robust, free, and very powerful production-quality database engine.
+ It is well supported and comes with detailed documentation.
+ Many 3rd-party software pacakges (e.g.
+ Slashcode, the engine that powers Slashdot) run exclusively with MySQL.
+ In other words, you will belong to a very robust and well-supported community
+ by choosing MySQL.
+\layout Standard
+
+That being said, there are alternatives.
+ PostgreSQL is probably MySQL's leading "competitor" in the free database
+ world.
+ There is also an excellent module available for Apache to permit logging
+ to a PostgreSQL database, called 
+\begin_inset LatexCommand \url[pgLOGd]{(http://www.digitalstratum.com/pglogd/)}
+
+\end_inset 
+
+.
+\layout Subsection
+
+Is this code production-ready?
+\layout Standard
+
+By all accounts it is.
+ It is known to work without a problem on many-thousands-of-hits-per-day
+ webservers.
+ Does that mean it is 100% bug free? Well, no software is.
+ But it is well-tested and /believed/ to be fully compatible with production
+ environments.
+ (The usual disclaimers apply.
+ This software is provided without warranty of any kind.)
+\layout Subsection
+
+How well does it perform?
+\layout Standard
+
+mod_log_sql scales to very high loads.
+ Apache 1.3.22 + mod_log_sql was benchmarked using the "ab" (Apache Bench)
+ program that comes with the Apache distribution; here are the results.
+\layout Standard
+
+Overall configuration:
+\layout Itemize
+
+Machine A: Apache webserver 
+\layout Itemize
+
+Machine B: MySQL server 
+\layout Itemize
+
+Machines A and B connected with 100Mbps Ethernet
+\layout Standard
+
+Webserver configuration:
+\layout Itemize
+
+Celeron 400 128 MB RAM IDE storage
+\layout Standard
+
+Apache configuration:
+\layout LyX-Code
+
+Timeout 300 
+\layout LyX-Code
+
+KeepAlive On 
+\layout LyX-Code
+
+MaxKeepAliveRequests 100 
+\layout LyX-Code
+
+KeepAliveTimeout 15 
+\layout LyX-Code
+
+MinSpareServers 5 
+\layout LyX-Code
+
+StartServers 10 
+\layout LyX-Code
+
+MaxSpareServers 15 
+\layout LyX-Code
+
+MaxClients 256 
+\layout LyX-Code
+
+MaxRequestsPerChild 5000 
+\layout LyX-Code
+
+LogSQLTransferLogFormat AbHhmRSsTUuvc 
+\layout LyX-Code
+
+LogSQLWhichCookie Clicks 
+\layout LyX-Code
+
+CookieTracking on 
+\layout LyX-Code
+
+CookieName Clicks
+\layout Standard
+
+"ab" commandline:
+\layout LyX-Code
+
+./ab -c 10 -t 20 -v 2 -C Clicks=ab_run http://www.hostname.com/target 
+\layout Standard
+
+( 10 concurrent requests; 20 second test; setting a cookie "Clicks=ab_run";
+ target = the mod_log_sql homepage.
+ )
+\layout Standard
+
+Ten total ab runs were conducted: five with MySQL logging enabled, and five
+ with all MySQL directives commented out of httpd.conf.
+ Then each five were averaged.
+ The results:
+\layout Itemize
+
+Average of five runs employing MySQL 
+\emph on 
+and
+\emph default 
+ standard text logging: 139.01 requests per second, zero errors.
+\layout Itemize
+
+Average of five runs employing 
+\emph on 
+only
+\emph default 
+ standard text logging: 139.96 requests per second, zero errors.
+\layout Standard
+
+In other words, any rate-limiting effects on this particular hardware setup
+ are not caused by MySQL.
+ Note that although this very simple webserver setup is hardly cutting-edge
+ -- it is, after all, a fairly small machine -- 139 requests per second
+ equal over twelve million hits per day
+\emph on 
+.
+\layout Standard
+
+If you run this benchmark yourself, take note of three things:
+\layout Enumerate
+
+Use a target URL that is on your own webserver :-).
+ 
+\layout Enumerate
+
+Wait until all your connections are closed out between runs; after several
+ thousand requests your TCP/IP stack will be filled with hundreds of connections
+ in TIME_WAIT that need to close.
+ Do a "netstat -t|wc -l" on the webserver to see.
+ If you don't wait, you can expect to see a lot of messages like "ip_conntrack:
+ table full, dropping packet" in your logs.
+ (This has nothing to do with mod_log_sql, this is simply the nature of
+ the TCP/IP stack in the Linux kernel.)
+\layout Enumerate
+
+When done with your runs, clean these many thousands of requests out of
+ your database:
+\layout LyX-Code
+
+mysql> delete from access_log where agent like 'ApacheBench%'; mysql> optimize
+ table access_log; 
+\layout Subsection
+
+Who's using mod_log_sql?
+\layout Standard
+
+Good question! It would be great to find out! If you are a production-level
+ mod_log_sql user, please contact 
+\begin_inset LatexCommand \url[the maintainer, Chris Powell]{chris@grubbybaby.com}
+
+\end_inset 
+
+so that you can be mentioned here.
+\layout Subsection
+
+How do I extract the data in a format that my analysis tool can understand?
+\layout Standard
+
+mod_log_sql would be virtually useless if there weren't a way for you to
+ extract the data from your database in a somewhat meaningful fashion.
+ To that end there's a Perl script enclosed with the distribution.
+ That script (make_combined_log.pl) is designed to extract N-many days worth
+ of access logs and provide them in a Combined Log Format output.
+ You can use this very tool right in /etc/crontab to extract logs on a regular
+ basis so that your favorite web analysis tool can read them.
+ Or you can examine the Perl code to construct your own custom tool.
+\layout Standard
+
+For example, let's say that you want your web statistics updated once per
+ day in the wee hours of the morning.
+ A good way to accomplish that would be the following entries in /etc/crontab:
+\layout LyX-Code
+
+# Generate the temporary apache logs from the MySQL database (for webalizer)
+ 
+\layout LyX-Code
+
+05 04 * * * root /usr/local/sbin/make_combined_log.pl 1 www.grubbybaby.com
+ > /var/log/httpd/mysql-grubbybaby
+\layout LyX-Code
+
+# Run webalizer on httpd log 
+\layout LyX-Code
+
+30 04 * * * root /usr/local/bin/webalizer -c /etc/webalizer.conf; rm -f /var/log/
+httpd/mysql-grubbybaby
+\layout Standard
+
+Or if you have a newer system that puts files in /etc/cron.daily etc., create
+ a file called 
+\begin_inset Quotes sld
+\end_inset 
+
+webalizer
+\begin_inset Quotes srd
+\end_inset 
+
+ in the cron.____ subdir of your choice.
+ Use the following as the contents of your file, and make sure to chmod
+ 755 it when done.
+\layout LyX-Code
+
+#!/bin/sh
+\layout LyX-Code
+
+/usr/local/sbin/make_combined_log.pl 1 www.yourdomain.com > /var/log/httpd/templog
+\layout LyX-Code
+
+/usr/local/bin/webalizer -q -c /etc/webalizer.conf 
+\layout LyX-Code
+
+rm -f /var/log/httpd/templog
+\layout Standard
+
+See? Easy.
+\layout Subsection
+
+Why doesn't the module also replace the Apache ErrorLog?
+\layout Standard
+
+There are circumstances when that would be quite unwise -- for example,
+ if Apache could not reach the MySQL server for some reason and needed to
+ log that fact.
+ Without a text-based error log you'd never know anything was wrong, because
+ Apache would be trying to log a database connection error to the database...
+ you get the point.
+\layout Standard
+
+Error logs are usually not very high-traffic and are really best left as
+ text files on a web server machine.
+\layout Subsection
+
+
+\begin_inset LatexCommand \label{sec:cookie}
+
+\end_inset 
+
+How can I log mod_usertrack cookies?
+\layout Standard
+
+A number of people like to log mod_usertrack cookies in their Apache TransferLog
+ to aid in understanding their visitors' clickstreams.
+ This is accomplished, for example, with a statement as follows:
+\layout LyX-Code
+
+LogFormat "%h %l %u %t 
+\backslash 
+"%r
+\backslash 
+" %s %b 
+\backslash 
+"%{Referer}i
+\backslash 
+" 
+\backslash 
+"%{User-Agent}i
+\backslash 
+"" 
+\backslash 
+"%{cookie}n
+\backslash 
+""
+\layout Standard
+
+Naturally it would be nice for mod_log_sql to permit the admin to log the
+ cookie data as well, so as of version 1.10 you can do this.
+ You need to have already compiled mod_usertrack into httpd -- it's one
+ of the standard Apache modules.
+\layout Standard
+
+First make sure you have a column called "cookie" in the MySQL database
+ to hold the cookies, which can be done as follows if you already have a
+ working database:
+\layout LyX-Code
+
+alter table acc_log_tbl add column cookie varchar(255);
+\layout Standard
+
+Next configure your server to set usertracking cookies as follows, and make
+ sure you include the new 'c' directive in your LogSQLTransferLogFormat,
+ which activates cookie logging.
+ Here's an example:
+\layout LyX-Code
+
+<VirtualHost 1.2.3.4> 
+\layout LyX-Code
+
+ CookieTracking on 
+\layout LyX-Code
+
+ CookieStyle Cookie 
+\layout LyX-Code
+
+ CookieName Foobar 
+\layout LyX-Code
+
+ LogSQLTransferLogFormat huSUsbTvRAc 
+\layout LyX-Code
+
+ LogSQLWhichCookie Foobar 
+\layout LyX-Code
+
+</VirtualHost>
+\layout Standard
+
+The first three lines configure mod_usertrack to create a COOKIE (RFC 2109)
+ format cookie called Foobar.
+ The last two lines tell mod_log_sql to log cookies named Foobar.
+ You have to choose which cookie to log because more than one cookie can/will
+ be sent to the server by the client.
+\layout Standard
+
+FYI, you are advised NOT to use CookieStyle Cookie2 -- it seems that even
+ newer browsers (IE 5.5, etc.) have trouble with the new COOKIE2 (RFC 2965)
+ format.
+ Just stick with the standard COOKIE format and you'll be fine.
+\layout Standard
+
+Perform some hits on your server and run a select:
+\layout LyX-Code
+
+mysql> select request_uri,cookie from access_log where cookie is not null;
+\layout LyX-Code
+
++--------------------------------------------+----------------------------------
+------------------+
+\layout LyX-Code
+
+| request_uri                                |                         
+                    cookie | 
+\layout LyX-Code
+
++--------------------------------------------+----------------------------------
+------------------+ 
+\layout LyX-Code
+
+| /mod_log_sql/                              | ool-18e4.dyn.optonline.net.1300510071
+02700823      | 
+\layout LyX-Code
+
+| /mod_log_sql/usa.gif                       | ool-18e4.dyn.optonline.net.13005100710
+2700823      | 
+\layout LyX-Code
+
+| /mod_log_sql/style_1.css                   | ool-18e4.dyn.optonline.net.13005100710
+2700823      | 
+\layout LyX-Code
+
+...etc...
+\layout Subsection
+
+What if I want to log more than one cookie?
+\layout Standard
+
+No problem.
+ As of version 1.17, you have a choice.
+ If you are just interested in a single cookie, follow the instructions
+ in section 
+\begin_inset LatexCommand \ref{sec:cookie}
+
+\end_inset 
+
+ above.
+ That cookie will be logged to a column in the regular access_log table.
+\layout Standard
+
+However, if you need to log multiple cookies, you'll employ the LogSQLWhichCooki
+es (note the plural) directive.
+ The cookies you specify will be logged to a separate table, and entries
+ in that table will be linked to the regular access_log entries via the
+ unique ID that is supplied by mod_unique_id.
+ Without mod_unique_id the information will still be logged but you will
+ be unable to correlate which cookies go with which access-requests.
+\layout Standard
+
+LogSQLWhichCookie and LogSQLWhichCookies can coexist without conflict, but
+ you're better off choosing the one you need.
+\layout Subsection
+
+What are the SSL logging features, and how do I activate them?
+\layout Standard
+
+If you run an SSL-enabled server you may benefit from logging some SSL details.
+ mod_log_sql now supports this ability.
+ By adding certain characters to your LogSQLTransferLogFormat string you
+ can tell mod_log_sql to log the SSL cipher, the SSL keysize of the connection,
+ and the Max-keysize that was available.
+ This would let you tell, for example, which clients were using only export-grad
+e security to access your secure software area.
+\layout Standard
+
+You can compile mod_log_sql with SSL logging support if you have the right
+ packages installed.
+ If you already have an SSL-enabled Apache then you by definition have the
+ correct packages already installed: OpenSSL and mod_ssl.
+\layout Standard
+
+You need to ensure that your database is set up to log the SSL data.
+ Issue the following commands to MySQL once you have your basic access_log
+ table built:
+\layout LyX-Code
+
+alter table access_log add column ssl_cipher varchar(25);
+\layout LyX-Code
+
+alter table access_log add column ssl_keysize smallint unsigned;
+\layout LyX-Code
+
+alter table access_log add column ssl_maxkeysize smallint unsigned;
+\layout Standard
+
+Finally configure httpd.conf to activate the SSL fields.
+ Note that this is only meaningful in a VirtualHost that is set up for SSL.
+\layout LyX-Code
+
+<VirtualHost 1.2.3.4:443> 
+\layout LyX-Code
+
+ LogSQLTransferLogFormat AbHhmRSsTUuvcQqz 
+\layout LyX-Code
+
+</VirtualHost>
+\layout Standard
+
+The last three characters (Qqz) in the directive are the SSL ones; see the
+ directives documentation for details.
+\layout Standard
+
+Perform some hits on your server and run a select:
+\layout LyX-Code
+
+mysql> select remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
+ from access_log where ssl_cipher is not null;
+\layout LyX-Code
+
++--------------------------+----------------------------------------------------
++------------+-------------+----------------+ 
+\layout LyX-Code
+
+| remote_host              | request_uri                               
+         | ssl_cipher | ssl_keysize | ssl_maxkeysize |
+\layout LyX-Code
+
++--------------------------+----------------------------------------------------
++------------+-------------+----------------+ 
+\layout LyX-Code
+
+| 216.190.52.4             | /dir/somefile.html                            
+     | RC4-MD5    | 128         | 128            | 
+\layout LyX-Code
+
+| 216.190.52.4             | /dir/somefile.gif                             
+     | RC4-MD5    | 128         | 128            | 
+\layout LyX-Code
+
+| 216.190.52.4             | /dir/somefile.jpg                             
+     | RC4-MD5    | 128         | 128            | 
+\layout LyX-Code
+
+...etc...
+\layout Subsection
+
+Does mod_log_sql connect to MySQL via TCP/IP or a socket?
+\layout Standard
+
+It depends! Actually this isn't determined by mod_log_sql.
+ mod_log_sql relies on a connection command that is supplied in the MySQL
+ API, and that command is somewhat intelligent.
+ When mod_log_sql issues the connect command to MySQL, this intelligent
+ connect command uses sockets to communicate with MySQL if the specified
+ MySQL database is on the same machine (because sockets are more efficient
+ than TCP/IP).
+ However, if the specified MySQL db is on a different machine, mod_log_sql
+ connects using TCP/IP.
+ You don't have any control of which methodology is used.
+\layout Standard
+
+You do have control over where mod_log_sql looks for the socket.
+ The LogSQLSocketFile runtime configuration directive overrides the default
+ of "/var/lib/mysql/mysql.sock" to whatever you wish.
+ (Applies to mod_log_sql 1.16 or later only.)
+\layout Subsection
+
+Why do I occasionally see a "connection lost, attempting reconnect" message
+ in my error-log?
+\layout Standard
+
+This message may appear every now and then in your Apache error log, especially
+ on very lightly loaded servers.
+ This doesn't mean that anything is necessarily wrong.
+ Within each httpd child process, mod_log_sql will open (and keep open)
+ a connection to the MySQL server.
+ MySQL, however, will close connections that haven't been used in a while;
+ the default timeout is 8 hours.
+ When this occurs, mod_log_sql will notice and re-open the connection.
+ That event is what is being logged, and looks like this:
+\layout LyX-Code
+
+[Thu Dec 13 05:42:18 2001] [error] mod_log_sql: connection lost, attempting
+ reconnect
+\layout LyX-Code
+
+[Thu Dec 13 05:42:18 2001] [error] mod_log_sql: reconnect successful
+\layout Standard
+
+Reference: 
+\begin_inset LatexCommand \url[MySQL documentation]{http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away}
+
+\end_inset 
+
+
+\layout Subsection
+
+Does mod_log_sql work with Apache 2.x?
+\layout Standard
+
+As of this writing, no.
+ The Apache Group significantly altered the module API with the release
+ of Apache 2.0.
+ All modules written for 1.3, including mod_log_sql, will not work with 2.0.
+\layout Standard
+
+mod_log_sql will eventually be ported to Apache 2.x, but not immediately.
+ It is going to take some time, and there are other features that have higher
+ priority.
+ Please sign up for the announcements list (on the main website) or monitor
+ the website for updates to learn when the port (and other releases) are
+ available.
+\layout Standard
+
+<OPINION>If you're a *NIX user, stick with Apache 1.3.x for now.
+ Major modules like mod_ssl and PHP are not even ready for 2.0 yet, and the
+ main benefits in 2.0 are for Win32 users anyway.
+ Apache 1.3.x is rock-stable and performs equally well on *NIX as 2.0.</OPINION>
+\layout Subsection
+
+I have discovered a bug.
+ Who can I contact?
+\layout Standard
+
+Please contact 
+\begin_inset LatexCommand \url[the maintainer]{chris@grubbybaby.com}
+
+\end_inset 
+
+! Your comments, suggestions, bugfixes, bug catches, and usage testimonials
+ are always welcome.
+ As free software, mod_log_sql is intended to be a community effort -- any
+ code contributions or other ideas will be fully and openly credited, of
+ course.
+\the_end

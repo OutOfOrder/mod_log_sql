@@ -1,9 +1,10 @@
-$Id: CHANGELOG,v 1.15 2002/09/04 18:46:00 helios Exp $
+$Id: CHANGELOG,v 1.16 2002/11/14 03:51:34 helios Exp $
 
 
 TODO:
 * Rethink documentation flow and rewrite?
-* Port connection portion to other DBMS?  Genericize the module?  Start with PostgreSQL.
+* Port connection portion to other DBMS?  Genericize the module?  Start with 
+PostgreSQL.
 * check for mandatory conf directives / syntax quit if not
 * GNU autoconf
 * merge server config into vh config
@@ -14,13 +15,36 @@ TODO:
 * new format char: IP as bigint?
 * socket-based middleman daemon with configurable conns?
 
-* go ahead and allow dashes - quote the table name!
-* maxlength of request field should be longer
+
+* Cookies in separate table
+* ignore by cookie
+
+
 
 
 CHANGES:
 
 1.17:
+* In make_combined_log.pl, backtick-quoted the table name and added an 
+  order-by clause within the select statement.
+* TCP port number for db connection is now configurable using LogSqlTCPPort
+* New directive LogSQLForcePreserve sends all log entries directly to the
+  preserve file and *entirely bypasses* the db.  Useful for debugging, but
+  can be dangerous if you forget it's set!
+* Table names are now quoted in all cases with backticks in order to permit
+  names containing dashes (since many hostnames contain dashes).
+* The request_method field is now created as a varchar(10) instead of (6),
+  after it was pointed out to me that some methods can be longer than 6.
+* New directive LogSQLMachineID sets a string identifier for the webserver
+  machine.  This is useful if you have a cluster of many webservers and you
+  want to differentiate between them in the logs:  you can tell which log
+  entries came from each machine and thereby analyze your loadbalacing
+  performance.  Activate with the TransferLogFormat character 'M'.  Much
+  faster than doing some sort of wacky IP addr lookup via local_addr().
+* Added an alternative way of logging cookies. If you need to associate 
+  multiple cookies with each request, the new way involves using 
+  LogSQLWhichCookies (note the plural) and LogSQLCookieLogTable.
+
 * Renamed the module mod_log_sql to conform to the project goal of
   database-inspecificity.
 * Added capability of logging Notes field.  This is useful for folks using
@@ -35,11 +59,11 @@ CHANGES:
   be opened.)
 * Changed default socket file to /tmp/mysql.sock because that's the
   default on a compiled MySQL.
-* Also check for '-' when I'm creating the table when MySQLMassVirtualHosting
-  is on, and change it to underscore.  (Already did this with '.')
+* Put back-quotes (`) around table name so that names with dashes are
+  legal.
 * Took away the prepend of /tmp to the preserve filename.  Now the
   user can specify whatever local path they want.  I figure that
-  filesystem permissions will prevent people from doing anything 
+  filesystem permissions will prevent people from doing anything
   really dumb, and people have requested this change.
 * Better checking in the extract_cookie routine.  Before, it could
   segfault if a person specified "c" but didn't define MySQLWhichCookie.
@@ -58,9 +82,10 @@ CHANGES:
 * Minor: remind user not to set createtables when massvirtual is on.
 * If Apache started but MySQL was unavailable, the module would do
   everything it was supposed to (preserve entries, etc.) but not notify
-  the sysadmin. Added a log message to alert sysadmin if MySQL is 
+  the sysadmin. Added a log message to alert sysadmin if MySQL is
   unreachable at startup.
 * New config key 'I' to extract & log unique_id, provided by mod_unique_id.
+  unique_id is the key that links separate tables (access, notes, etc.)
 * Migrated to the Artistic License (as used by Perl).
 * Moved table creation into its own callable function
 * Robustifying table creation
@@ -161,7 +186,7 @@ CHANGES:
   (e.g. GET, PUT, etc.)
 * New config capabilities: 'z' 'q' & 'Q' to log SSL_CIPHER,
   SSL_CIPHER_USEKEYSIZE and SSL_CIPHER_ALGKEYSIZE.  These require
-  openssl and glibc-devel to be installed.  (See the online 
+  openssl and glibc-devel to be installed.  (See the online
   directives documentation and FAQ.)
 * Fixed a bug in make_combined_log.pl that caused it to generate
   incorrect output on single-digit days.
@@ -182,11 +207,13 @@ CHANGES:
 	MySQLTransferLogFormat 
         Instruct the module what information to log to the MySQL transfer log
 	MySQLRefererIgnore 
-        List of referers to ignore, accesses that match will not be logged to MySQL
+        List of referers to ignore, accesses that match will not be logged to 
+MySQL
 	MySQLRequestIgnore 
         List of URIs to ignore, accesses that match will not be logged to MySQL
 	MySQLRemhostIgnore 
-        List of remote hosts to ignore, accesses that match will not be logged to MySQL
+        List of remote hosts to ignore, accesses that match will not be logged 
+to MySQL
 	MySQLDatabase 
         The name of the MySQL database for logging
 	MySQLWhichCookie 
@@ -256,7 +283,7 @@ CHANGES:
   more.
 * Now include a headerfile (http_log.h) that was missing.  Its
   absence was giving us this warning message: "implicit declaration of
-  function `ap_log_error_old'." 
+  function `ap_log_error_old'."
 * For numerics that Apache customarily logs as a "-" we now log a zero
   instead of a -1.  This seems to be more intuitive, e.g. in the
   "bytes_sent" column.
@@ -285,7 +312,7 @@ CHANGES:
 1.03:
 
 * Changed the check for 'mysql server has gone away' to be case
-  insensitive, so that it works with MySQL 3.21 
+  insensitive, so that it works with MySQL 3.21
 * Changed the behavior so that a link isn't established until it's
   necessary (e.g., if SQL logging is used for one virtual IP, a link
   won't be opened until there's an access to that IP).

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: make_combined_log.pl,v 1.4 2002/01/02 20:47:44 helios Exp $
+# $Id: make_combined_log.pl,v 1.5 2002/11/14 03:51:34 helios Exp $
 #
 # make_combined_log.pl
 #
@@ -69,7 +69,7 @@ if (not $dbh) {
 	die "Unable to connect to the database.  Please check your connection variables. (Bad password? Incorrect perms?)";
 }
 
-$records = $dbh->prepare("select remote_host,remote_user,request_uri,time_stamp,status,bytes_sent,referer,agent,request_method,request_protocol from $serverTbl where virtual_host='$virthost' and time_stamp >= $start");
+$records = $dbh->prepare("select remote_host,remote_user,request_uri,time_stamp,status,bytes_sent,referer,agent,request_method,request_protocol from `$serverTbl` where virtual_host='$virthost' and time_stamp >= $start order by time_stamp");
 $records->execute;
 if (not $records) {
 	die "No such table or the select returned no records."
