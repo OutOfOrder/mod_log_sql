@@ -53,13 +53,13 @@
 #define PACKAGE_NAME "mod_log_sql"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "mod_log_sql 1.97"
+#define PACKAGE_STRING "mod_log_sql 1.100"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "mod-log-sql"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.97"
+#define PACKAGE_VERSION "1.100"
 
 /* Define to 1 if you have the ANSI C header files. */
 /* #undef STDC_HEADERS */
