@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.13 2002/05/16 21:35:12 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.14 2002/05/24 20:52:39 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -71,7 +71,11 @@ typedef struct {
 	array_header *transfer_ignore_list;
 	array_header *remhost_ignore_list;
 	array_header *notes_list;
+	array_header *hout_list;
+	array_header *hin_list;
 	char *notes_table_name;
+	char *hout_table_name;
+	char *hin_table_name;
 	char *transfer_table_name;
 	char *transfer_log_format;
 	char *preserve_file;
@@ -718,6 +722,28 @@ const char *set_log_sql_notes_table(cmd_parms *parms, void *dummy, char *arg)
 	return NULL;
 }
 
+const char *set_log_sql_hin_table(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_sql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	if (massvirtual != 0)
+		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLHeadersInLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
+	else
+		cls->hin_table_name = arg;
+	return NULL;
+}
+
+const char *set_log_sql_hout_table(cmd_parms *parms, void *dummy, char *arg)
+{
+	log_sql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+	if (massvirtual != 0)
+		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLHeadersOutLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
+	else
+		cls->hout_table_name = arg;
+	return NULL;
+}
+
 const char *set_log_sql_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_sql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
@@ -732,7 +758,6 @@ const char *set_log_sql_socket_file(cmd_parms *parms, void *dummy, char *arg)
 
 	return NULL;
 }
-
 
 const char *add_log_sql_referer_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
@@ -771,6 +796,26 @@ const char *add_log_sql_note(cmd_parms *parms, void *dummy, char *arg)
 
     addme = push_array(cls->notes_list);
     *addme = pstrdup(cls->notes_list->pool, arg);
+    return NULL;
+}
+
+const char *add_log_sql_hout(cmd_parms *parms, void *dummy, char *arg)
+{
+    char **addme;
+    log_sql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+    addme = push_array(cls->hout_list);
+    *addme = pstrdup(cls->hout_list->pool, arg);
+    return NULL;
+}
+
+const char *add_log_sql_hin(cmd_parms *parms, void *dummy, char *arg)
+{
+    char **addme;
+    log_sql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
+
+    addme = push_array(cls->hin_list);
+    *addme = pstrdup(cls->hin_list->pool, arg);
     return NULL;
 }
 
@@ -850,12 +895,16 @@ void *log_sql_make_state(pool *p, server_rec *s)
 	cls->transfer_table_name = NULL;
 	cls->transfer_log_format = NULL;
 	cls->notes_table_name    = "notes";
+	cls->hin_table_name      = "headers_in";
+	cls->hout_table_name     = "headers_out";
 	
 	cls->referer_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
 	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->notes_list           = make_array(p, 1, sizeof(char *));
-	cls->table_made    = 0;
+	cls->hin_list             = make_array(p, 1, sizeof(char *));
+	cls->hout_list            = make_array(p, 1, sizeof(char *));
+	cls->table_made = 0;
 	
 	cls->preserve_file = "/tmp/sql-preserve";
 	cls->cookie_name = NULL;
@@ -873,6 +922,12 @@ command_rec log_sql_cmds[] = {
 	,
 	{"LogSQLNotesLogTable", set_log_sql_notes_table,	    		NULL, 	RSRC_CONF, 	TAKE1,
 	 "The database table that holds the notes"}
+	,
+	{"LogSQLHeadersOutLogTable", set_log_sql_hout_table,    		NULL, 	RSRC_CONF, 	TAKE1,
+	 "The database table that holds the outbound headers"}
+	,
+	{"LogSQLHeadersInLogTable", set_log_sql_hin_table,	    		NULL, 	RSRC_CONF, 	TAKE1,
+	 "The database table that holds the inbound headers"}
 	,
 	{"LogSQLTransferLogFormat", set_log_sql_transfer_log_format,	NULL, 	RSRC_CONF, 	TAKE1,
 	 "Instruct the module what information to log to the database transfer log"}
@@ -908,7 +963,13 @@ command_rec log_sql_cmds[] = {
 	 "Name of the file to employ for socket connections to database"}
 	,
 	{"LogSQLWhichNotes", add_log_sql_note,							NULL,	RSRC_CONF,	ITERATE,
-	 "Members of the 'notes' table that you would like to log"}
+	 "Members of the 'notes' that you would like to log"}
+	,
+	{"LogSQLWhichHeadersOut", add_log_sql_hout,						NULL,	RSRC_CONF,	ITERATE,
+	 "Members of the 'headers out' that you would like to log"}
+	,
+	{"LogSQLWhichHeadersIn", add_log_sql_hin,						NULL,	RSRC_CONF,	ITERATE,
+	 "Members of the 'headers in' that you would like to log"}
 	,
 	{NULL}
 };
@@ -931,13 +992,19 @@ int log_sql_transaction(request_rec *orig)
 	if ( massvirtual == 1 ) {
 		char *access_base = "access_";
 		char *notes_base = "notes_";
+		char *hout_base = "headout_";
+		char *hin_base = "headin_";
 		char *a_tablename;
 		char *n_tablename;
+		char *i_tablename;
+		char *o_tablename;
 		int i;
 		
 		/* Find memory long enough to hold the table name + \0. */
 		a_tablename = ap_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
 		n_tablename = ap_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
+		i_tablename = ap_pstrcat(orig->pool, hin_base,    ap_get_server_name(orig), NULL);
+		o_tablename = ap_pstrcat(orig->pool, hout_base,   ap_get_server_name(orig), NULL);
 	
 		/* Transform any dots or dashes to underscores */
 		for (i = 0; i < strlen(a_tablename); i++) {
@@ -948,12 +1015,22 @@ int log_sql_transaction(request_rec *orig)
 			if ( (n_tablename[i] == '.') || (n_tablename[i] == '-') )
 			  n_tablename[i] = '_';
 		}
+		for (i = 0; i < strlen(i_tablename); i++) {
+			if ( (i_tablename[i] == '.') || (i_tablename[i] == '-') )
+			  i_tablename[i] = '_';
+		}
+		for (i = 0; i < strlen(o_tablename); i++) {
+			if ( (o_tablename[i] == '.') || (o_tablename[i] == '-') )
+			  o_tablename[i] = '_';
+		}
 		
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
 		 */
 		cls->transfer_table_name = a_tablename;
 		cls->notes_table_name = n_tablename;
+		cls->hout_table_name = o_tablename;
+		cls->hin_table_name = i_tablename;
 		create_tables = 1;
 	}
 		
@@ -962,16 +1039,20 @@ int log_sql_transaction(request_rec *orig)
 		return DECLINED;
 	} else {
 		const char *thehost;
-		const char *thenote;
+		const char *theitem;
 		char *fields = "", *values = "";
-		char *notesets = "";
+		char *itemsets = "";
 		char *note_query = NULL;
+		char *hin_query = NULL;
+		char *hout_query = NULL;
 		const char *unique_id;
 		const char *formatted_item;
 		int i, j, length;
 		char *create_access = NULL;
 		char *create_notes = NULL;
-		int create_results_access, create_results_notes;
+		char *create_hout = NULL;
+		char *create_hin = NULL;
+		int create_results_access, create_results_notes, create_results_hout, create_results_hin;
 		
 		for (r = orig; r->next; r = r->next) {
 			continue;
@@ -1057,26 +1138,85 @@ int log_sql_transaction(request_rec *orig)
 		ptrptr2 = (char **) (cls->notes_list->elts + (cls->notes_list->nelts * cls->notes_list->elt_size));
 		for (ptrptr = (char **) cls->notes_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->notes_list->elt_size)) {
 			/* If the specified note (*ptrptr) exists for the current request... */
-		    if ((thenote = ap_table_get(r->notes, *ptrptr))) {
-				notesets = ap_pstrcat(r->pool, notesets, 
+		    if ((theitem = ap_table_get(r->notes, *ptrptr))) {
+				itemsets = ap_pstrcat(r->pool, itemsets, 
 									  (i > 0 ? "," : ""),
 									  "('",
 									  unique_id,
 									  "','",
 									  escape_query(*ptrptr, r->pool), 
 									  "','", 
-									  escape_query(thenote, r->pool),
+									  escape_query(theitem, r->pool),
 									  "')", 
 									  NULL);
 				i++;					
 			}
 		}
-		if ( notesets != "" ) {
-			note_query = ap_pstrcat(r->pool, "insert into ", cls->notes_table_name, " (id, item, val) values ", notesets, NULL);
+		if ( itemsets != "" ) {
+			note_query = ap_pstrcat(r->pool, "insert into ", cls->notes_table_name, " (id, item, val) values ", itemsets, NULL);
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: note string: %s", note_query);
 		   	#endif
 		}
+		
+		/* Work through the list of headers-out defined by LogSQLHeadersOutToLog */
+		i = 0;
+		itemsets = "";
+		
+		ptrptr2 = (char **) (cls->hout_list->elts + (cls->hout_list->nelts * cls->hout_list->elt_size));
+		for (ptrptr = (char **) cls->hout_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->hout_list->elt_size)) {
+			/* If the specified note (*ptrptr) exists for the current request... */
+		    if ((theitem = ap_table_get(r->headers_out, *ptrptr))) {
+				itemsets = ap_pstrcat(r->pool, itemsets, 
+									  (i > 0 ? "," : ""),
+									  "('",
+									  unique_id,
+									  "','",
+									  escape_query(*ptrptr, r->pool), 
+									  "','", 
+									  escape_query(theitem, r->pool),
+									  "')", 
+									  NULL);
+				i++;					
+			}
+		}
+		if ( itemsets != "" ) {
+			hout_query = ap_pstrcat(r->pool, "insert into ", cls->hout_table_name, " (id, item, val) values ", itemsets, NULL);
+			#ifdef DEBUG
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_out string: %s", hout_query);
+		   	#endif
+		}
+
+		
+		/* Work through the list of headers-in defined by LogSQLHeadersInToLog */
+		i = 0;
+		itemsets = "";
+		
+		ptrptr2 = (char **) (cls->hin_list->elts + (cls->hin_list->nelts * cls->hin_list->elt_size));
+		for (ptrptr = (char **) cls->hin_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->hin_list->elt_size)) {
+			/* If the specified note (*ptrptr) exists for the current request... */
+		    if ((theitem = ap_table_get(r->headers_in, *ptrptr))) {
+				itemsets = ap_pstrcat(r->pool, itemsets, 
+									  (i > 0 ? "," : ""),
+									  "('",
+									  unique_id,
+									  "','",
+									  escape_query(*ptrptr, r->pool), 
+									  "','", 
+									  escape_query(theitem, r->pool),
+									  "')", 
+									  NULL);
+				i++;					
+			}
+		}
+		if ( itemsets != "" ) {
+			hin_query = ap_pstrcat(r->pool, "insert into ", cls->hin_table_name, " (id, item, val) values ", itemsets, NULL);
+			#ifdef DEBUG
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_in string: %s", hin_query);
+		   	#endif
+		}
+		
+		
 		
 		/* Is this virtual server's table flagged as made?  We flag it as such in order
 		 * to avoid extra processing with each request.  If it's not flagged as made,
@@ -1114,13 +1254,22 @@ int log_sql_transaction(request_rec *orig)
 			   item varchar(80),\
 			   val varchar(80))";
 			
+			char *headers_suffix = 
+			 " (id char(19),\
+			   item varchar(80),\
+               val varchar(80))";
+
 			/* Find memory long enough to hold the whole CREATE string + \0 */
 			create_access = ap_pstrcat(orig->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);			
 			create_notes  = ap_pstrcat(orig->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);			
+			create_hout   = ap_pstrcat(orig->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);			
+			create_hin    = ap_pstrcat(orig->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);			
 			
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_access);
 				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_notes);
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_hout);
+				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"create string: %s", create_hin);
 			#endif
 
 		}
@@ -1144,7 +1293,13 @@ int log_sql_transaction(request_rec *orig)
 				 * gone and send the entry to the preserve file instead. 
 				 * Note that we don't keep logging the db error over and over. */
 				preserve_entry(orig, access_query);
-				preserve_entry(orig, note_query);
+				if ( note_query != NULL )  
+					preserve_entry(orig, note_query);
+				if ( hin_query != NULL )
+				  	preserve_entry(orig, hin_query);
+				if ( hout_query != NULL )
+				  	preserve_entry(orig, hout_query);
+				
 				return OK;
 			} else {
 				/* Whew, we got the DB link back */
@@ -1159,9 +1314,11 @@ int log_sql_transaction(request_rec *orig)
 		/* Make the tables if we're supposed to. */
 		if ((cls->table_made != 1) && (create_tables != 0)) {
 		  	create_results_access = safe_mysql_query(orig, create_access);
-			create_results_notes = safe_mysql_query(orig,create_notes);
+			create_results_notes  = safe_mysql_query(orig, create_notes);
+			create_results_hin    = safe_mysql_query(orig, create_hin);
+			create_results_hout   = safe_mysql_query(orig, create_hout);
 			
-			if ( (create_results_access == 0) && (create_results_notes == 0) )
+			if ( (create_results_access == 0) && (create_results_notes == 0) && (create_results_hin == 0) && (create_results_hout == 0) )
 			  	cls->table_made = 1;
 			else
 		  		ap_log_error(APLOG_MARK,ERRLEVEL,orig->server,"mod_log_sql: failed to create all tables, see preserve file");
@@ -1173,6 +1330,12 @@ int log_sql_transaction(request_rec *orig)
 		/* If notes are available to log, make the notes-table insert */
 		if ( note_query != NULL )
 			safe_mysql_query(orig, note_query);
+		
+		if ( hout_query != NULL )
+		  	safe_mysql_query(orig, hout_query);
+		
+		if ( hin_query != NULL )
+		  	safe_mysql_query(orig, hin_query);
 	
 		return OK;
 	}

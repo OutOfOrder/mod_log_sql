@@ -1,15 +1,16 @@
-$Id: CHANGELOG,v 1.12 2002/05/16 21:35:12 helios Exp $
+$Id: CHANGELOG,v 1.13 2002/05/24 20:52:39 helios Exp $
 
 
 TODO:
-* Full commenting of the code.
 * Rethink documentation flow and rewrite?
 * Port connection portion to other DBMS?  Genericize the module?  Start with PostgreSQL.
 * check for mandatory conf directives / syntax quit if not
+* GNU autoconf
 * merge server config into vh config
 * port to Apache 2.x
 * does determining table name in massvirtual mode upon every request
   cause performance degradation?  If so fix.
+
 
 CHANGES:
 
@@ -20,6 +21,9 @@ CHANGES:
   custom modules that provide loggable info in the notes, e.g. mod_gzip.
   A new directive MySQLWhichNotes configures which notes to log to the
   notes_log table.
+* Added capability of logging inbound and outbound headers. New directives
+  LogSQLWhichHeadersIn and LogSQLWhichHeadersOut configure which headers to
+  capture.  Headers are stored in their own table or tables.
 * Fixed potential segfault in preserve file function due to silly pfclose
   placement. (Only affected user if the preserve file couldn't
   be opened.)
@@ -37,7 +41,10 @@ CHANGES:
   of database inspecificity.  More to come.
 * Simplified error messages.
 * Table creation now uses safe_mysql_query and checks the result.
-
+* Config directives used to begin with MySQL, now begin with LogSQL.
+  This is for database inspecificity.  In your httpd.conf just do
+  a search-and-replace.
+  
 
 1.16:
 * Moved all the user DEFINEs inside the .c file -- splitting them
