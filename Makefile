@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.20 2002/12/18 01:06:33 helios Exp $
+# $Id: Makefile,v 1.21 2002/12/18 22:56:37 helios Exp $
 
 ###########################################################################
 # Important:
@@ -85,11 +85,11 @@ distro: documentation
 	@scp Documentation/*.ps $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs
 	@scp Documentation/HTML/*.html $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
 	@scp Documentation/HTML/*.png $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/docs/
-	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
-	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.gz $(APACHEINSTALLED)/html/mod_log_sql/mod_log_sql.tar.gz"
+	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
+	@ssh $(WEBSERV) "ln -sf mod_log_sql-$(MLMVERS).tar.bz2 $(APACHEINSTALLED)/html/mod_log_sql/mod_log_sql.tar.bz2"
 
 pre-distro: documentation
-	@cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.gz $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+	@cd ..; tar jcf mod_log_sql-$(MLMVERS).tar.bz2 --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS --exclude mod_log_sql/Documentation/HTML/CVS --exclude ".directory" mod_log_sql/; scp mod_log_sql-$(MLMVERS).tar.bz2 $(WEBSERV):$(APACHEINSTALLED)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.bz2
 
 documentation: Documentation/documentation.lyx
 	@echo "Creating LaTeX docs..."
