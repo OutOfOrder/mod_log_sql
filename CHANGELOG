@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.11 2004/02/05 22:05:42 urkle Exp $
+$Id: CHANGELOG,v 1.12 2004/02/12 03:18:41 urkle Exp $
 
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
@@ -23,13 +23,13 @@ TODO:
 CHANGES:
 1.95: 2004-02-05
 * audit and update of extract_* functions to acheive same output as 
-	mod_log_config.
+  mod_log_config.
 
 1.94: 2004-02-03
 * ssl loggin back in as separate module under 1.3 and 2.0
 * preparsing of format tags is now done to speed up main logging loop.
 * fixed a nasty bug with pointer arithmetic (ick) that caused a segfault with
-	LogSQLWhichCookies
+  LogSQLWhichCookies
 
 1.93: 2004-01-20
 * Compiles for apache 1.3 AND 2.0
@@ -37,9 +37,9 @@ CHANGES:
 * split apache version specific includes to seperate header files
 * added wrapper defines for apache 1.3
 * updated configure m4 scripts to detect both apache versions at the same time 
-	and assign defines as to which version was found.
+  and assign defines as to which version was found.
 * made install default to not activate module in configuration files.
-	(use make activate)
+  use make activate instead
 * split SSL logging to separate module (still needs to be finished)
 
 1.92: 2004-01-05
