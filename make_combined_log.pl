@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: make_combined_log.pl,v 1.2 2001/12/03 19:54:02 helios Exp $
+# $Id: make_combined_log.pl,v 1.3 2001/12/04 00:11:59 helios Exp $
 #
 # make_combined_log.pl
 #
@@ -88,7 +88,7 @@ if (not $records) {
 # Pull out the data row by row and format it
 #
 while (@data = $records->fetchrow_array) {
-	($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($data[4]);
+	($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($data[3]);
 	$year=$year+1900;
 
 	# Create format for leading-zero formatting
@@ -121,7 +121,7 @@ while (@data = $records->fetchrow_array) {
 	} else {
 		print "$st_tz\] ";
 	}
-	print "\"$data[9] $data[2] $data[10]\" $data[5] $data[6] \"$data[7]\" \"$data[8]\"\n";
+	print "\"$data[8] $data[2] $data[9]\" $data[4] $data[5] \"$data[6]\" \"$data[7]\"\n";
 }
 
 #
