@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.12 2004/01/22 05:26:56 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.13 2004/02/04 02:16:33 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -629,8 +629,7 @@ static const char *add_server_string_slot(cmd_parms *cmd,
 	void *ptr = ap_get_module_config(cmd->server->module_config,
 			&log_sql_module);
 	int offset = (int)(long)cmd->info;
-	apr_array_header_t *ary = *(apr_array_header_t **)((apr_array_header_t *)ptr + offset);
-
+	apr_array_header_t *ary = *(apr_array_header_t **)(ptr + offset);
 	addme = apr_array_push(ary);
 	*addme = apr_pstrdup(ary->pool, arg);
 	    
