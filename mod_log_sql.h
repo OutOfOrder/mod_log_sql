@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.h,v 1.5 2004/03/02 05:34:50 urkle Exp $ */
+/* $Id$ */
 
 #ifndef MOD_LOG_SQL_H
 #define MOD_LOG_SQL_H
