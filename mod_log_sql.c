@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.10 2004/01/20 20:36:41 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.11 2004/01/21 04:34:21 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -116,27 +116,38 @@ typedef struct {
 static int safe_create_tables(logsql_state *cls, request_rec *r);
 
 typedef struct {
-	  log_sql_item_func *func;		/* its extraction function */
-	  const char *sql_field_name;	/* its column in SQL */
-	  int want_orig_default;		/* if it requires the original request prior to internal redirection */
-	  int string_contents;			/* if it returns a string */
+	char key;					/* item letter character */
+	log_sql_item_func *func;	/* its extraction function */
+	const char *sql_field_name;	/* its column in SQL */
+	int want_orig_default;		/* if it requires the original request prior to internal redirection */
+	int string_contents;		/* if it returns a string */
 } log_sql_item;
 
-static apr_hash_t *log_sql_hash;
+static apr_array_header_t *log_sql_item_list;
 
 /* Registration Function for extract functions */
-LOGSQL_DECLARE(void) log_sql_register_item(apr_pool_t *p, char *key,
+LOGSQL_DECLARE(void) log_sql_register_item(apr_pool_t *p, char key,
 		log_sql_item_func *func, const char *sql_field_name,
 		int want_orig_default, int string_contents)
 {
-	log_sql_item *item = apr_palloc(p, sizeof(log_sql_item));
-	/*item->key = */
+	log_sql_item *item = apr_array_push(log_sql_item_list);
+	item->key = key;
 	item->func = func;
 	item->sql_field_name = sql_field_name;
 	item->want_orig_default = want_orig_default;
 	item->string_contents = string_contents;
-	/* TODO: find apache 13 way of doing this */
-	apr_hash_set(log_sql_hash, key, APR_HASH_KEY_STRING, item);
+}
+
+/* Search through item array */
+static inline log_sql_item *log_sql_get_item(char key)
+{
+	int itr;
+	for(itr=0; itr<log_sql_item_list->nelts; itr++) {
+		if (((log_sql_item *)log_sql_item_list->elts)[itr].key == key) {
+			return &((log_sql_item *)log_sql_item_list->elts)[itr];
+		}
+	}
+	return NULL;
 }
 
 /* Include all the extract functions */
@@ -613,7 +624,7 @@ static const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, const cha
  * Apache-specific hooks into the module code                 *
  * that are defined in the array 'mysql_lgog_module' (at EOF) *
  *------------------------------------------------------------*/
-
+/* Closing mysql link: child_exit(1.3), pool registration(2.0) */
 #if defined(WITH_APACHE20)
 static apr_status_t log_sql_close_link(void *data)
 {
@@ -626,14 +637,8 @@ static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
 	mysql_close(global_config.server_p);
 }
 #endif
-/*
- * This function is called during server initialisation when an heavy-weight
- * process (such as a child) is being initialised.  As with the
- * module-initialisation function, any information that needs to be recorded
- * must be in static cells, since there's no configuration record.
- *
- * There is no return value.
- */
+
+/* Child Init */
 #if defined(WITH_APACHE20)
 static void log_sql_child_init(apr_pool_t *p, server_rec *s)
 {
@@ -680,7 +685,7 @@ void *log_sql_initializer(server_rec *main_server, apr_pool_t *p)
 #if defined(WITH_APACHE20)
 static int log_sql_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp)
 #elif defined(WITH_APACHE13)
-static void log_sql_pre_config(server_rec *s, apr_pool_t *p)
+static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 {
 	/* Initialize Global configuration */
@@ -688,33 +693,33 @@ static void log_sql_pre_config(server_rec *s, apr_pool_t *p)
 		global_config.socketfile = "/tmp/mysql.sock";
 	if (!global_config.tcpport)
 		global_config.tcpport = 3306;
-	if (!log_sql_hash)
-		log_sql_hash = apr_hash_make(p);
+	if (!log_sql_item_list)
+		log_sql_item_list = apr_array_make(p,10,sizeof(log_sql_item));
 
 	/* Register handlers */
-	log_sql_register_item(p,"A", extract_agent,             "agent",            1, 1);
-	log_sql_register_item(p,"a", extract_request_args,      "request_args",     1, 1);
-	log_sql_register_item(p,"b", extract_bytes_sent,        "bytes_sent",       0, 0);
-    log_sql_register_item(p,"c", extract_cookie,            "cookie",           0, 1);
-    log_sql_register_item(p,"e", extract_env_var,           "env_var",          0, 1);
-    log_sql_register_item(p,"f", extract_request_file,      "request_file",     0, 1);
-	log_sql_register_item(p,"H", extract_request_protocol,  "request_protocol", 0, 1);
-	log_sql_register_item(p,"h", extract_remote_host,       "remote_host",      0, 1);
-	log_sql_register_item(p,"I", extract_unique_id,         "id",               0, 1);
-	log_sql_register_item(p,"l", extract_remote_logname,    "remote_logname",   0, 1);
-	log_sql_register_item(p,"m", extract_request_method,    "request_method",   0, 1);
-	log_sql_register_item(p,"M", extract_machine_id,        "machine_id",       0, 1);
-	log_sql_register_item(p,"P", extract_child_pid,         "child_pid",        0, 0);
-	log_sql_register_item(p,"p", extract_server_port,       "server_port",      0, 0);
-	log_sql_register_item(p,"R", extract_referer,           "referer",          1, 1);
-	log_sql_register_item(p,"r", extract_request_line,      "request_line",     1, 1);
-	log_sql_register_item(p,"S", extract_request_timestamp, "time_stamp",       0, 0);
-	log_sql_register_item(p,"s", extract_status,            "status",           1, 0);
-	log_sql_register_item(p,"T", extract_request_duration,  "request_duration", 1, 0);
-	log_sql_register_item(p,"t", extract_request_time,      "request_time",     0, 1);
-	log_sql_register_item(p,"u", extract_remote_user,       "remote_user",      0, 1);
-	log_sql_register_item(p,"U", extract_request_uri,       "request_uri",      1, 1);
-	log_sql_register_item(p,"v", extract_virtual_host,      "virtual_host",     0, 1);
+	log_sql_register_item(p,'A', extract_agent,             "agent",            1, 1);
+	log_sql_register_item(p,'a', extract_request_args,      "request_args",     1, 1);
+	log_sql_register_item(p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
+    log_sql_register_item(p,'c', extract_cookie,            "cookie",           0, 1);
+    log_sql_register_item(p,'e', extract_env_var,           "env_var",          0, 1);
+    log_sql_register_item(p,'f', extract_request_file,      "request_file",     0, 1);
+	log_sql_register_item(p,'H', extract_request_protocol,  "request_protocol", 0, 1);
+	log_sql_register_item(p,'h', extract_remote_host,       "remote_host",      0, 1);
+	log_sql_register_item(p,'I', extract_unique_id,         "id",               0, 1);
+	log_sql_register_item(p,'l', extract_remote_logname,    "remote_logname",   0, 1);
+	log_sql_register_item(p,'m', extract_request_method,    "request_method",   0, 1);
+	log_sql_register_item(p,'M', extract_machine_id,        "machine_id",       0, 1);
+	log_sql_register_item(p,'P', extract_child_pid,         "child_pid",        0, 0);
+	log_sql_register_item(p,'p', extract_server_port,       "server_port",      0, 0);
+	log_sql_register_item(p,'R', extract_referer,           "referer",          1, 1);
+	log_sql_register_item(p,'r', extract_request_line,      "request_line",     1, 1);
+	log_sql_register_item(p,'S', extract_request_timestamp, "time_stamp",       0, 0);
+	log_sql_register_item(p,'s', extract_status,            "status",           1, 0);
+	log_sql_register_item(p,'T', extract_request_duration,  "request_duration", 1, 0);
+	log_sql_register_item(p,'t', extract_request_time,      "request_time",     0, 1);
+	log_sql_register_item(p,'u', extract_remote_user,       "remote_user",      0, 1);
+	log_sql_register_item(p,'U', extract_request_uri,       "request_uri",      1, 1);
+	log_sql_register_item(p,'v', extract_virtual_host,      "virtual_host",     0, 1);
 
 #if defined(WITH_APACHE20)
 	return OK;
@@ -822,21 +827,23 @@ static int log_sql_transaction(request_rec *orig)
 	logsql_state *cls = ap_get_module_config(orig->server->module_config, &log_sql_module);
 	const char *access_query;
 	request_rec *r;
+	char *transfer_tablename = cls->transfer_table_name;
+	char *notes_tablename = cls->notes_table_name;
+	char *hout_tablename = cls->hout_table_name;
+	char *hin_tablename = cls->hin_table_name;
+	char *cookie_tablename = cls->cookie_table_name;
 
 	/* We handle mass virtual hosting differently.  Dynamically determine the name
 	 * of the table from the virtual server's name, and flag it for creation.
 	 */
 	if (global_config.massvirtual) {
+		/* TODO: Make these configurable? */
 		char *access_base = "access_";
 		char *notes_base  = "notes_";
 		char *hout_base   = "headout_";
 		char *hin_base    = "headin_";
 		char *cookie_base = "cookies_";
-		char *a_tablename;
-		char *n_tablename;
-		char *i_tablename;
-		char *o_tablename;
-		char *c_tablename;
+
 
 		/* Determint the hostname and convert it to all lower-case; */
 		char *servername = apr_pstrdup(orig->pool,(char *)ap_get_server_name(orig));
@@ -848,25 +855,21 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		
 		/* Find memory long enough to hold the table name + \0. */
-		a_tablename = apr_pstrcat(orig->pool, access_base, servername, NULL);
-		n_tablename = apr_pstrcat(orig->pool, notes_base,  servername, NULL);
-		i_tablename = apr_pstrcat(orig->pool, hin_base,    servername, NULL);
-		o_tablename = apr_pstrcat(orig->pool, hout_base,   servername, NULL);
-		c_tablename = apr_pstrcat(orig->pool, cookie_base, servername, NULL);
+		transfer_tablename = apr_pstrcat(orig->pool, access_base, servername, NULL);
+		notes_tablename = apr_pstrcat(orig->pool, notes_base,  servername, NULL);
+		hin_tablename = apr_pstrcat(orig->pool, hin_base,    servername, NULL);
+		hout_tablename = apr_pstrcat(orig->pool, hout_base,   servername, NULL);
+		cookie_tablename = apr_pstrcat(orig->pool, cookie_base, servername, NULL);
 
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
 		 */
-		cls->transfer_table_name = a_tablename;
-		cls->notes_table_name = n_tablename;
-		cls->hout_table_name = o_tablename;
-		cls->hin_table_name = i_tablename;
-		cls->cookie_table_name = c_tablename;
+		
 		global_config.createtables = 1;
 	}
 
 	/* Do we have enough info to log? */
-	if (!cls->transfer_table_name) {
+	if (!transfer_tablename) {
 		return DECLINED;
 	} else {
 		const char *thehost;
@@ -879,7 +882,8 @@ static int log_sql_transaction(request_rec *orig)
 		char *cookie_query = NULL;
 		const char *unique_id;
 		const char *formatted_item;
-		int i, j, length;
+		char *s;
+		int i;
 		int proceed;
 
 		for (r = orig; r->next; r = r->next) {
@@ -925,42 +929,34 @@ static int log_sql_transaction(request_rec *orig)
 				}
 		}
 
-		length = strlen(cls->transfer_log_format);
 
 		/* Iterate through the format characters and set up the INSERT string according to
 		 * what the user has configured. */
-		for (i = 0; i < length; i++) {
-			j = 0;
-			
-			while (log_sql_item_keys[j].ch) {
+		i = 0;
+		for (s = cls->transfer_log_format; *s != '\0' ; s++) {
+			log_sql_item *item = log_sql_get_item(*s);
 
-				  if (log_sql_item_keys[j].ch == cls->transfer_log_format[i]) {
-					/* Yes, this key is one of the configured keys.
-					 * Call the key's function and put the returned value into 'formatted_item' */
-					formatted_item = log_sql_item_keys[j].func(log_sql_item_keys[j].want_orig_default ? orig : r, "");
+			/* Yes, this key is one of the configured keys.
+			 * Call the key's function and put the returned value into 'formatted_item' */
+			formatted_item = item->func(item->want_orig_default ? orig : r, "");
 
-				     /* Massage 'formatted_item' for proper SQL eligibility... */
-					if (!formatted_item) {
-						formatted_item = "";
-					} else if (formatted_item[0] == '-' && formatted_item[1] == '\0' && !log_sql_item_keys[j].string_contents) {
-						/* If apache tried to log a '-' character for a numeric field, convert that to a zero
-						 * because the database expects a numeral and will reject the '-' character. */
-						formatted_item = "0";
-					}
-
-				     /* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
-					fields = apr_pstrcat(r->pool, fields, (i > 0 ? "," : ""),
-									 log_sql_item_keys[j].sql_field_name, NULL);
-
-					values = apr_pstrcat(r->pool, values, (i > 0 ? "," : ""),
-									 (log_sql_item_keys[j].string_contents ? "'" : ""),
-								     escape_query(formatted_item, r->pool),
-									 (log_sql_item_keys[j].string_contents ? "'" : ""), NULL);
-					break;
-				}
-				j++;
-
+			/* Massage 'formatted_item' for proper SQL eligibility... */
+			if (!formatted_item) {
+				formatted_item = "";
+			} else if (formatted_item[0] == '-' && formatted_item[1] == '\0' && !item->string_contents) {
+				/* If apache tried to log a '-' character for a numeric field, convert that to a zero
+				 * because the database expects a numeral and will reject the '-' character. */
+				formatted_item = "0";
 			}
+
+		     /* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
+			fields = apr_pstrcat(r->pool, fields, (i ? "," : ""),
+						 item->sql_field_name, NULL);
+			values = apr_pstrcat(r->pool, values, (i ? "," : ""),
+						 (item->string_contents ? "'" : ""),
+					     escape_query(formatted_item, r->pool),
+						 (item->string_contents ? "'" : ""), NULL);
+			i = 1;
 		}
 
 		/* Work through the list of notes defined by LogSQLWhichNotes */
@@ -986,7 +982,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", cls->notes_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", notes_tablename, itemsets);
 
 			#ifdef DEBUG
 				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: note string: %s", note_query);
@@ -1016,7 +1012,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", cls->hout_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", hout_tablename, itemsets);
 
 			#ifdef DEBUG
 				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_out string: %s", hout_query);
@@ -1047,7 +1043,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", cls->hin_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", hin_tablename, itemsets);
 
 			#ifdef DEBUG
 				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_in string: %s", hin_query);
@@ -1079,7 +1075,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":"", cls->cookie_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", cookie_tablename, itemsets);
 
 			#ifdef DEBUG
 				log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
@@ -1089,7 +1085,7 @@ static int log_sql_transaction(request_rec *orig)
 
 		/* Set up the actual INSERT statement */
 		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
-			global_config.insertdelayed?"delayed":"", cls->transfer_table_name, fields, values);
+			global_config.insertdelayed?"delayed":"", transfer_tablename, fields, values);
 
 		#ifdef DEBUG
 	        log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: access string: %s", access_query);
@@ -1166,8 +1162,6 @@ static int log_sql_transaction(request_rec *orig)
 		return OK;
 	}
 }
-
-
 
 
 /* Setup of the available httpd.conf configuration commands.
@@ -1274,8 +1268,8 @@ static const command_rec log_sql_cmds[] = {
 	,
 	{NULL}
 };
-#if defined(WITH_APACHE20)
 /* The configuration array that sets up the hooks into the module. */
+#if defined(WITH_APACHE20)
 static void register_hooks(apr_pool_t *p) {
 	ap_hook_pre_config(log_sql_pre_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_child_init(log_sql_child_init, NULL, NULL, APR_HOOK_MIDDLE);
@@ -1293,10 +1287,9 @@ module AP_MODULE_DECLARE_DATA log_sql_module = {
     register_hooks	/* register hooks */
 };
 #elif defined(WITH_APACHE13)
-/* The configuration array that sets up the hooks into the module. */
 module log_sql_module = {
 	STANDARD_MODULE_STUFF,
-	log_sql_pre_config,		 /* module initializer 				*/
+	log_sql_module_init,	 /* module initializer 				*/
 	NULL,					 /* create per-dir config 			*/
 	NULL,					 /* merge per-dir config 			*/
 	log_sql_make_state,		 /* create server config 			*/

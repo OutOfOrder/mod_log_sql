@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/apache20.h,v 1.2 2004/01/20 19:38:07 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/apache20.h,v 1.3 2004/01/21 04:34:21 urkle Exp $ */
 #ifndef APACHE20_H
 #define APACHE20_H
 
@@ -23,9 +23,11 @@
 static void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 5,6)));
 static inline void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...)
 {
+	static char buff[MAX_STRING_LEN];
 	va_list args;
 	va_start(args, fmt);
-	ap_log_error(file,line,level,0,s,fmt,args);
+	apr_vsnprintf(buff,MAX_STRING_LEN, fmt,args);
+	ap_log_error(file,line,level,0,s,"%s",buff);
 	va_end(args);
 }
 

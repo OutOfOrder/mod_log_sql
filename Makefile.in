@@ -5,7 +5,8 @@ SUBDIRS = Documentation
 SOURCES = \
 	@PACKAGE_NAME@.c
 
-HEADERS = functions.h \
+HEADERS = mod_log_sql.h \
+		functions.h \
 		functions13.h \
 		functions20.h \
 		apache13.h \
