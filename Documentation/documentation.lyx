@@ -1,22 +1,24 @@
-#LyX 1.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 218
+#LyX 1.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 220
 \textclass article
 \language english
 \inputencoding default
 \fontscheme default
 \graphics default
-\float_placement !hptb
+\float_placement !htbp
 \paperfontsize 10
 \spacing single 
 \papersize letterpaper
 \paperpackage a4
 \use_geometry 1
 \use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
 \paperorientation portrait
 \leftmargin 1in
 \topmargin 0.5in
 \rightmargin 1in
-\bottommargin 1in
+\bottommargin 0.65in
 \secnumdepth 3
 \tocdepth 3
 \paragraph_separation indent
@@ -255,6 +257,102 @@ Additionally, if you want to be able to log SSL information such as keysize
  Both are available as RPMs.
 \layout Subsection
 
+Platform-specific notes
+\layout Standard
+
+These installation documents assume a relatively modern GNU/Linux scenario.
+ mod_log_sql has been ported to other platforms; notes on compiling the
+ module on those platforms are noted here.
+\layout Subsubsection
+
+Solaris
+\layout Standard
+
+The nanosleep() function used in mod_log_sql relies on linking aginst the
+ librt library.
+ Make the following alterations before proceeding:
+\layout Enumerate
+
+In Makefile, search for the string 
+\begin_inset Quotes eld
+\end_inset 
+
+-lmysqlclient -lz
+\begin_inset Quotes erd
+\end_inset 
+
+ and change it to read 
+\begin_inset Quotes eld
+\end_inset 
+
+-lmysqlclient -lz -lrt
+\begin_inset Quotes erd
+\end_inset 
+
+
+\layout Enumerate
+
+In part 
+\begin_inset LatexCommand \ref{step:Linking}
+
+\end_inset 
+
+ of section 
+\begin_inset LatexCommand \ref{sec:Static}
+
+\end_inset 
+
+ below, change 
+\begin_inset Quotes eld
+\end_inset 
+
+-lmysqlclient -lm -lz
+\begin_inset Quotes erd
+\end_inset 
+
+ to read 
+\begin_inset Quotes eld
+\end_inset 
+
+-lmysqlclient -lm -lz -lrt
+\begin_inset Quotes erd
+\end_inset 
+
+
+\layout Subsubsection
+
+BSD
+\layout Standard
+
+No notes are available at present, but they are desired.
+ If you have successfully ported mod_log_sql to BSD, 
+\emph on 
+please 
+\emph default 
+contact 
+\begin_inset LatexCommand \url[the maintaniner, Chris Powell]{(chris@grubbybaby.com)}
+
+\end_inset 
+
+ and help fill in this section.
+\layout Subsubsection
+
+Win32
+\layout Standard
+
+No notes are available at present, but they are desired.
+ If you have successfully ported mod_log_sql to Win32, 
+\emph on 
+please 
+\emph default 
+contact 
+\begin_inset LatexCommand \url[the maintaniner, Chris Powell]{(chris@grubbybaby.com)}
+
+\end_inset 
+
+ and help fill in this section.
+\layout Subsection
+
 Do I want a DSO?
 \layout Standard
 
@@ -281,7 +379,10 @@ Perform all the following steps as root so that you have install privs,
 \begin_deeper 
 \layout LyX-Code
 
-# tar zxf mod_log_sql.tar.gz -C /usr/local/src # cd /usr/local/src/mod_log_sql
+# tar zxf mod_log_sql.tar.gz -C /usr/local/src 
+\layout LyX-Code
+
+# cd /usr/local/src/mod_log_sql
 \end_deeper 
 \layout Enumerate
 
@@ -335,19 +436,15 @@ You should see output similar to the following:
 \begin_deeper 
 \layout LyX-Code
 
-/usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/include/mysql
- -I/usr/local/src/apache_1.3.27-dso/src/modules/ssl -L/usr/lib -lmysqlclient
- -lz mod_log_sql.c 
+/usr/local/Apache/bin/apxs -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -c -I/usr/incl...
+ 
 \layout LyX-Code
 
-gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HSREGEX -DEAPI
- -DUSE_EXPAT -I../lib/expat-lite -fpic -DSHARED_CORE -DSHARED_MODULE -I/usr/local/
-Apache/include -O2 -Wall -DEAPI -I/usr/include/mysql -I/usr/local/src/apache_1.3.2
-7-dso/src/modules/ssl -c mod_log_sql.c 
+gcc -DLINUX=22 -DNO_DBM_REWRITEMAP -DMOD_SSL=208111 -DUSE_HSREGEX -DEAPI...
+ 
 \layout LyX-Code
 
-gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc,-DEAPI -L/usr/li
-b -lmysqlclient -lz -lm -lcrypt -ldb
+gcc -shared -o mod_log_sql.so mod_log_sql.o -Wc,-O2 -Wc,-Wall -Wc,-DEAPI...
 \layout Standard
 
 You should see no errors and have a file called "mod_log_sql.so" in your
@@ -405,6 +502,11 @@ If you don't, you will get this error when you start Apache:
 Now skip below to the "Configuration" section.
 \end_deeper 
 \layout Subsection
+
+
+\begin_inset LatexCommand \label{sec:Static}
+
+\end_inset 
 
 Installation as a static module compiled into httpd
 \layout Enumerate
@@ -488,6 +590,11 @@ Change to your Apache source dir.
 Re-make your httpd binary as follows.
 \begin_deeper 
 \layout Enumerate
+
+
+\begin_inset LatexCommand \label{step:Linking}
+
+\end_inset 
 
 Edit Configuration.apaci as follows...
 \begin_deeper 
@@ -633,7 +740,9 @@ Create a specific MySQL userid that httpd will use to authenticate and enter
 \layout LyX-Code
 
 mysql> grant insert,create on apachelogs.* to loguser@my.apachemachine.com
- identified by 'l0gger';
+\layout LyX-Code
+
+identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
 
@@ -646,8 +755,10 @@ You may be especially security-paranoid and not want "loguser" to have "create"
 \begin_deeper 
 \layout LyX-Code
 
-mysql> grant insert on apachelogs.* to loguser@my.apachemachine.com identified
- by 'l0gger';
+mysql> grant insert on apachelogs.* to loguser@my.apachemachine.com
+\layout LyX-Code
+
+identified by 'l0gger';
 \end_deeper 
 \layout Enumerate
 
@@ -845,7 +956,7 @@ After LogSQLTransferLogFormat you supply a string of characters that tell
  and the request; you'd use:
 \layout LyX-Code
 
-LogSQLTransferLogFormat HUS
+LogSQLTransferLogFormat hUS
 \layout Standard
 
 A more appropriate string to use is
@@ -964,25 +1075,16 @@ You already have a single table containing access requests.
  in that module and employ the LogSQLTransferLogFormat character 'I').
  Each request gets a unique ID that can be thought of as a primary key within
  the database.
-\layout Standard
-
-So, let's add several new tables: a notes table, a cookies table, and tables
+ So let's add several new tables: a notes table, a cookies table, and tables
  for inbound and outbound headers.
- We have a certain request, let's say its unique ID is 
-\begin_inset Quotes eld
-\end_inset 
-
-XYZ123
-\begin_inset Quotes erd
-\end_inset 
-
-.
- Within each separate table will be multiple entries with that request ID:
- several cookie entries, several header entries, etc.
- Something like this:
+ 
 \layout Standard
 
-\begin_float tab 
+
+\begin_inset Float table
+wide false
+collapsed false
+
 \layout Caption
 
 
@@ -995,13 +1097,13 @@ access_log
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="2" columns="3">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="2" columns="3">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1009,7 +1111,7 @@ access_log
 id
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1017,7 +1119,7 @@ id
 remote_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1026,8 +1128,8 @@ request_uri
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1035,7 +1137,7 @@ request_uri
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1043,7 +1145,7 @@ XYZ123
 foo.bar.com
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1057,8 +1159,13 @@ foo.bar.com
 \end_inset 
 
 
-\end_float 
-\begin_float tab 
+\end_inset 
+
+
+\begin_inset Float table
+wide false
+collapsed false
+
 \layout Caption
 
 
@@ -1071,13 +1178,13 @@ notes_log
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="3" columns="3">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="3" columns="3">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1085,7 +1192,7 @@ notes_log
 id
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1093,7 +1200,7 @@ id
 item
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1102,8 +1209,8 @@ val
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1111,7 +1218,7 @@ val
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1119,7 +1226,7 @@ XYZ123
 mod_gzip_result
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1128,8 +1235,8 @@ OK
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1137,7 +1244,7 @@ OK
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1145,7 +1252,7 @@ XYZ123
 mod_gzip_compression_ratio
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1159,10 +1266,16 @@ mod_gzip_compression_ratio
 \end_inset 
 
 
-\end_float 
+\end_inset 
+
+
 \layout Standard
 
-\begin_float tab 
+
+\begin_inset Float table
+wide false
+collapsed false
+
 \layout Caption
 
 
@@ -1175,13 +1288,13 @@ headers_log
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="5" columns="3">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="5" columns="3">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1189,7 +1302,7 @@ headers_log
 id
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1197,7 +1310,7 @@ id
 item
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1206,8 +1319,8 @@ val
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1215,7 +1328,7 @@ val
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1223,7 +1336,7 @@ XYZ123
 Content-Type
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1232,8 +1345,8 @@ text/html
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1241,7 +1354,7 @@ text/html
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1249,7 +1362,7 @@ XYZ123
 Accept-Encoding
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1258,8 +1371,8 @@ gzip, deflate
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1267,7 +1380,7 @@ gzip, deflate
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1275,7 +1388,7 @@ XYZ123
 Expires
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1284,8 +1397,8 @@ Tue, 28 May 2002 10:00:18 GMT
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1293,7 +1406,7 @@ Tue, 28 May 2002 10:00:18 GMT
 XYZ123
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1301,7 +1414,7 @@ XYZ123
 Cache-Control
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1315,10 +1428,23 @@ max-age=86400
 \end_inset 
 
 
-\end_float 
+\end_inset 
+
+
 \layout Standard
 
-As you can see in tables 
+We have a certain request, and its unique ID is 
+\begin_inset Quotes eld
+\end_inset 
+
+XYZ123
+\begin_inset Quotes erd
+\end_inset 
+
+.
+ Within each separate table will be multiple entries with that request ID:
+ several cookie entries, several header entries, etc.
+ As you can see in tables 
 \begin_inset LatexCommand \ref{tblAcc}
 
 \end_inset 
@@ -1348,21 +1474,24 @@ select
 \layout LyX-Code
 
 select a.remote_host, a.request_uri, n.item, n.val from access_log a, notes_log
- n where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';
+ n
+\layout LyX-Code
+
+where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';
 \layout LyX-Code
 
 \layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="3" columns="4">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="3" columns="4">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1370,7 +1499,7 @@ select a.remote_host, a.request_uri, n.item, n.val from access_log a, notes_log
 remote_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1378,7 +1507,7 @@ remote_host
 request_uri 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1386,7 +1515,7 @@ request_uri
 item
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1395,8 +1524,8 @@ val
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1404,7 +1533,7 @@ val
 zerberus.aiacs.net
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1412,7 +1541,7 @@ zerberus.aiacs.net
 /mod_log_sql/style_1.css
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1420,7 +1549,7 @@ zerberus.aiacs.net
 mod_gzip_result
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1429,8 +1558,8 @@ DECLINED:EXCLUDED
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1438,7 +1567,7 @@ DECLINED:EXCLUDED
 zerberus.aiacs.net
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1446,7 +1575,7 @@ zerberus.aiacs.net
 /mod_log_sql/style_1.css
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1454,7 +1583,7 @@ zerberus.aiacs.net
 mod_gzip_compression_ratio
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -1944,860 +2073,1053 @@ Each character in the format-string defines an attribute of the request
 \layout Quote
 
 
+\size footnotesize 
+
 \begin_inset  Tabular
-<lyxtabular version="2" rows="20" columns="5">
-<features rotate="false" islongtable="false" endhead="1" endfirsthead="1" endfoot="0" endlastfoot="0">
-<column alignment="center" valignment="top" leftline="true" rightline="true" width="" special="">
-<column alignment="left" valignment="top" leftline="false" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<column alignment="left" valignment="top" leftline="false" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="20" columns="5">
+<features>
+<column alignment="center" valignment="top" leftline="true" rightline="true" width="0pt">
+<column alignment="left" valignment="top" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<column alignment="left" valignment="top" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true" endhead="true">
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
-
-\series bold 
-Char
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
 
 \series bold 
+\size footnotesize 
 What is this?
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
 
 \series bold 
-MySQL DB field
+\size footnotesize 
+Data field
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
 
 \series bold 
+\size footnotesize 
 Column type
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
 
 \series bold 
+\size footnotesize 
 Example
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 A
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 User agent
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 agent
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(255)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Mozilla/4.0 (compat; MSIE 6.0; Windows)
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 b
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Bytes transfered
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 bytes_sent
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 int unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 32561
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 c
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Text of cookie
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 cookie
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(255)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Apache=sdyn.fooonline.net.1300102700823
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 H
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 HTTP request protocol
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_protocol
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(10)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 HTTP/1.1
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 h
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Name of remote host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 remote_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(50)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 blah.foobar.com
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 I
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="left" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Request ID (from mod_unique_id)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 id
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 char(19)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 POlFcUBRH30AAALdBG8
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 l
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Ident user info
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 remote_logname
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(50)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 bobby
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 m
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 HTTP request method
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_method
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(6)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 GET
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 P
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 httpd child PID
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 child_pid
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 3215
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 p
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 httpd port
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 server_port
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 80
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 R
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Referer
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 referer
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(255)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 http://www.biglinks4u.com/linkpage.html
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 r
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Request in full form
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_line
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(255)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 GET /books-cycroad.html HTTP/1.1
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 S
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Time of request in UNIX format
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 time_stamp
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 int unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 1005598029
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 s
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 HTTP status of request
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 status
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 404
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 T
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Seconds to service request
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_duration
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 2
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 t
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Time of request in human format
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_time
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 char(28)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 [02/Dec/2001:15:01:26 -0800]
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 U
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Request in simple form
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 request_uri
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(255)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 /books-cycroad.html
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 u
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
-User info from HTTP authentication
+
+\size footnotesize 
+User info from HTTP auth
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 remote_user
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(50)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 bobby
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 v
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 Virtual host servicing the request
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 virtual_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 varchar(50)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
+
+\size footnotesize 
 www.foobar.com
 \end_inset 
 </cell>
@@ -2814,25 +3136,22 @@ If you have compiled mod_log_sql with WANT_SSL_LOGGING, you also get these:
 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="4" columns="5">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="center" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="4" columns="5">
+<features>
+<column alignment="center" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
-
-\series bold 
-Char
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2842,17 +3161,17 @@ Char
 What is this?
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
 
 
 \series bold 
-MySQL DB field
+Data field
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2862,7 +3181,7 @@ MySQL DB field
 Column Type
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2873,8 +3192,8 @@ Example
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2882,7 +3201,7 @@ Example
 z
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2890,7 +3209,7 @@ z
 SSL cipher used
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2898,7 +3217,7 @@ SSL cipher used
 ssl_cipher
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2906,7 +3225,7 @@ ssl_cipher
 varchar(25)
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2915,8 +3234,8 @@ RC4-MD5
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2924,7 +3243,7 @@ RC4-MD5
 q
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2932,7 +3251,7 @@ q
 Keysize of the SSL connection
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2940,7 +3259,7 @@ Keysize of the SSL connection
 ssl_keysize
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2948,7 +3267,7 @@ ssl_keysize
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2957,8 +3276,8 @@ smallint unsigned
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2966,7 +3285,7 @@ smallint unsigned
 Q
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2974,7 +3293,7 @@ Q
 Maximum keysize supported
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2982,7 +3301,7 @@ Maximum keysize supported
 ssl_maxkeysize
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -2990,7 +3309,7 @@ ssl_maxkeysize
 smallint unsigned
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3015,8 +3334,7 @@ Syntax: LogSQLWhichCookie cookiename
 Example: LogSQLWhichCookie Clicks
 \layout LyX-Code
 
-Default: None.
- You must set this if you wish to capture cookies.
+Default: None
 \layout LyX-Code
 
 Context: virtual host
@@ -3027,17 +3345,19 @@ In HTTP, cookies have names to distinguish them from each other.
  a name with the CookieName directive.
 \layout Quote
 
-If you have activated cookie logging in LogSQLTransferLogFormat, then LogSQLWhic
-hCookie tells mod_log_sql which cookie to log.
- This is useful because many times you will be setting and receiving more
- than one cookie from a client; without this directive you'd be unable to
- choose which cookie is your mod_usertrack cookie.
+You must include a 'c' character in LogSQLTransferLogFormat for this directive
+ to take effect; once you specify 'c', LogSQLWhichCookie tells mod_log_sql
+ which cookie to log.
+ This is necessary because many times you will be setting and receiving
+ more than one cookie from a client; without this directive you'd be unable
+ to choose which cookie is your mod_usertrack cookie.
 \layout Quote
 
 Note: although this was intended for people who are using mod_usertrack
  to set user-tracking cookies, you aren't restricted in any way.
- You can choose which cookie you wish to log to the database, and it doesn't
- necessarily have to have anything to do with mod_usertrack.
+ You can choose which cookie you wish to log to the database --any cookie
+ at all -- and it doesn't necessarily have to have anything to do with mod_usert
+rack.
 \layout Subsubsection
 
 LogSQLWhichCookies
@@ -3057,7 +3377,23 @@ Context: virtual host
 \layout Quote
 
 Defines the list of cookies you would like logged.
- Works in conjunction with LogSQLCookieLogTable.
+ This works in conjunction with LogSQLCookieLogTable.
+ This directive does not require any additional characters to be added to
+ the LogSQLTransferLogFormat string.
+ The feature is activated simply by including this directive, upon which
+ you will begin populating the separate cookie table with data.
+\layout Quote
+
+Note that you must have already created the table (see create-tables.sql,
+ included in the package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLWhichHeadersIn
@@ -3077,7 +3413,23 @@ Context: virtual host
 \layout Quote
 
 Defines the list of inbound headers you would like logged.
- Works in conjunction with LogSQLHeadersInLogTable.
+ This works in conjunction with LogSQLHeadersInLogTable.
+ This directive does not require any additional characters to be added to
+ the LogSQLTransferLogFormat string.
+ The feature is activated simply by including this directive, upon which
+ you will begin populating the separate inbound-headers table with data.
+\layout Quote
+
+Note that you must have already created the table (see create-tables.sql,
+ included in the package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLWhichHeadersOut
@@ -3097,7 +3449,23 @@ Context: virtual host
 \layout Quote
 
 Defines the list of outbound headers you would like logged.
- Works in conjunction with LogSQLHeadersOutLogTable.
+ This works in conjunction with LogSQLHeadersOutLogTable.
+ This directive does not require any additional characters to be added to
+ the LogSQLTransferLogFormat string.
+ The feature is activated simply by including this directive, upon which
+ you will begin populating the separate outbound-headers table with data.
+\layout Quote
+
+Note that you must have already created the table (see create-tables.sql,
+ included in the package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLWhichNotes
@@ -3117,7 +3485,23 @@ Context: virtual host
 \layout Quote
 
 Defines the list of notes you would like logged.
- Works in conjunction with LogSQLNotesLogTable.
+ This works in conjunction with LogSQLNotesLogTable.
+ This directive does not require any additional characters to be added to
+ the LogSQLTransferLogFormat string.
+ The feature is activated simply by including this directive, upon which
+ you will begin populating the separate notes table with data.
+\layout Quote
+
+Note that you must have already created the table (see create-tables.sql,
+ included in the package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLCookieLogTable
@@ -3140,6 +3524,18 @@ Defines which table is used for logging of cookies.
  request's associated cookies to a separate table.
  For meaningful data retrieval the cookie table is keyed to the access table
  by the unique request ID supplied by the standard Apache module mod_unique_id.
+\layout Quote
+
+Note that you must create the table (see create-tables.sql, included in the
+ package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLHeadersInLogTable
@@ -3163,6 +3559,18 @@ Defines which table is used for logging of inbound headers.
  For meaningful data retrieval the headers table is keyed to the access
  table by the unique request ID supplied by the standard Apache module mod_uniqu
 e_id.
+\layout Quote
+
+Note that you must create the table (see create-tables.sql, included in the
+ package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLHeadersOutLogTable
@@ -3186,6 +3594,18 @@ Defines which table is used for logging of outbound headers.
  For meaningful data retrieval the headers table is keyed to the access
  table by the unique request ID supplied by the standard Apache module mod_uniqu
 e_id.
+\layout Quote
+
+Note that you must create the table (see create-tables.sql, included in the
+ package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Subsubsection
 
 LogSQLNotesLogTable
@@ -3208,6 +3628,18 @@ Defines which table is used for logging of notes.
  request's associated notes to a separate table.
  For meaningful data retrieval the notes table is keyed to the access table
  by the unique request ID supplied by the standard Apache module mod_unique_id.
+\layout Quote
+
+Note that you must create the table (see create-tables.sql, included in the
+ package), or LogSQLCreateTables must be set to 
+\begin_inset Quotes eld
+\end_inset 
+
+on
+\begin_inset Quotes erd
+\end_inset 
+
+.
 \layout Section
 
 FAQ
@@ -3226,13 +3658,12 @@ To begin with, let's get it out of the way: logging to a database is not
 Chores like log rotation go away, as you can DELETE records from the SQL
  database once they are no longer useful.
  For example, the excellent and popular log-analysis tool 
-\begin_inset LatexCommand \url[Webalizer]{http://www.webalizer.com}
+\begin_inset LatexCommand \url[Webalizer]{(http://www.webalizer.com)}
 
 \end_inset 
 
  does not need historic logs after it has processed them, enabling you to
  delete older logs.
- 
 \layout Itemize
 
 People with clusters of web servers (for high availability) will benefit
@@ -3250,22 +3681,24 @@ For example, do you want to see all your 404's? Do this:
 \layout LyX-Code
 
 select remote_host,status,request_uri,bytes_sent,from_unixtime(time_stamp)
- from acc_log_tbl where status=404 order by time_stamp;
+\layout LyX-Code
+
+from acc_log_tbl where status=404 order by time_stamp;
 \layout LyX-Code
 
 \layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="5" columns="5">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="5" columns="5">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3273,7 +3706,7 @@ select remote_host,status,request_uri,bytes_sent,from_unixtime(time_stamp)
 remote_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3281,7 +3714,7 @@ remote_host
 status
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3289,7 +3722,7 @@ status
 request_uri
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3297,7 +3730,7 @@ request_uri
 bytes_sent
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3306,8 +3739,8 @@ from_unixtime(time_stamp)
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3315,7 +3748,7 @@ from_unixtime(time_stamp)
 marge.mmm.co.uk
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3323,7 +3756,7 @@ marge.mmm.co.uk
 404
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3331,7 +3764,7 @@ marge.mmm.co.uk
 /favicon.ico
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3339,7 +3772,7 @@ marge.mmm.co.uk
 321
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3348,8 +3781,8 @@ marge.mmm.co.uk
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3357,7 +3790,7 @@ marge.mmm.co.uk
 62.180.239.251
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3365,7 +3798,7 @@ marge.mmm.co.uk
 404
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3373,7 +3806,7 @@ marge.mmm.co.uk
 /favicon.ico
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3381,7 +3814,7 @@ marge.mmm.co.uk
 333
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3390,8 +3823,8 @@ marge.mmm.co.uk
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3399,7 +3832,7 @@ marge.mmm.co.uk
 212.234.12.66
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3407,7 +3840,7 @@ marge.mmm.co.uk
 404
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3415,7 +3848,7 @@ marge.mmm.co.uk
 /favicon.ico
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3423,7 +3856,7 @@ marge.mmm.co.uk
 321
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3432,8 +3865,8 @@ marge.mmm.co.uk
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3441,7 +3874,7 @@ marge.mmm.co.uk
 212.210.78.254
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3449,7 +3882,7 @@ marge.mmm.co.uk
 404
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3457,7 +3890,7 @@ marge.mmm.co.uk
 /favicon.ico
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3465,7 +3898,7 @@ marge.mmm.co.uk
 333
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3488,21 +3921,27 @@ Or do you want to see how many bytes you've sent within a certain directory
 \layout LyX-Code
 
 select request_uri,sum(bytes_sent) as bytes,count(request_uri) as howmany
- from acc_log_tbl where request_uri like '%mod_log_sql%' group by request_uri
- order by howmany desc; 
+ from
+\layout LyX-Code
+
+acc_log_tbl where request_uri like '%mod_log_sql%' group by request_uri
+ order
+\layout LyX-Code
+
+by howmany desc; 
 \layout LyX-Code
 
 \layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="5" columns="3">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="5" columns="3">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3510,7 +3949,7 @@ select request_uri,sum(bytes_sent) as bytes,count(request_uri) as howmany
 request_uri 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3518,7 +3957,7 @@ request_uri
 bytes
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3527,8 +3966,8 @@ howmany
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3536,7 +3975,7 @@ howmany
 /mod_log_sql/style_1.css
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3544,7 +3983,7 @@ howmany
 157396 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3553,8 +3992,8 @@ howmany
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3562,7 +4001,7 @@ howmany
 /mod_log_sql/
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3570,7 +4009,7 @@ howmany
 2514337
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3579,8 +4018,8 @@ howmany
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3588,7 +4027,7 @@ howmany
 /mod_log_sql/mod_log_sql.tar.gz
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3596,7 +4035,7 @@ howmany
 9769312
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3605,8 +4044,8 @@ howmany
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3614,7 +4053,7 @@ howmany
 /mod_log_sql/faq.html
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3622,7 +4061,7 @@ howmany
 5038728
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3643,20 +4082,22 @@ howmany
 Or maybe you want to see who's linking to you? Do this:
 \layout LyX-Code
 
-select count(referer) as num,referer from acc_log_tbl where request_uri='/mod_lo
-g_sql/' group by referer order by num desc;
+select count(referer) as num,referer from acc_log_tbl where
 \layout LyX-Code
 
+request_uri='/mod_log_sql/' group by referer order by num desc;
 \layout LyX-Code
+
+\layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="5" columns="2">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="5" columns="2">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3664,7 +4105,7 @@ g_sql/' group by referer order by num desc;
 num
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3673,8 +4114,8 @@ referer
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3682,7 +4123,7 @@ referer
 271
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3691,8 +4132,8 @@ http://freshmeat.net/projects/mod_log_sql/
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3700,7 +4141,7 @@ http://freshmeat.net/projects/mod_log_sql/
 96
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3709,8 +4150,8 @@ http://modules.apache.org/search?id=339
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3718,7 +4159,7 @@ http://modules.apache.org/search?id=339
 48
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3727,8 +4168,8 @@ http://freshmeat.net/
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3736,7 +4177,7 @@ http://freshmeat.net/
 8
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -3929,8 +4370,10 @@ When done with your runs, clean these many thousands of requests out of
  your database:
 \layout LyX-Code
 
-mysql> delete from access_log where agent like 'ApacheBench%'; mysql> optimize
- table access_log; 
+mysql> delete from access_log where agent like 'ApacheBench%'; 
+\layout LyX-Code
+
+mysql> optimize table access_log; 
 \layout Subsection
 
 Who's using mod_log_sql?
@@ -3938,11 +4381,11 @@ Who's using mod_log_sql?
 
 Good question! It would be great to find out! If you are a production-level
  mod_log_sql user, please contact 
-\begin_inset LatexCommand \url[the maintainer, Chris Powell]{chris@grubbybaby.com}
+\begin_inset LatexCommand \url[the maintainer, Chris Powell]{(chris@grubbybaby.com)}
 
 \end_inset 
 
-so that you can be mentioned here.
+ so that you can be mentioned here.
 \layout Subsection
 
 How do I extract the data in a format that my analysis tool can understand?
@@ -3967,15 +4410,13 @@ For example, let's say that you want your web statistics updated once per
  
 \layout LyX-Code
 
-05 04 * * * root /usr/local/sbin/make_combined_log.pl 1 www.grubbybaby.com
- > /var/log/httpd/mysql-grubbybaby
+05 04 * * * root make_combined_log.pl 1 www.grubbybaby.com > /var/log/temp01
 \layout LyX-Code
 
 # Run webalizer on httpd log 
 \layout LyX-Code
 
-30 04 * * * root /usr/local/bin/webalizer -c /etc/webalizer.conf; rm -f /var/log/
-httpd/mysql-grubbybaby
+30 04 * * * root webalizer -c /etc/webalizer.conf; rm -f /var/log/temp01
 \layout Standard
 
 Or if you have a newer system that puts files in /etc/cron.daily etc., create
@@ -4114,16 +4555,16 @@ Perform some hits on your server and run a select:
 mysql> select request_uri,cookie from access_log where cookie is not null;
 \layout LyX-Code
 
-\layout LyX-Code
+\layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="4" columns="2">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="4" columns="2">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4131,7 +4572,7 @@ mysql> select request_uri,cookie from access_log where cookie is not null;
 request_uri 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4140,8 +4581,8 @@ cookie
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4149,7 +4590,7 @@ cookie
 /mod_log_sql/
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4158,8 +4599,8 @@ ool-18e4.dyn.optonline.net.130051007102700823
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4167,7 +4608,7 @@ ool-18e4.dyn.optonline.net.130051007102700823
 /mod_log_sql/usa.gif
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4176,8 +4617,8 @@ ool-18e4.dyn.optonline.net.130051007102700823
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4185,7 +4626,7 @@ ool-18e4.dyn.optonline.net.130051007102700823
 /mod_log_sql/style_1.css
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4303,22 +4744,24 @@ Perform some hits on your server and run a select:
 \layout LyX-Code
 
 mysql> select remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
- from access_log where ssl_cipher is not null;
 \layout LyX-Code
 
+from access_log where ssl_cipher is not null;
 \layout LyX-Code
+
+\layout Standard
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="2" rows="4" columns="5">
-<features rotate="false" islongtable="false" endhead="0" endfirsthead="0" endfoot="0" endlastfoot="0">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="false" width="" special="">
-<column alignment="left" valignment="top" leftline="true" rightline="true" width="" special="">
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<lyxtabular version="3" rows="4" columns="5">
+<features>
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" width="0pt">
+<column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4326,7 +4769,7 @@ mysql> select remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
 remote_host
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4334,7 +4777,7 @@ remote_host
 request_uri
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4342,7 +4785,7 @@ request_uri
 ssl_cipher
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4350,7 +4793,7 @@ ssl_cipher
 ssl_keysize
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4359,8 +4802,8 @@ ssl_maxkeysize
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4368,7 +4811,7 @@ ssl_maxkeysize
 216.190.52.4
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4376,7 +4819,7 @@ ssl_maxkeysize
 /dir/somefile.html 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4384,7 +4827,7 @@ ssl_maxkeysize
 RC4-MD5
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4392,7 +4835,7 @@ RC4-MD5
 128
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4401,8 +4844,8 @@ RC4-MD5
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="false" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4410,7 +4853,7 @@ RC4-MD5
 216.190.52.4 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4418,7 +4861,7 @@ RC4-MD5
 /dir/somefile.gif
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4426,7 +4869,7 @@ RC4-MD5
 RC4-MD5
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4434,7 +4877,7 @@ RC4-MD5
 128
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4443,8 +4886,8 @@ RC4-MD5
 \end_inset 
 </cell>
 </row>
-<row topline="true" bottomline="true" newpage="false">
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4452,7 +4895,7 @@ RC4-MD5
 216.190.52.4 
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4460,7 +4903,7 @@ RC4-MD5
 /dir/somefile.jpg
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4468,7 +4911,7 @@ RC4-MD5
 RC4-MD5
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="false" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4476,7 +4919,7 @@ RC4-MD5
 128
 \end_inset 
 </cell>
-<cell multicolumn="0" alignment="center" valignment="top" topline="true" bottomline="false" leftline="true" rightline="true" rotate="false" usebox="none" width="" special="">
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
 \layout Standard
@@ -4515,8 +4958,8 @@ You do have control over where mod_log_sql looks for the socket.
  (Applies to mod_log_sql 1.16 or later only.)
 \layout Subsection
 
-Why do I occasionally see a "connection lost, attempting reconnect" message
- in my error-log?
+Why do I occasionally see a "lost connection to MySQL server" message in
+ my error-log?
 \layout Standard
 
 This message may appear every now and then in your Apache error log, especially
@@ -4530,15 +4973,23 @@ This message may appear every now and then in your Apache error log, especially
  That event is what is being logged, and looks like this:
 \layout LyX-Code
 
-[Thu Dec 13 05:42:18 2001] [error] mod_log_sql: connection lost, attempting
- reconnect
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: first attempt failed, 
 \layout LyX-Code
 
-[Thu Dec 13 05:42:18 2001] [error] mod_log_sql: reconnect successful
+  API said: error 2013, Lost connection to MySQL server during query 
+\layout LyX-Code
+
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: reconnect successful
+\layout LyX-Code
+
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: second attempt successful
+ 
+\layout LyX-Code
+
 \layout Standard
 
 Reference: 
-\begin_inset LatexCommand \url[MySQL documentation]{http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away}
+\begin_inset LatexCommand \url[MySQL documentation]{(http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away)}
 
 \end_inset 
 
@@ -4573,7 +5024,7 @@ I have discovered a bug.
 \layout Standard
 
 Please contact 
-\begin_inset LatexCommand \url[the maintainer]{chris@grubbybaby.com}
+\begin_inset LatexCommand \url[the maintainer]{(chris@grubbybaby.com)}
 
 \end_inset 
 

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 2002/11/14 22:52:54 helios Exp $
+# $Id: Makefile,v 1.14 2002/11/15 03:55:25 helios Exp $
 
 #####################################
 # Important:
@@ -8,7 +8,7 @@
 APACHEINST = /usr/local/Apache
 MYSQLLIBS  = /usr/lib
 MYSQLHDRS  = /usr/include/mysql
-#MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
+MODSSLHDRS = /usr/local/src/apache_1.3.27-dso/src/modules/ssl
 
 APACHESOURCE = /usr/local/src/apache_1.3.27-dso
 OPNSSLHDRS   = /usr/include/openssl
@@ -26,9 +26,10 @@ CC       = gcc
 INSTALL  = /usr/bin/install -m 664
 RM       = /bin/rm
 LYX      = /usr/bin/lyx
+LATEX    = /usr/bin/latex
 DVIPS    = /usr/bin/dvips
 LINKS    = /usr/bin/links
-LATEX2HTML=/usr/bin/latex2html
+L2H      = /usr/local/bin/latex2html
 
 ifdef MODSSLHDRS
    SSLDEF  = -DWANT_SSL_LOGGING
@@ -70,7 +71,7 @@ clean:
 	$(RM) -f Documentation/*.ps
 	$(RM) -f Documentation/*.txt
 
-distro: all
+distro: documentation
 	cp -f CHANGELOG $(APACHEINST)/html/mod_log_sql/
 	cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS mod_log_sql/; $(INSTALL) mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
 	$(RM) $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
@@ -79,19 +80,19 @@ distro: all
 documentation: Documentation/documentation.lyx
 	@echo "Creating LaTeX docs..."
 	@$(LYX) --export latex Documentation/documentation.lyx 2>/dev/null
-	@echo "Creating DVI docs..."
-	@$(LYX) --export dvi Documentation/documentation.lyx 2>/dev/null
+	@echo "Creating cross-references...run 1"
+	@cd Documentation ; $(LATEX) documentation.tex >/dev/null 2>&1
+	@echo "Creating cross-references...run 2"
+	@cd Documentation ; $(LATEX) documentation.tex >/dev/null 2>&1
+	@echo "Creating cross-references...run 3"
+	@cd Documentation ; $(LATEX) documentation.tex >/dev/null 2>&1
 	@echo "Creating PostScript docs..."
 	@$(DVIPS) Documentation/documentation.dvi -o Documentation/documentation.ps 2>/dev/null
 	@echo "Creating HTML docs..."
-	@$(LATEX2HTML) -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
+	@$(L2H) -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
 	@echo "Creating plain text docs..."
-	@$(LATEX2HTML) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
+	@$(L2H) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
 	@$(LINKS) -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
 	@echo "Cleaning up..."
 	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log
-	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl 
-
-
-
-	
+	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl
