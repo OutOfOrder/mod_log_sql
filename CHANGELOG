@@ -1,4 +1,4 @@
-1.98: 2004-04-?
+1.98: 2004-04-12
 * re-fixed apache.m4 to better detect APR and APU code
 * fixed for win32 compilation under apache 2
 * lowered minumum required apache 2 version to 2.0.40 (RH9)
