@@ -114,8 +114,8 @@ static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 #define SIGNAL_RELEASE
 #define SIGNAL_VAR
 #else
-#define SIGNAL_VAR void (*handler) (int)
-#define SIGNAL_GRAB handler = signal(SIGPIPE, SIG_IGN)
+#define SIGNAL_VAR void (*handler) (int);
+#define SIGNAL_GRAB handler = signal(SIGPIPE, SIG_IGN);
 #define SIGNAL_RELEASE signal(SIGPIPE, handler);
 #endif
 /* Run a mysql insert query and return a categorized error or success */
