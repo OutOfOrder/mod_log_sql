@@ -9,9 +9,9 @@ HEADERS =
 
 CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
-INCLUDES = -I/usr/include/mysql
+INCLUDES = @MYSQL_CFLAGS@
 
-LDADD = -L/usr/lib/mysql -lmysqlclient
+LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
 
 EXTRA_DIST = INSTALL LICENSE CHANGELOG make_combined_log.pl
 

@@ -23,7 +23,7 @@ create table access_log (
 	ssl_maxkeysize smallint unsigned,
 	status smallint unsigned ,
 	time_stamp int unsigned ,
-	virtual_host varchar(50)
+	virtual_host varchar(255)
 );
 
 create table notes (

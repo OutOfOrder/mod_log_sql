@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.3 2003/12/22 04:45:38 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.4 2003/12/23 19:49:56 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -58,6 +58,15 @@
 #include "mod_ssl.h"
 #endif
 
+
+/* Configuratino Defaults */
+#define DEFAULT_TRANSFER_LOG_FMT	"AbHhmRSsTUuv"
+#define DEFAULT_NOTES_TABLE_NAME	"notes"
+#define DEFAULT_HIN_TABLE_NAME		"headers_in"
+#define DEFAULT_HOUT_TABLE_NAME		"headers_out"
+#define DEFAULT_COOKIE_TABLE_NAME	"cookies"
+#define DEFAULT_PRESERVE_FILE		"/tmp/sql-preserve"
+
 /* -------------*
  * DECLARATIONS *
  * -------------*/
@@ -74,6 +83,7 @@ typedef struct {
 	int massvirtual;
 	int createtables;
 	int forcepreserve;
+	char *tabletype;
 	char *dbname;
 	char *dbhost;
 	char *dbuser;
@@ -366,13 +376,6 @@ static const char *extract_request_duration(request_rec *r, char *a)
 	return apr_psprintf(r->pool, "%" APR_TIME_T_FMT, apr_time_sec(duration));
 }
 
-static const char *extract_request_duration_microseconds(request_rec *r, char *a) __attribute__ ((unused));
-static const char *extract_request_duration_microseconds(request_rec *r, char *a)
-{
-    return apr_psprintf(r->pool, "%" APR_TIME_T_FMT, 
-                        (apr_time_now() - r->request_time));
-}
-
 static const char *extract_virtual_host(request_rec *r, char *a)
 {
     return apr_pstrdup(r->pool, r->server->server_hostname);
@@ -589,7 +592,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
-	return apr_psprintf(r->pool, "%ld", time(NULL));
+	return apr_psprintf(r->pool, "%"APR_TIME_T_FMT, apr_time_sec(apr_time_now()));
 }
 
 /*
@@ -910,6 +913,8 @@ static int safe_create_tables(logsql_state *cls, request_rec *r)
 	char *create_hin = NULL;
 	char *create_cookies = NULL;
 
+	char *type_suffix = NULL;
+
 	char *createprefix = "create table if not exists `";
 	char *access_suffix =
 	 "` (id char(19),\
@@ -952,13 +957,15 @@ static int safe_create_tables(logsql_state *cls, request_rec *r)
 	 "` (id char(19),\
 	   item varchar(80),\
        val varchar(80))";
-
+	if (global_config.tabletype) {
+		type_suffix = apr_pstrcat(r->pool, " TYPE=", global_config.tabletype, NULL);
+	}
 	/* Find memory long enough to hold the whole CREATE string + \0 */
-	create_access = apr_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);
-	create_notes  = apr_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);
-	create_hout   = apr_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);
-	create_hin    = apr_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);
-	create_cookies= apr_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, NULL);
+	create_access = apr_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, type_suffix, NULL);
+	create_notes  = apr_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, type_suffix, NULL);
+	create_hout   = apr_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, type_suffix, NULL);
+	create_hin    = apr_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, type_suffix, NULL);
+	create_cookies= apr_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, type_suffix, NULL);
 
 	#ifdef DEBUG
 		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_access);
@@ -982,12 +989,12 @@ static int safe_create_tables(logsql_state *cls, request_rec *r)
 	}
 
 	if ((create_results = safe_sql_query(r, create_hin))) {
-		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_out table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_in table");
 		retval = create_results;
 	}
 
 	if ((create_results = safe_sql_query(r, create_hout))) {
-		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_in table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_out table");
 		retval = create_results;
 	}
 
@@ -1009,33 +1016,36 @@ static const char *set_global_flag_slot(cmd_parms *cmd,
 										void *struct_ptr, 
 										int flag)
 {
-	int offset = (int)(long)&global_config;
+	void *ptr = &global_config;
+	int offset = (int)(long)cmd->info;
 
-	*(int *)((char *)struct_ptr + offset) = flag ? 1 : 0;
+	*(int *)((char *)ptr + offset) = flag ? 1 : 0;
 
     return NULL;
 }
 
-static const char *set_global_nmv_flag_slot(cmd_parms *parms,
+static const char *set_global_nmv_flag_slot(cmd_parms *cmd,
 											void *struct_ptr,
 											int flag)
 {
-	if (global_config.massvirtual)
-		return apr_psprintf(parms->pool,
-			"mod_log_sql: do not set %s  when LogSQLMassVirtualHosting is On.",
-			parms->cmd->name);
-	else
-		return set_global_flag_slot(parms,struct_ptr,flag);
+	if (global_config.massvirtual) {
+		return apr_psprintf(cmd->pool,
+			"mod_log_sql: do not set %s when LogSQLMassVirtualHosting(%d) is On.%d:%d",
+			cmd->cmd->name, global_config.massvirtual,
+				(int)(long)&global_config, (int)(long)struct_ptr);
+	} else {
+		return set_global_flag_slot(cmd,struct_ptr,flag);
+	}
 }
 
 static const char *set_global_string_slot(cmd_parms *cmd,
                                     	  void *struct_ptr,
                                      	  const char *arg)
 {
-	int offset = (int)(long)&global_config;
+	void *ptr = &global_config;
+	int offset = (int)(long)cmd->info;
 
-    *(const char **)((char *)struct_ptr + offset) = apr_pstrdup(cmd->pool,arg);
-    
+    *(const char **)((char *)ptr + offset) = apr_pstrdup(cmd->pool,arg);
     return NULL;
 }
 
@@ -1043,10 +1053,11 @@ static const char *set_server_string_slot(cmd_parms *cmd,
                                      		 void *struct_ptr,
                                      		 const char *arg)
 {
-	int offset = (int)(long)ap_get_module_config(cmd->server->module_config,
+	void *ptr = ap_get_module_config(cmd->server->module_config,
 			&log_sql_module);
+	int offset = (int)(long)cmd->info;
 
-	*(const char **)((char *)struct_ptr + offset) = arg;
+	*(const char **)((char *)ptr + offset) = arg;
     
     return NULL;
 }
@@ -1058,7 +1069,7 @@ static const char *set_server_nmv_string_slot(cmd_parms *parms,
 {
 	if (global_config.massvirtual)
 		return apr_psprintf(parms->pool,
-			"mod_log_sql: do not set %s  when LogSQLMassVirtualHosting is On.",
+			"mod_log_sql: do not set %s when LogSQLMassVirtualHosting is On.",
 			parms->cmd->name);
 	else
 		return set_server_string_slot(parms,struct_ptr,arg);
@@ -1083,9 +1094,10 @@ static const char *add_server_string_slot(cmd_parms *cmd,
                                      		 const char *arg)
 {
 	char **addme;
-	int offset = (int)(long)ap_get_module_config(cmd->server->module_config,
+	void *ptr = ap_get_module_config(cmd->server->module_config,
 			&log_sql_module);
-	apr_array_header_t *ary = *(apr_array_header_t **)((apr_array_header_t *)struct_ptr + offset);
+	int offset = (int)(long)cmd->info;
+	apr_array_header_t *ary = *(apr_array_header_t **)((apr_array_header_t *)ptr + offset);
 
 	addme = apr_array_push(ary);
 	*addme = apr_pstrdup(ary->pool, arg);
@@ -1131,7 +1143,6 @@ static apr_status_t log_sql_close_link(void *data)
 static void log_sql_child_init(apr_pool_t *p, server_rec *s)
 {
 	apr_pool_cleanup_register(p, NULL, log_sql_close_link, log_sql_close_link);
-
 }
 
 static int log_sql_open(apr_pool_t *pc, apr_pool_t *p, apr_pool_t *pt, server_rec *s)
@@ -1178,7 +1189,7 @@ void *log_sql_initializer(server_rec *main_server, apr_pool_t *p)
 static int log_sql_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp)
 {
 	/* Initialize Global configuration */
-	memset(&global_config,0,sizeof(global_config));
+	memset(&global_config,0,sizeof(global_config_t));
 	global_config.socketfile = "/tmp/mysql.sock";
 	global_config.tcpport = 3306;
 	return OK;
@@ -1186,16 +1197,15 @@ static int log_sql_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp
 
 static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
 {
-	logsql_state *cls = (logsql_state *) apr_palloc(p, sizeof(logsql_state));
+	logsql_state *cls = (logsql_state *) apr_pcalloc(p, sizeof(logsql_state));
 
 	/* These defaults are overridable in the httpd.conf file. */
-	cls->transfer_table_name = NULL; /* No default b/c we want its absence to disable logging */
-	cls->transfer_log_format = "AbHhmRSsTUuv";
-	cls->notes_table_name    = "notes";
-	cls->hin_table_name      = "headers_in";
-	cls->hout_table_name     = "headers_out";
-	cls->cookie_table_name   = "cookies";
-	cls->preserve_file 		 = "/tmp/sql-preserve";
+	cls->transfer_log_format = DEFAULT_TRANSFER_LOG_FMT;
+	cls->notes_table_name = DEFAULT_NOTES_TABLE_NAME;
+	cls->hin_table_name = DEFAULT_HIN_TABLE_NAME;
+	cls->hout_table_name = DEFAULT_HOUT_TABLE_NAME;
+	cls->cookie_table_name = DEFAULT_COOKIE_TABLE_NAME;
+	cls->preserve_file = DEFAULT_PRESERVE_FILE;
 
 	cls->transfer_ignore_list = apr_array_make(p, 1, sizeof(char *));
 	cls->transfer_accept_list = apr_array_make(p, 1, sizeof(char *));
@@ -1204,9 +1214,68 @@ static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
 	cls->hin_list             = apr_array_make(p, 1, sizeof(char *));
 	cls->hout_list            = apr_array_make(p, 1, sizeof(char *));
 	cls->cookie_list          = apr_array_make(p, 1, sizeof(char *));
-	cls->cookie_name = NULL;
 
 	return (void *) cls;
+}
+
+static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
+{
+	/* Fetch the two states to merge */
+	logsql_state *parent = (logsql_state *) basev;
+	logsql_state *child = (logsql_state *) addv;
+
+	/* Child can override these, otherwise they default to parent's choice.
+	 * If the parent didn't set them, create reasonable defaults for the
+	 * ones that should have such default settings.  Leave the others null. */
+
+	child->transfer_table_name = child->transfer_table_name ?
+				child->transfer_table_name : parent->transfer_table_name;
+	/* No default for transfer_table_name because we want its absence
+	 * to disable logging. */
+
+	if (child->transfer_log_format == DEFAULT_TRANSFER_LOG_FMT)
+		child->transfer_log_format = parent->transfer_log_format;
+
+	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
+		child->preserve_file = parent->preserve_file;
+
+	if (child->notes_table_name == DEFAULT_NOTES_TABLE_NAME)
+		child->notes_table_name = parent->notes_table_name;
+
+	if (child->hin_table_name == DEFAULT_HIN_TABLE_NAME)
+		child->hin_table_name = parent->hin_table_name;
+
+	if (child->hout_table_name == DEFAULT_HOUT_TABLE_NAME)
+		child->hout_table_name = parent->hout_table_name;
+
+	if (child->cookie_table_name == DEFAULT_COOKIE_TABLE_NAME)
+		child->cookie_table_name = parent->cookie_table_name;
+
+	if (apr_is_empty_array(child->transfer_ignore_list))
+		apr_array_cat(child->transfer_ignore_list, parent->transfer_ignore_list);
+
+	if (apr_is_empty_array(child->transfer_accept_list))
+		apr_array_cat(child->transfer_accept_list, parent->transfer_accept_list);
+
+	if (apr_is_empty_array(child->remhost_ignore_list))
+		apr_array_cat(child->remhost_ignore_list, parent->remhost_ignore_list);
+
+	if (apr_is_empty_array(child->notes_list))
+		apr_array_cat(child->notes_list, parent->notes_list);
+
+	if (apr_is_empty_array(child->hin_list))
+		apr_array_cat(child->hin_list, parent->hin_list);
+
+	if (apr_is_empty_array(child->hout_list))
+		apr_array_cat(child->hout_list, parent->hout_list);
+
+	if (apr_is_empty_array(child->cookie_list))
+		apr_array_cat(child->cookie_list, parent->cookie_list);
+
+	if (!child->cookie_name)
+		child->cookie_name = parent->cookie_name;
+
+	return (void*) child;
 }
 
 /* Routine to perform the actual construction and execution of the relevant
@@ -1233,36 +1302,22 @@ static int log_sql_transaction(request_rec *orig)
 		char *i_tablename;
 		char *o_tablename;
 		char *c_tablename;
-		unsigned int i;
 
+		/* Determint the hostname and convert it to all lower-case; */
+		char *servername = apr_pstrdup(orig->pool,(char *)ap_get_server_name(orig));
+		char *p=servername;
+		while (*p) {
+			*p = apr_tolower(*p);
+			if (*p == '.') *p = '_';
+			++p;
+		}
+		
 		/* Find memory long enough to hold the table name + \0. */
-		a_tablename = apr_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
-		n_tablename = apr_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
-		i_tablename = apr_pstrcat(orig->pool, hin_base,    ap_get_server_name(orig), NULL);
-		o_tablename = apr_pstrcat(orig->pool, hout_base,   ap_get_server_name(orig), NULL);
-		c_tablename = apr_pstrcat(orig->pool, cookie_base, ap_get_server_name(orig), NULL);
-
-		/* Transform any dots to underscores */
-		for (i = 0; i < strlen(a_tablename); i++) {
-			if (a_tablename[i] == '.')
-			  a_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(n_tablename); i++) {
-			if (n_tablename[i] == '.')
-			  n_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(i_tablename); i++) {
-			if (i_tablename[i] == '.')
-			  i_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(o_tablename); i++) {
-			if (o_tablename[i] == '.')
-			  o_tablename[i] = '_';
-		}
-		for (i = 0; i < strlen(c_tablename); i++) {
-			if (c_tablename[i] == '.')
-			  c_tablename[i] = '_';
-		}
+		a_tablename = apr_pstrcat(orig->pool, access_base, servername, NULL);
+		n_tablename = apr_pstrcat(orig->pool, notes_base,  servername, NULL);
+		i_tablename = apr_pstrcat(orig->pool, hin_base,    servername, NULL);
+		o_tablename = apr_pstrcat(orig->pool, hout_base,   servername, NULL);
+		c_tablename = apr_pstrcat(orig->pool, cookie_base, servername, NULL);
 
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
@@ -1396,7 +1451,8 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":NULL, cls->notes_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", cls->notes_table_name, itemsets);
+
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: note string: %s", note_query);
 		   	#endif
@@ -1425,7 +1481,8 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":NULL, cls->hout_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", cls->hout_table_name, itemsets);
+
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: header_out string: %s", hout_query);
 		   	#endif
@@ -1455,7 +1512,7 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":NULL, cls->hin_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", cls->hin_table_name, itemsets);
 
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: header_in string: %s", hin_query);
@@ -1487,7 +1544,8 @@ static int log_sql_transaction(request_rec *orig)
 		}
 		if ( itemsets != "" ) {
 			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
-				global_config.insertdelayed?"delayed":NULL, cls->cookie_table_name, itemsets);
+				global_config.insertdelayed?"delayed":"", cls->cookie_table_name, itemsets);
+
 			#ifdef DEBUG
 				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
 		   	#endif
@@ -1496,7 +1554,7 @@ static int log_sql_transaction(request_rec *orig)
 
 		/* Set up the actual INSERT statement */
 		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
-			global_config.insertdelayed?"delayed":NULL, cls->transfer_table_name, fields, values);
+			global_config.insertdelayed?"delayed":"", cls->transfer_table_name, fields, values);
 
 		#ifdef DEBUG
 	        ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: access string: %s", access_query);
@@ -1656,6 +1714,10 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(global_config_t, socketfile), RSRC_CONF,
 	 "Name of the file to employ for socket connections to database")
 	,
+	AP_INIT_TAKE1("LogSQLTableType", set_global_string_slot,
+	 (void *)APR_OFFSETOF(global_config_t, tabletype), RSRC_CONF,
+	 "What kind of table to create (MyISAM, InnoDB,...) when creating tables")
+	,
 	AP_INIT_TAKE1("LogSQLTCPPort", set_log_sql_tcp_port, NULL, RSRC_CONF,
 	 "Port number to use for TCP connections to database, defaults to 3306 if not set")
 	,
@@ -1690,7 +1752,7 @@ module AP_MODULE_DECLARE_DATA log_sql_module = {
 	NULL,		/* create per-directory config structures */
     NULL,		/* merge per-directory config structures */
     log_sql_make_state,		/* create per-server config structures */
-    NULL,		/* merge per-server config structures     */
+    log_sql_merge_state,		/* merge per-server config structures     */
     log_sql_cmds,	/* command handlers */
     register_hooks	/* register hooks */
 };
