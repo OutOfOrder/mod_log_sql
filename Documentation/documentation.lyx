@@ -422,11 +422,14 @@ Perform all the following steps as root so that you have install privs,
 \end_deeper 
 \layout Enumerate
 
-Edit Makefile for your system.
+Edit Makefile for your system:
 \begin_deeper 
-\layout Standard
+\layout Enumerate
 
-NECESSARY:
+These are 
+\series bold 
+necessary:
+\begin_deeper 
 \layout Itemize
 
 The location where you installed Apache -- usually /usr/local/apache, 'locate
@@ -437,13 +440,30 @@ The location of your MySQL libraries, find using 'locate libmysqlclient'
 \layout Itemize
 
 The location of your MySQL header files, find using 'locate mysql.h'
-\layout Standard
+\end_deeper 
+\layout Enumerate
 
-OPTIONAL if you have included mod_ssl in Apache and want to log SSL data
- such as keysize and cipher type: 
+This is 
+\series bold 
+optional
+\series default 
+: if you have included mod_ssl in Apache and want to log SSL data such as
+ keysize and cipher type: 
+\begin_deeper 
 \layout Itemize
 
 The location of your SSL header files, find using 'locate mod_ssl.h'
+\end_deeper 
+\layout Standard
+
+Note: you do 
+\series bold 
+not 
+\series default 
+need to compile SSL support into mod_log_sql in order to simply use it with
+ a secure site.
+ You only need to compile SSL support into mod_log_sql if you want to log
+ SSL-specific data such as cipher type.
 \layout Standard
 
 Now that you know these things, edit Makefile and replace the stock values
@@ -528,8 +548,8 @@ in your httpd.conf file.
 /usr/local/apache/bin/apachectl startssl: httpd could not be started
 \layout Standard
 
-(If the statements are out of order, mod_log_sql doesn't recognize the SSL
- symbols that mod_ssl provides.)
+(mod_log_sql has a dependency on mod_ssl for SSL symbols.
+ If the statements are out of order, mod_log_sql can't recognize those symbols.)
 \layout Standard
 
 Now skip below to section 
@@ -575,9 +595,12 @@ Unpack the archive into a working directory.
 
 Edit Makefile for your system.
 \begin_deeper 
-\layout Standard
+\layout Enumerate
 
-NECESSARY: 
+These are 
+\series bold 
+necessary:
+\begin_deeper 
 \layout Itemize
 
 The location where you installed Apache -- usually /usr/local/apache, 'locate
@@ -593,10 +616,16 @@ The location of your MySQL header files, find using 'locate mysql.h'
 \layout Itemize
 
 The location of your MySQL libraries, find using 'locate libmysqlclient'
-\layout Standard
+\end_deeper 
+\layout Enumerate
 
-OPTIONAL if you have included mod_ssl in Apache and want to log SSL data
- such as keysize and cipher type: 
+This is 
+\series bold 
+optional
+\series default 
+: if you have included mod_ssl in Apache and want to log SSL data such as
+ keysize and cipher type: 
+\begin_deeper 
 \layout Itemize
 
 The location of your mod_ssl header files, find using 'locate mod_ssl.h'
@@ -606,6 +635,17 @@ The location of your OpenSSL header files, find using 'locate x509.h'
 \layout Itemize
 
 The location of your db1 header files, find using 'locate mpool.h'
+\end_deeper 
+\layout Standard
+
+Note: you do 
+\series bold 
+not 
+\series default 
+need to compile SSL support into mod_log_sql in order to simply use it with
+ a secure site.
+ You only need to compile SSL support into mod_log_sql if you want to log
+ SSL-specific data such as cipher type.
 \layout Standard
 
 Now that you know these things, edit Makefile and replace the stock values
@@ -1408,6 +1448,11 @@ LogSQLCreateTables On
 
 The module is permitted to create all necessary tables and to make intelligent,
  on-the-fly configuration of each VirtualHost.
+ (
+\noun on 
+LogSQLMassVirtualHosting On
+\noun default 
+)
 \layout Standard
 
 Many users are happy to use the module in its most minimal form: they hand-creat
@@ -1514,6 +1559,83 @@ LogSQLTransferLogFormat
  machine and thereby analyze the front-end loadbalancing algorithm.
 \layout Subsubsection
 
+Using the same database for production and test
+\layout Standard
+
+Although suboptimal, it is not uncommon to use the same backend database
+ for the 
+\begin_inset Quotes eld
+\end_inset 
+
+production
+\begin_inset Quotes erd
+\end_inset 
+
+ webservers as well as the 
+\begin_inset Quotes eld
+\end_inset 
+
+test
+\begin_inset Quotes erd
+\end_inset 
+
+ webservers (budgetary constraints, rackspace limits, etc.).
+ Furthermore, an administrator in this situation may be unable to use 
+\noun on 
+LogSQLRemhostIgnore 
+\noun default 
+to exclude requests from the test servers -- perhaps the generated entries
+ are genuinely useful for analytical or QA purposes, but their value after
+ analysis is minimal.
+\layout Standard
+
+It is wasteful and potentially confusing to permit this internal test data
+ to clutter the database, and a solution to the problem is the proper use
+ of the 
+\noun on 
+LogSQLMachineID 
+\noun default 
+directive.
+ Assume a scenario where the production webservers have IDs like 
+\begin_inset Quotes eld
+\end_inset 
+
+web01,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+web02,
+\begin_inset Quotes erd
+\end_inset 
+
+ and so on -- and the test webservers have IDs like 
+\begin_inset Quotes eld
+\end_inset 
+
+test01,
+\begin_inset Quotes erd
+\end_inset 
+
+ 
+\begin_inset Quotes eld
+\end_inset 
+
+test02,
+\begin_inset Quotes erd
+\end_inset 
+
+ etc.
+ Because entries in the log database are distinguished by their source machine,
+ an administrator may purge unneeded test data from the access log as follows:
+\layout LyX-Code
+
+delete from access_log where machine_id like 'test%';
+\layout Subsubsection
+
 
 \begin_inset LatexCommand \label{secMulTable}
 
@@ -1570,11 +1692,14 @@ access_log
 \align center 
 
 \begin_inset  Tabular
-<lyxtabular version="3" rows="2" columns="3">
+<lyxtabular version="3" rows="2" columns="6">
 <features>
 <column alignment="left" valignment="top" leftline="true" width="0pt">
 <column alignment="left" valignment="top" leftline="true" width="0pt">
 <column alignment="left" valignment="top" leftline="true" rightline="true" width="0pt">
+<column alignment="left" valignment="top" rightline="true" width="0pt">
+<column alignment="left" valignment="top" rightline="true" width="0pt">
+<column alignment="left" valignment="top" rightline="true" width="0pt">
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
@@ -1600,6 +1725,30 @@ remote_host
 request_uri
 \end_inset 
 </cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+time_stamp
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+status
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+bytes_sent
+\end_inset 
+</cell>
 </row>
 <row topline="true" bottomline="true">
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1607,7 +1756,7 @@ request_uri
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1615,7 +1764,7 @@ XYZ123
 
 \layout Standard
 
-foo.bar.com
+zerberus.aiacs.net
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
@@ -1624,6 +1773,30 @@ foo.bar.com
 \layout Standard
 
 /index.html
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+1022493617
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+200
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+2215
 \end_inset 
 </cell>
 </row>
@@ -1688,7 +1861,7 @@ val
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1714,7 +1887,7 @@ OK
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1798,7 +1971,7 @@ val
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1824,7 +1997,7 @@ text/html
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1850,7 +2023,7 @@ gzip, deflate
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1876,7 +2049,7 @@ Tue, 28 May 2002 10:00:18 GMT
 
 \layout Standard
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
@@ -1910,7 +2083,7 @@ We have a certain request, and its unique ID is
 \begin_inset Quotes eld
 \end_inset 
 
-XYZ123
+PPIDskBRH30AAGPtAsg
 \begin_inset Quotes erd
 \end_inset 
 
@@ -1932,8 +2105,8 @@ XYZ123
 
 \end_inset 
 
-, you have a one-to-many relationship for request XYZ123: that one access
- has two associated notes and four associated headers.
+, you have a one-to-many relationship for request PPIDskBRH30AAGPtAsg: that
+ one access has two associated notes and four associated headers.
  You can extract this data easily using the power of SQL's 
 \begin_inset Quotes eld
 \end_inset 
@@ -2011,7 +2184,7 @@ zerberus.aiacs.net
 
 \layout Standard
 
-/mod_log_sql/style_1.css
+/mod_log_sql/index.html
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
@@ -2027,7 +2200,7 @@ mod_gzip_result
 
 \layout Standard
 
-DECLINED:EXCLUDED
+OK
 \end_inset 
 </cell>
 </row>
@@ -2045,7 +2218,7 @@ zerberus.aiacs.net
 
 \layout Standard
 
-/mod_log_sql/style_1.css
+/mod_log_sql/index.html
 \end_inset 
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
@@ -2061,7 +2234,7 @@ mod_gzip_compression_ratio
 
 \layout Standard
 
-0
+69
 \end_inset 
 </cell>
 </row>
@@ -2072,6 +2245,11 @@ mod_gzip_compression_ratio
 
 \layout LyX-Code
 
+\layout Standard
+
+Naturally you can craft similar statements for the outboud headers, inbound
+ headers and cookies, all of which can live in separate tables.
+ Your statements are limited in power only by your skill with SQL.
 \layout Standard
 
 In order to use this capability of mod_log_sql, you must do several things:
@@ -2085,8 +2263,12 @@ Compile mod_unique_id into Apache (statically or as a DSO).
 \layout Itemize
 
 Create the appropriate tables.
- This will be done for you if you permit mod_log_sql to create its own tables,
- or if you use the enclosed 
+ This will be done for you if you permit mod_log_sql to create its own tables
+ using 
+\noun on 
+LogSQLCreateTables On
+\noun default 
+, or if you use the enclosed 
 \begin_inset Quotes eld
 \end_inset 
 
@@ -2122,11 +2304,11 @@ LogSQL*LogTable
  directives to tell the module what and where to log the data.
  In the following example, I have overridden the name for the notes table
  whereas I have left the other table names at their defaults.
- I then specified the cookies, headers and notes that interest me.
- As you can see, these directives do not require me to add any characters
+ I have then specified the cookies, headers and notes that interest me.
+ (And as you can see, these directives do not require me to add any characters
  to 
 \noun on 
-LogSQLTransferLogTable.
+LogSQLTransferLogTable.)
 \layout LyX-Code
 
 <VirtualHost 216.231.36.128>
@@ -2154,83 +2336,6 @@ LogSQLTransferLogTable.
 \layout LyX-Code
 
 </VirtualHost>
-\layout Subsubsection
-
-Using the same database for production and test
-\layout Standard
-
-Although suboptimal, it is not uncommon to use the same backend database
- for the 
-\begin_inset Quotes eld
-\end_inset 
-
-production
-\begin_inset Quotes erd
-\end_inset 
-
- webservers as well as the 
-\begin_inset Quotes eld
-\end_inset 
-
-test
-\begin_inset Quotes erd
-\end_inset 
-
- webservers (budgetary constraints, rackspace limits, etc.).
- Furthermore, an administrator in this situation may be unable to use 
-\noun on 
-LogSQLRemhostIgnore 
-\noun default 
-to exclude requests from the test servers -- perhaps the generated entries
- are genuinely useful for analytical or QA purposes, but their value after
- analysis is minimal.
-\layout Standard
-
-It is wasteful and potentially confusing to permit this internal test data
- to clutter the database, and a solution to the problem is the proper use
- of the 
-\noun on 
-LogSQLMachineID 
-\noun default 
-directive.
- Assume a scenario where the production webservers have IDs like 
-\begin_inset Quotes eld
-\end_inset 
-
-web01,
-\begin_inset Quotes erd
-\end_inset 
-
- 
-\begin_inset Quotes eld
-\end_inset 
-
-web02,
-\begin_inset Quotes erd
-\end_inset 
-
- and so on -- and the test webservers have IDs like 
-\begin_inset Quotes eld
-\end_inset 
-
-test01,
-\begin_inset Quotes erd
-\end_inset 
-
- 
-\begin_inset Quotes eld
-\end_inset 
-
-test02,
-\begin_inset Quotes erd
-\end_inset 
-
- etc.
- Because entries in the log database are distinguished by their source machine,
- an administrator may purge unneeded test data from the access log as follows:
-\layout LyX-Code
-
-delete from access_log where machine_id like 'test%';
 \layout Subsection
 
 
@@ -5648,14 +5753,23 @@ LogSQLWhichCookies
 What are the SSL logging features, and how do I activate them?
 \layout Standard
 
-If you run an SSL-enabled server you may benefit from logging some SSL details.
- mod_log_sql now supports this ability.
- By adding certain characters to your 
+Note: you do 
+\series bold 
+not 
+\series default 
+need to compile SSL support into mod_log_sql in order to simply use it with
+ a secure site.
+ You only need to compile SSL support into mod_log_sql if you want to log
+ SSL-specific data such as the cipher type used, or the keysize that was
+ negotiated.
+\layout Standard
+
+By adding certain characters to your 
 \noun on 
 LogSQLTransferLogFormat
 \noun default 
  string you can tell mod_log_sql to log the SSL cipher, the SSL keysize
- of the connection, and the Max-keysize that was available.
+ of the connection, and the maximum keysize that was available.
  This would let you tell, for example, which clients were using only export-grad
 e security to access your secure software area.
 \layout Standard
@@ -5697,11 +5811,21 @@ Qqz
 </VirtualHost>
 \layout Standard
 
-The last three characters (Qqz) in the directive are the SSL ones; see the
- directives documentation for details.
+The last three characters (Qqz) in the directive are the SSL ones; see section
+ 
+\begin_inset LatexCommand \ref{sub:Frmat}
+
+\end_inset 
+
+ in the directives documentation for details of the 
+\noun on 
+LogSQLTransferLogFormat
+\noun default 
+ directive.
 \layout Standard
 
-Perform some hits on your server and run a select:
+Restart Apache, then perform some hits on your server.
+ Then run the following select statement:
 \layout LyX-Code
 
 mysql> select remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
@@ -5901,30 +6025,52 @@ RC4-MD5
 Does mod_log_sql connect to MySQL via TCP/IP or a socket?
 \layout Standard
 
-It depends! This actually is not determined by mod_log_sql.
+It depends! This is not determined by mod_log_sql.
  mod_log_sql relies on a connection command that is supplied in the MySQL
  API, and that command is somewhat intelligent.
- When mod_log_sql issues the connect command to MySQL, this intelligent
- connect command uses sockets to communicate with MySQL if the specified
- MySQL database is on the same machine (because sockets are more efficient
- than TCP/IP).
- However, if the specified MySQL db is on a different machine, mod_log_sql
- connects using TCP/IP.
- You don't have any control of which methodology is used.
+ How it works:
+\layout Itemize
+
+if the specified MySQL database is on the same machine, the connection command
+ uses a socket to communicate with MySQL
+\layout Itemize
+
+if the specified MySQL database is on a different machine, mod_log_sql connects
+ using TCP/IP.
+ 
 \layout Standard
 
-You do have control over where mod_log_sql looks for the socket.
+You don't have any control of which methodology is used.
+ You can fine-tune some of the configuration, however.
  The 
 \noun on 
 LogSQLSocketFile
 \noun default 
- runtime configuration directive overrides the default of "/var/lib/mysql/mysql.s
-ock" to whatever you wish.
- (Applies to mod_log_sql 1.16 or later only.)
+ runtime configuration directive overrides the default of 
+\begin_inset Quotes eld
+\end_inset 
+
+/var/lib/mysql/mysql.sock
+\begin_inset Quotes erd
+\end_inset 
+
+ for socket-based connections, whereas the 
+\noun on 
+LogSQLTCPPort
+\noun default 
+ command allows to you override the default TCP port of 3306 for TCP/IP
+ connections.
 \layout Subsection
 
-Why do I occasionally see a "lost connection to MySQL server" message in
- my error-log?
+Why do I occasionally see a 
+\begin_inset Quotes eld
+\end_inset 
+
+lost connection to MySQL server
+\begin_inset Quotes erd
+\end_inset 
+
+ message in my error-log?
 \layout Standard
 
 This message may appear every now and then in your Apache error log, especially
