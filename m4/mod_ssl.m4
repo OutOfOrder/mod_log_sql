@@ -13,13 +13,12 @@ AC_ARG_WITH(
 		ssl-inc,
 		[AC_HELP_STRING([--with-ssl-inc=DIR],[Location of SSL header files])],
 		ssl_incdir="$withval",
-		ssl_incdir="/usr/include"
 	)
 
 	if test "$ssl_val" = "yes"; then
 		ac_save_CFLAGS=$CFLAGS
 		ac_save_CPPFLAGS=$CPPFLAGS
-		MOD_SSL_CFLAGS="-I/usr/include/openssl $CFLAGS"
+		MOD_SSL_CFLAGS="-I/usr/include/openssl"
 		if test "x$ssl_incdir" != "x"; then
 			MOD_SSL_CFLAGS="-I$ssl_incdir -I$ssl_incdir/openssl $MOD_SSL_CFLAGS"
 		fi

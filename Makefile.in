@@ -60,7 +60,7 @@ all-subdirs install-subdirs update-subdirs clean-subdirs distclean-subdirs:
 	done; \
 
 $(TARGET):
-	@APXS_BIN@ -c -o @PACKAGE_NAME@.la $(INCLUDES) $(CFLAGS) $(LDADD) @DEFS@ $(SOURCES) 
+	@APXS_BIN@ -c -o @PACKAGE_NAME@.la $(INCLUDES) @MOD_SSL_CFLAGS@ $(CFLAGS) $(LDADD) @DEFS@ $(SOURCES) 
 
 include:
 	rm -rf include
@@ -112,7 +112,7 @@ $(builddir)/.deps: depend
 
 depend: $(SOURCES) $(HEADERS)
 	if test -n "`ls $(srcdir)/*.c 2> /dev/null`"; then \
-		$(CC) -MM -I@APACHE_INCDIR@ $(INCLUDES) -DHAVE_CONFIG_H $(srcdir)/*.c > $(builddir)/.deps || true; \
+		$(CC) -MM -I@APACHE_INCDIR@ @MOD_SSL_CFLAGS@ $(INCLUDES) -DHAVE_CONFIG_H $(srcdir)/*.c > $(builddir)/.deps || true; \
 	fi
 
 include $(builddir)/.deps
