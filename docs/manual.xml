@@ -707,6 +707,23 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
             </listitem>
           </varlistentry>
           <varlistentry>
+            <term>LogSQLDisablePreserve</term>
+            <listitem>
+              <cmdsynopsis>
+                <command>LogSQLDisablePreserve</command>
+                <arg choice="req">flag</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogDisablePreserve On</simpara>
+              <simpara>Default: Off</simpara>
+              <simpara>Context; main server config</simpara>
+              <para>This option can be enabled to completely disable the preserve file fail back. This may be useful for servers where the file-system is read-only.</para>
+              <para>If the database is not available those log entries will be lost.</para>
+              <note>
+                <para>This is defined only once in the <filename moreinfo="none">httpd.conf</filename> file.</para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
             <term>LogSQLMachineID</term>
             <listitem>
               <cmdsynopsis sepchar=" ">
@@ -1104,7 +1121,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
             <listitem>
               <cmdsynopsis sepchar=" ">
                 <command moreinfo="none">LogSQLRequestAccept</command>
-                <arg choice="req" rep="repeat"><replaceable>hostname</replaceable></arg>
+                <arg choice="req" rep="repeat"><replaceable>substring</replaceable></arg>
               </cmdsynopsis>
               <simpara>Example: LogSQLRequestAccept .html .php .jpg</simpara>
               <simpara>Default: if not specified, all requests are 'accepted'</simpara>
@@ -1121,7 +1138,7 @@ where a.id=n.id and a.id='PPIDskBRH30AAGPtAsg';</screen>
             <listitem>
               <cmdsynopsis sepchar=" ">
                 <command moreinfo="none">LogSQLRequestIgnore</command>
-                <arg choice="req" rep="repeat"><replaceable>hostname</replaceable></arg>
+                <arg choice="req" rep="repeat"><replaceable>substring</replaceable></arg>
               </cmdsynopsis>
               <simpara>Example: LogSQLRequestIgnore root.exe cmd.exe default.ida favicon.ico</simpara>
               <simpara>Context: virtual host</simpara>
@@ -1578,7 +1595,7 @@ ErrorLog /var/log/httpd/server-messages </programlisting>
   API said: error 2013, Lost connection to MySQL server during query 
 [Tue Nov 12 19:04:10 2002] [error] mod_log_sql: reconnect successful
 [Tue Nov 12 19:04:10 2002] [error] mod_log_sql: second attempt successful</screen>
-            <para>Reference: <ulink url="http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away">MySQL documentation</ulink></para>
+            <para>Reference: <ulink url="http://dev.mysql.com/doc/mysql/en/Gone_away.html">MySQL documentation</ulink></para>
           </answer>
         </qandaentry>
         <qandaentry>

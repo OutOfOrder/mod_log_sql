@@ -54,6 +54,7 @@
 
 #define apr_pool_create(a,b) *(a) = ap_make_sub_pool(b)
 #define apr_pool_destroy ap_destroy_pool
+#define apr_pool_cleanup_register ap_register_cleanup
 #define apr_palloc ap_palloc
 #define apr_pcalloc ap_pcalloc
 #define apr_pstrdup ap_pstrdup

@@ -504,6 +504,8 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
                  cls->preserve_file = default_p;
 	    }
 	}
+    global_config.db.p = p;
+
 #if defined(WITH_APACHE20)
 	return OK;
 #endif
@@ -908,9 +910,7 @@ static int log_sql_transaction(request_rec *orig)
 			fields = apr_pstrcat(r->pool, fields, (i ? "," : ""),
 						 item->sql_field_name, NULL);
 			values = apr_pstrcat(r->pool, values, (i ? "," : ""),
-						 (item->string_contents ? "'" : ""),
-					     global_config.driver->escape(formatted_item, r->pool,&global_config.db),
-						 (item->string_contents ? "'" : ""), NULL);
+					     global_config.driver->escape(formatted_item, r->pool,&global_config.db), NULL);
 		}
 
 		/* Work through the list of notes defined by LogSQLWhichNotes */
@@ -923,19 +923,19 @@ static int log_sql_transaction(request_rec *orig)
 		    if ((theitem = apr_table_get(r->notes, *ptrptr))) {
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
-									  "('",
+									  "(",
 									  unique_id,
-									  "','",
+									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
-									  "','",
+									  ",",
 									  global_config.driver->escape(theitem, r->pool,&global_config.db),
-									  "')",
+									  ")",
 									  NULL);
 				i++;
 			}
 		}
 		if ( itemsets != "" ) {
-			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+			note_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", notes_tablename, itemsets);
 
 			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: note string: %s", note_query);
@@ -951,19 +951,19 @@ static int log_sql_transaction(request_rec *orig)
 		    if ((theitem = apr_table_get(r->headers_out, *ptrptr))) {
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
-									  "('",
+									  "(",
 									  unique_id,
-									  "','",
+									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
-									  "','",
+									  ",",
 									  global_config.driver->escape(theitem, r->pool,&global_config.db),
-									  "')",
+									  ")",
 									  NULL);
 				i++;
 			}
 		}
 		if ( itemsets != "" ) {
-			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+			hout_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hout_tablename, itemsets);
 
 			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: header_out string: %s", hout_query);
@@ -980,19 +980,19 @@ static int log_sql_transaction(request_rec *orig)
 		    if ((theitem = apr_table_get(r->headers_in, *ptrptr))) {
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
-									  "('",
+									  "(",
 									  unique_id,
-									  "','",
+									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
-									  "','",
+									  ",",
 									  global_config.driver->escape(theitem, r->pool,&global_config.db),
-									  "')",
+									  ")",
 									  NULL);
 				i++;
 			}
 		}
 		if ( itemsets != "" ) {
-			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+			hin_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hin_tablename, itemsets);
 
 			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: header_in string: %s", hin_query);
@@ -1009,20 +1009,20 @@ static int log_sql_transaction(request_rec *orig)
 		    if ( strncmp((theitem = extract_specific_cookie(r, *ptrptr)), "-", 1) ) {
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
-									  "('",
+									  "(",
 									  unique_id,
-									  "','",
+									  ",",
 									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
-									  "','",
+									  ",",
 									  global_config.driver->escape(theitem, r->pool,&global_config.db),
-									  "')",
+									  ")",
 									  NULL);
 				i++;
 			}
 
 		}
 		if ( itemsets != "" ) {
-			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+			cookie_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", cookie_tablename, itemsets);
 
 			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: cookie string: %s", cookie_query);
@@ -1030,7 +1030,7 @@ static int log_sql_transaction(request_rec *orig)
 
 
 		/* Set up the actual INSERT statement */
-		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
+		access_query = apr_psprintf(r->pool, "insert %s into %s (%s) values (%s)",
 			/*global_config.insertdelayed?"delayed":*/"", transfer_tablename, fields, values);
 
         log_error(APLOG_MARK,APLOG_DEBUG,0, r->server,"mod_log_sql: access string: %s", access_query);

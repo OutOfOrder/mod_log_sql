@@ -36,6 +36,7 @@ LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 typedef struct {
 	int connected; /* Are we connected to the DB */
 	void *handle; /* DB specific connection pointer */
+    apr_pool_t *p; /* Pool to allocate handle off of */
 	apr_table_t *parms; /* DB connection parameters */
 } logsql_dbconnection;
 
@@ -79,7 +80,7 @@ typedef enum {
 
 typedef struct {
 	/* NULL terminated list of drivers strings */
-	char **provided_drivers;
+	const char **provided_drivers;
 	/* create a connection to the underlying database layer */
 	logsql_opendb_ret (*connect)(server_rec *s, logsql_dbconnection *db);
 	/* disconnect from the underlying database layer */
@@ -117,6 +118,12 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 		STANDARD_MODULE_STUFF, module_init }; \
 	static void module_init(server_rec *s, apr_pool_t *p)
 #endif
+
+#if defined(WITH_APACHE20)
+#   define LOGSQL_SHUTDOWN \
+    static 
+#endif
+
 
 #if defined(WITH_APACHE20)
 #define LOGSQL_REGISTER_RETURN return OK;

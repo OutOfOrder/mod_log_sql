@@ -1,3 +1,8 @@
+?: ?
+* Added DBI support
+* fixed segfault in the mysql driver escape_string function
+* switched escape_string driver function to include the string quotes.
+
 1.98: 2004-04-12
 * re-fixed apache.m4 to better detect APR and APU code
 * fixed for win32 compilation under apache 2

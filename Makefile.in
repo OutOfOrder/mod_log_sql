@@ -130,6 +130,9 @@ $(dbiTARGET): $(dbiSOURCES) $(HEADERS)
 install: $(TARGETS) install-subdirs
 	@@APXS_BIN@ -i $(TARGET); \
 	@APXS_BIN@ -n $(mysqlNAME) -i $(mysqlTARGET); \
+	if test @WANT_DBI_MOD@ -eq 1; then \
+	    @APXS_BIN@ -n $(dbiNAME) -i $(dbiTARGET); \
+    fi; \
 	if test @WANT_SSL_MOD@ -eq 1; then \
 		@APXS_BIN@ -n $(sslNAME) -i $(sslTARGET); \
 	fi; \

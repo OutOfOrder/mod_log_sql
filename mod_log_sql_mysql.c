@@ -55,7 +55,7 @@ static logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnectio
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_SUCCESS;
 	} else {
-		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"mod_log_sql: database connection error: %s",
+		log_error(APLOG_MARK,APLOG_ERR,0, s,"mod_log_sql: database connection error: %s",
 				MYSQL_ERROR(dblink));
 		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
@@ -85,23 +85,24 @@ static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 		/* Pre-allocate a new string that could hold twice the original, which would only
 		 * happen if the whole original string was 'dangerous' characters.
 		 */
-		to_str = (char *) apr_palloc(p, length * 2 + 1);
+		to_str = (char *) apr_palloc(p, length * 2 + 3);
 		if (!to_str) {
 			return from_str;
 		}
-
+        strcpy(to_str, "'");
 		if (!db->connected) {
 			/* Well, I would have liked to use the current database charset.  mysql is
 			 * unavailable, however, so I fall back to the slightly less respectful
 			 * mysql_escape_string() function that uses the default charset.
 			 */
-			retval = mysql_escape_string(to_str, from_str, length);
+			retval = mysql_escape_string(to_str+1, from_str, length);
 		} else {
 			/* MySQL is available, so I'll go ahead and respect the current charset when
 			 * I perform the escape.
 			 */
-			retval = mysql_real_escape_string((MYSQL *)db->handle, to_str, from_str, length);
+			retval = mysql_real_escape_string((MYSQL *)db->handle, to_str+1, from_str, length);
 		}
+        strcat(to_str,"'");
 
 		if (retval)
 		  return to_str;
@@ -109,6 +110,7 @@ static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 		  return from_str;
 	}
 }
+
 #if defined(WIN32)
 #define SIGNAL_GRAB
 #define SIGNAL_RELEASE
@@ -243,7 +245,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
 	return LOGSQL_TABLE_SUCCESS;
 }
 
-static char *supported_drivers[] = {"mysql",NULL};
+static const char *supported_drivers[] = {"mysql",NULL};
 static logsql_dbdriver mysql_driver = {
 	supported_drivers,
 	log_sql_mysql_connect,	/* open DB connection */

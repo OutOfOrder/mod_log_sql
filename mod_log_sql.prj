@@ -49,6 +49,18 @@ project.menu.need.terminal=0
 
 project.configure.options=
 anjuta.program.arguments=
+preferences.indent.automatic=1
+preferences.use.tabs=0
+preferences.indent.opening=0
+preferences.indent.closing=0
+preferences.tabsize=4
+preferences.indent.size=4
+preferences.autoformat.style=Style of Kangleipak
+preferences.autoformat.custom.style= -i8 -sc -bli0 -bl0 -cbi0 -ss
+preferences.autoformat.disable=0
+preferences.debugger.command=gdb
+preferences.ui.designer=glade '$(project.name).glade'
+preferences.help.browser=devhelp -s '$(current.file.selection)'
 
 module.include.name=.
 module.include.type=
@@ -70,7 +82,8 @@ module.source.files=\
 	mod_log_sql_ssl.c\
 	mod_log_sql_mysql.c\
 	contrib/make_combined_log.pl\
-	mod_log_sql_pgsql.c
+	mod_log_sql_pgsql.c\
+	mod_log_sql_dbi.c
 
 module.pixmap.name=.
 module.pixmap.type=
