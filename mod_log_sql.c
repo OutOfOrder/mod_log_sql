@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.13 2004/02/04 02:16:33 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.14 2004/02/05 21:59:46 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
@@ -717,12 +717,13 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 	if (!global_config.tcpport)
 		global_config.tcpport = 3306;
 
+	/* TODO: Add local_address, remote_address, server_name, connection_status */
 	/* Register handlers */
 	log_sql_register_item(s,p,'A', extract_agent,             "agent",            1, 1);
-	log_sql_register_item(s,p,'a', extract_request_args,      "request_args",     1, 1);
+	log_sql_register_item(s,p,'a', extract_request_query,     "request_args",     1, 1);
 	log_sql_register_item(s,p,'b', extract_bytes_sent,        "bytes_sent",       0, 0);
     log_sql_register_item(s,p,'c', extract_cookie,            "cookie",           0, 1);
-    log_sql_register_item(s,p,'e', extract_env_var,           "env_var",          0, 1);
+	/* TODO: Document */
     log_sql_register_item(s,p,'f', extract_request_file,      "request_file",     0, 1);
 	log_sql_register_item(s,p,'H', extract_request_protocol,  "request_protocol", 0, 1);
 	log_sql_register_item(s,p,'h', extract_remote_host,       "remote_host",      0, 1);

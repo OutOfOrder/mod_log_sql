@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.94)
+AC_INIT(mod_log_sql, 1.95)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
 

@@ -1,4 +1,4 @@
-/* $Header: /home/cvs/mod_log_sql/functions.h,v 1.1 2004/01/20 19:38:08 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/functions.h,v 1.2 2004/02/05 21:59:46 urkle Exp $ */
 /* Begin the individual functions that, given a request r,
  * extract the needed information from it and return the
  * value to the calling entity.
@@ -7,6 +7,20 @@
 static const char *extract_remote_host(request_rec *r, char *a)
 {
 	return (char *) ap_get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME, NULL);
+}
+
+static const char *extract_remote_address(request_rec *r, char *a) __attribute__((unused));
+
+static const char *extract_remote_address(request_rec *r, char *a)
+{
+    return r->connection->remote_ip;
+}
+
+static const char *extract_local_address(request_rec *r, char *a) __attribute__((unused));
+
+static const char *extract_local_address(request_rec *r, char *a)
+{
+    return r->connection->local_ip;
 }
 
 static const char *extract_remote_logname(request_rec *r, char *a)
@@ -29,19 +43,21 @@ static const char *extract_remote_user(request_rec *r, char *a)
 	return rvalue;
 }
 
-static const char *extract_request_method(request_rec *r, char *a)
-{
-	return r->method;
-}
-
-static const char *extract_request_protocol(request_rec *r, char *a)
-{
-	return r->protocol;
-}
-
 static const char *extract_request_line(request_rec *r, char *a)
 {
-	return r->the_request;
+	/* Upddated to mod_log_config logic */
+	/* NOTE: If the original request contained a password, we
+	 * re-write the request line here to contain XXXXXX instead:
+	 * (note the truncation before the protocol string for HTTP/0.9 requests)
+	 * (note also that r->the_request contains the unmodified request)
+	 */
+	return (r->parsed_uri.password) 
+				? apr_pstrcat(r->pool, r->method, " ",
+					apr_uri_unparse(r->pool,
+						&r->parsed_uri, 0),
+					r->assbackwards ? NULL : " ", 
+					r->protocol, NULL)
+				: r->the_request;
 }
 
 static const char *extract_request_file(request_rec *r, char *a)
@@ -54,9 +70,21 @@ static const char *extract_request_uri(request_rec *r, char *a)
 	return r->uri;
 }
 
-static const char *extract_request_args(request_rec *r, char *a)
+static const char *extract_request_method(request_rec *r, char *a)
 {
-	return r->args;
+	return r->method;
+}
+
+static const char *extract_request_protocol(request_rec *r, char *a)
+{
+	return r->protocol;
+}
+
+static const char *extract_request_query(request_rec *r, char *a)
+{
+	return (r->args) ? apr_pstrcat(r->pool, "?",
+						r->args, NULL)
+					 : "";
 }
 
 static const char *extract_status(request_rec *r, char *a)
@@ -67,34 +95,6 @@ static const char *extract_status(request_rec *r, char *a)
 		return apr_psprintf(r->pool, "%d", r->status);
 	}
 }
-
-static const char *extract_bytes_sent(request_rec *r, char *a)
-{
-	if (!r->sent_bodyct || !r->bytes_sent) {
-		return "-";
-	} else {
-		return apr_psprintf(r->pool, "%" APR_OFF_T_FMT, r->bytes_sent);
-	}
-}
-
-/*
-static const char *extract_header_in(request_rec *r, char *a)
-{
-	return table_get(r->headers_in, a);
-}
-
-static const char *extract_header_out(request_rec *r, char *a)
-{
-	const char *cp = table_get(r->headers_out, a);
-	if (!strcasecmp(a, "Content-type") && r->content_type) {
-		cp = r->content_type;
-	}
-	if (cp) {
-		return cp;
-	}
-	return table_get(r->err_headers_out, a);
-}
-*/
 
 static const char *extract_virtual_host(request_rec *r, char *a)
 {
@@ -113,6 +113,15 @@ static const char *extract_server_port(request_rec *r, char *a)
 {
     return apr_psprintf(r->pool, "%u",
                         r->server->port ? r->server->port : ap_default_port(r));
+}
+
+/* This respects the setting of UseCanonicalName so that
+ * the dynamic mass virtual hosting trick works better.
+ */
+static const char *log_server_name(request_rec *r, char *a) __attribute__((unused));
+static const char *log_server_name(request_rec *r, char *a)
+{
+    return ap_get_server_name(r);
 }
 
 static const char *extract_child_pid(request_rec *r, char *a)
@@ -156,83 +165,6 @@ static const char *extract_agent(request_rec *r, char *a)
     } else {
         return tempag;
     }
-}
-
-static const char *extract_cookie(request_rec *r, char *a)
-{
-    const char *cookiestr;
-    char *cookieend;
-	char *isvalid;
-	char *cookiebuf;
-
-	logsql_state *cls = ap_get_module_config(r->server->module_config,
-											&log_sql_module);
-
-	if (cls->cookie_name != NULL) {
-		#ifdef DEBUG
-		  	log_error(APLOG_MARK,APLOG_DEBUG, r->server,
-				"watching for cookie '%s'", cls->cookie_name);
-		#endif
-
-		/* Fetch out the cookie header */
-	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie2");
-	    if (cookiestr != NULL) {
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG, r->server,
-					"Cookie2: [%s]", cookiestr);
-			#endif
-			/* Does the cookie string contain one with our name? */
-			isvalid = strstr(cookiestr, cls->cookie_name);
-			if (isvalid != NULL) {
-				/* Move past the cookie name and equal sign */
-				isvalid += strlen(cls->cookie_name) + 1;
-				/* Duplicate it into the pool */
-			    cookiebuf = apr_pstrdup(r->pool, isvalid);
-				/* Segregate just this cookie out of the string
-				 * with a terminating nul at the first semicolon */
-			    cookieend = strchr(cookiebuf, ';');
-			    if (cookieend != NULL)
-			       *cookieend = '\0';
-			  	return cookiebuf;
-			}
-		}
-
-	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie");
-	    if (cookiestr != NULL) {
-			#ifdef DEBUG
-				log_error(APLOG_MARK,APLOG_DEBUG,r->server,
-					"Cookie: [%s]", cookiestr);
-			#endif
-			isvalid = strstr(cookiestr, cls->cookie_name);
-			if (isvalid != NULL) {
-				isvalid += strlen(cls->cookie_name) + 1;
-			    cookiebuf = apr_pstrdup(r->pool, isvalid);
-			    cookieend = strchr(cookiebuf, ';');
-			    if (cookieend != NULL)
-			       *cookieend = '\0';
-			  	return cookiebuf;
-			}
-		}
-
-	 	cookiestr = apr_table_get(r->headers_out,  "set-cookie");
-	    if (cookiestr != NULL) {
-			#ifdef DEBUG
-			     log_error(APLOG_MARK,APLOG_DEBUG,r->server,
-					"Set-Cookie: [%s]", cookiestr);
-			#endif
-			isvalid = strstr(cookiestr, cls->cookie_name);
-			if (isvalid != NULL) {
-			    isvalid += strlen(cls->cookie_name) + 1;
-			    cookiebuf = apr_pstrdup(r->pool, isvalid);
-			    cookieend = strchr(cookiebuf, ';');
-			    if (cookieend != NULL)
-			       *cookieend = '\0';
-			  	return cookiebuf;
-			}
-		}
-	}
-
-	return "-";
 }
 
 static const char *extract_specific_cookie(request_rec *r, char *a)
@@ -309,18 +241,12 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	return "-";
 }
 
-
-/*
-static const char *extract_note(request_rec *r, char *a)
+static const char *extract_cookie(request_rec *r, char *a)
 {
-	return apr_table_get(r->notes, a);
+	logsql_state *cls = ap_get_module_config(r->server->module_config,
+											&log_sql_module);
 
-}
-*/
-
-static const char *extract_env_var(request_rec *r, char *a)
-{
-	return apr_table_get(r->subprocess_env, a);
+	return extract_specific_cookie(r, (char *)cls->cookie_name);
 }
 
 static const char *extract_unique_id(request_rec *r, char *a)

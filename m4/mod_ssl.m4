@@ -18,6 +18,7 @@ AC_ARG_WITH(
 		db-inc,
 		[AC_HELP_STRING([--with-db-inc=DIR],[Location of DB header files])],
 		db_incdir="$withval",
+		db_incdir="/usr/include/db1"
 	)
 
 	if test "x$ssl_val" = "xyes"; then

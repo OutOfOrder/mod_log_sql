@@ -1,5 +1,14 @@
-/* $Header: /home/cvs/mod_log_sql/functions20.h,v 1.2 2004/01/20 19:38:08 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/functions20.h,v 1.3 2004/02/05 21:59:46 urkle Exp $ */
 /* functions */
+static const char *extract_bytes_sent(request_rec *r, char *a)
+{
+	if (!r->sent_bodyct || !r->bytes_sent) {
+		return "-";
+	} else {
+		return apr_psprintf(r->pool, "%" APR_OFF_T_FMT, r->bytes_sent);
+	}
+}
+
 static const char *extract_request_time_custom(request_rec *r, char *a,
                                            apr_time_exp_t *xt)
 {
@@ -90,4 +99,18 @@ static const char *extract_request_duration(request_rec *r, char *a)
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
 	return apr_psprintf(r->pool, "%"APR_TIME_T_FMT, apr_time_sec(apr_time_now()));
+}
+
+static const char *extract_connection_status(request_rec *r, char *a) __attribute__((unused));
+static const char *extract_connection_status(request_rec *r, char *a)
+{
+    if (r->connection->aborted)
+        return "X";
+
+    if (r->connection->keepalive == AP_CONN_KEEPALIVE && 
+        (!r->server->keep_alive_max ||
+         (r->server->keep_alive_max - r->connection->keepalives) > 0)) {
+        return "+";
+    }
+    return "-";
 }

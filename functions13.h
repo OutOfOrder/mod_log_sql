@@ -1,4 +1,17 @@
-/* $Header: /home/cvs/mod_log_sql/functions13.h,v 1.2 2004/01/20 19:38:08 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/functions13.h,v 1.3 2004/02/05 21:59:46 urkle Exp $ */
+
+static const char *extract_bytes_sent(request_rec *r, char *a)
+{
+    if (!r->sent_bodyct) {
+        return "-";
+    }
+    else {
+        long int bs;
+        ap_bgetopt(r->connection->client, BO_BYTECT, &bs);
+	return ap_psprintf(r->pool, "%ld", bs);
+    }
+}
+
 static const char *extract_request_time(request_rec *r, char *a)
 {
 	int timz;
@@ -24,16 +37,22 @@ static const char *extract_request_time(request_rec *r, char *a)
 
 static const char *extract_request_duration(request_rec *r, char *a)
 {
-	char duration[22];			 /* Long enough for 2^64 */
-
-	ap_snprintf(duration, sizeof(duration), "%ld", (long) time(NULL) - r->request_time);
-	return ap_pstrdup(r->pool, duration);
+	return ap_psprintf(r->pool, "%ld", time(NULL) - r->request_time);
 }
 
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
-	char tstr[32];
+	return ap_psprintf(r->pool, "%ld", (long) time(NULL));
+}
+static const char *extract_connection_status(request_rec *r, char *a) __attribute__((unused));
+static const char *extract_connection_status(request_rec *r, char *a)
+{
+    if (r->connection->aborted)
+        return "X";
 
-	ap_snprintf(tstr, 32, "%ld", (long) time(NULL));
-	return ap_pstrdup(r->pool, tstr);
+    if ((r->connection->keepalive) && 
+        ((r->server->keep_alive_max - r->connection->keepalives) > 0)) {
+        return "+";
+    }
+    return "-";
 }

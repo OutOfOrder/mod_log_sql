@@ -52,7 +52,7 @@ anjuta.program.arguments=
 
 module.include.name=.
 module.include.type=
-module.include.expanded=0
+module.include.expanded=1
 module.include.files=\
 	apache13.h\
 	apache20.h\
@@ -98,7 +98,8 @@ module.doc.files=\
 	INSTALL\
 	Documentation/documentation.lyx\
 	CHANGELOG\
-	LICENSE
+	LICENSE\
+	AUTHORS
 
 module.po.expanded=0
 module.po.files=
