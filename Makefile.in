@@ -11,7 +11,7 @@ CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
 INCLUDES = -I/usr/include/mysql
 
-LDADD = 
+LDADD = -L/usr/lib/mysql -lmysqlclient
 
 EXTRA_DIST = INSTALL LICENSE CHANGELOG make_combined_log.pl
 

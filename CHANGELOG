@@ -1,20 +1,23 @@
-$Id: CHANGELOG,v 1.1 2003/12/20 07:16:05 urkle Exp $
+$Id: CHANGELOG,v 1.2 2003/12/22 04:45:38 urkle Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
-  PostgreSQL.
-* GNU autoconf
+  PostgreSQL. (provider mechanism, and libDBI)
 * merge server config into vh config
-* port to Apache 2.x
 * does determining table name in massvirtual mode upon every request
   cause performance degradation?  If so fix.
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
-* new format char: IP as bigint?
+* new format char: IP as bigint? ( not w/ ipV6 )
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
 * ignore by cookie
 
 CHANGES:
+1.90: ?
+* updated code to compile under apache 2.0
+* rewrote and consolidate configuration handler routines
+* made all functions static.
+* made delayed insert configurable, instead of compile time
 
 1.18:
 * Delayed inserts (a MySQL extension) are now available at compile-time.
@@ -351,5 +354,3 @@ to MySQL
 * Segmentation fault in case of certain parameters lacking fixed.
 * Worked around the SIGPIPE signal that's sent in certain events from
 * mysql_query(). Minor modifications
-
-

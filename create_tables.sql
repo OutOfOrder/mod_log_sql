@@ -15,7 +15,7 @@ create table access_log (
 	request_method varchar(10) ,
 	request_protocol varchar(10) ,
 	request_time char(28),
-	request_uri varchar(50),
+	request_uri varchar(255),
 	request_args varchar(255),
 	server_port smallint unsigned,
 	ssl_cipher varchar(25),

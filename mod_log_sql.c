@@ -1,70 +1,92 @@
-/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.2 2003/12/21 17:45:51 urkle Exp $ */
+/* $Header: /home/cvs/mod_log_sql/mod_log_sql.c,v 1.3 2003/12/22 04:45:38 urkle Exp $ */
 /* --------*
  * DEFINES *
  * --------*/
 
 /* The enduser may wish to modify this */
-#undef DEBUG
+#define DEBUG
 
 /* The enduser won't modify these */
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
-#define ERRLEVEL APLOG_ERR|APLOG_NOERRNO
-#define WARNINGLEVEL APLOG_WARNING|APLOG_NOERRNO
-#define NOTICELEVEL APLOG_NOTICE|APLOG_NOERRNO
-#define DEBUGLEVEL APLOG_DEBUG|APLOG_NOERRNO
 
 /* ---------*
  * INCLUDES *
  * ---------*/
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include "apr_strings.h"
+#include "apr_lib.h"
+#include "apr_hash.h"
+#include "apr_optional.h"
+#define APR_WANT_STRFUNC
+#include "apr_want.h"
+#include "apr_tables.h"
+
+#include "ap_config.h"
+
 #include "httpd.h"
 #include "http_config.h"
-#include "http_log.h"
 #include "http_core.h"
+#include "http_log.h"
+#include "http_protocol.h"
+
+#include "util_time.h"
+
+#if APR_HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
 #include "mysql.h"
 #include "mysqld_error.h"
 
-#if MODULE_MAGIC_NUMBER >= 19980324 /* M_M_N is defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
-	#include "ap_compat.h"
+#ifdef HAVE_CONFIG_H
+/* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
+ * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
+ */
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
+
+#include "config.h"
 #endif
 
 #ifdef WANT_SSL_LOGGING
-	#include "mod_ssl.h"
+#include "mod_ssl.h"
 #endif
-
 
 /* -------------*
  * DECLARATIONS *
  * -------------*/
 
 /* Declare ourselves so the configuration routines can find and know us. */
-module sql_log_module;
+module AP_MODULE_DECLARE_DATA log_sql_module;
 
 /* The contents of these are known 'Apache wide' and are not variable
  * on a per-virtual-server basis.  Every virtual server 'knows' the
  * same versions of these variables.
  */
-MYSQL logsql_server, *logsql_server_p = NULL;
 
-int logsql_massvirtual = 0;
-int logsql_createtables = 0;
-int logsql_forcepreserve = 0;
-char *logsql_dbname = NULL;
-char *logsql_dbhost = NULL;
-char *logsql_dbuser = NULL;
-char *logsql_dbpwd  = NULL;
-char *logsql_machid = NULL;
-char *logsql_socketfile = "/tmp/mysql.sock";
-unsigned int logsql_tcpport = 3306;
+typedef struct {
+	int massvirtual;
+	int createtables;
+	int forcepreserve;
+	char *dbname;
+	char *dbhost;
+	char *dbuser;
+	char *dbpwd;
+	char *machid;
+	char *socketfile;
+	unsigned int tcpport;
+	int insertdelayed;
+	MYSQL server;
+	MYSQL *server_p;
+} global_config_t;
 
-#ifdef WANT_DELAYED_MYSQL_INSERT
- char *logsql_insertclause = "insert delayed into ";
-#else
- char *logsql_insertclause = "insert into ";
-#endif
+static global_config_t global_config;
 
 typedef const char *(*item_key_func) (request_rec *, char *);
 
@@ -75,13 +97,13 @@ typedef const char *(*item_key_func) (request_rec *, char *);
  * Each child process has its own segregated copy of this structure.
  */
 typedef struct {
-	apr_array_t *transfer_ignore_list;
-	array_header *transfer_accept_list;
-	array_header *remhost_ignore_list;
-	array_header *notes_list;
-	array_header *hout_list;
-	array_header *hin_list;
-	array_header *cookie_list;
+	apr_array_header_t *transfer_ignore_list;
+	apr_array_header_t *transfer_accept_list;
+	apr_array_header_t *remhost_ignore_list;
+	apr_array_header_t *notes_list;
+	apr_array_header_t *hout_list;
+	apr_array_header_t *hin_list;
+	apr_array_header_t *cookie_list;
 	char *notes_table_name;
 	char *hout_table_name;
 	char *hin_table_name;
@@ -97,16 +119,16 @@ typedef struct {
  * HELPER FUNCTIONS *
  * -----------------*/
 
-int safe_create_tables(logsql_state *cls, request_rec *r);
+static int safe_create_tables(logsql_state *cls, request_rec *r);
 
-static char *format_integer(pool *p, int i)
+static char *format_integer(apr_pool_t *p, int i)
 {
 	char dummy[40];
-	ap_snprintf(dummy, sizeof(dummy), "%d", i);
-	return pstrdup(p, dummy);
+	apr_snprintf(dummy, sizeof(dummy), "%d", i);
+	return apr_pstrdup(p, dummy);
 }
 
-static char *pfmt(pool *p, int i)
+static char *pfmt(apr_pool_t *p, int i)
 {
 	if (i <= 0) {
 		return "-";
@@ -122,17 +144,17 @@ static char *pfmt(pool *p, int i)
 
 static const char *extract_remote_host(request_rec *r, char *a)
 {
-	return (char *) get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME);
+	return (char *) ap_get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME, NULL);
 }
 
 static const char *extract_remote_logname(request_rec *r, char *a)
 {
-	return (char *) get_remote_logname(r);
+	return (char *) ap_get_remote_logname(r);
 }
 
 static const char *extract_remote_user(request_rec *r, char *a)
 {
-	char *rvalue = r->connection->user;
+	char *rvalue = r->user;
 
 	if (rvalue == NULL) {
 		rvalue = "-";
@@ -150,7 +172,7 @@ static const char *extract_ssl_keysize(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_USEKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_KEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_KEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -167,7 +189,7 @@ static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_ALGKEYSIZE: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_ALGKEYSIZE: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -184,7 +206,7 @@ static const char *extract_ssl_cipher(request_rec *r, char *a)
 	if (ap_ctx_get(r->connection->client->ctx, "ssl") != NULL) {
 	    result = ssl_var_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER");
 		#ifdef DEBUG
-    	    ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"SSL_CIPHER: %s", result);
+    	    ap_log_error(APLOG_MARK,APLOG_DEBUG,r->server,"SSL_CIPHER: %s", result);
 		#endif
 		if (result != NULL && result[0] == '\0')
 	      result = NULL;
@@ -232,14 +254,10 @@ static const char *extract_status(request_rec *r, char *a)
 
 static const char *extract_bytes_sent(request_rec *r, char *a)
 {
-	if (!r->sent_bodyct) {
+	if (!r->sent_bodyct || !r->bytes_sent) {
 		return "-";
 	} else {
-		long int bs;
-		char dummy[40];
-		bgetopt(r->connection->client, BO_BYTECT, &bs);
-		ap_snprintf(dummy, sizeof(dummy), "%ld", bs);
-		return pstrdup(r->pool, dummy);
+		return apr_psprintf(r->pool, "%" APR_OFF_T_FMT, r->bytes_sent);
 	}
 }
 
@@ -261,71 +279,141 @@ static const char *extract_header_out(request_rec *r, char *a)
 	return table_get(r->err_headers_out, a);
 }
 */
+static const char *extract_request_time_custom(request_rec *r, char *a,
+                                           apr_time_exp_t *xt)
+{
+    apr_size_t retcode;
+    char tstr[MAX_STRING_LEN];
+    apr_strftime(tstr, &retcode, sizeof(tstr), a, xt);
+    return apr_pstrdup(r->pool, tstr);
+}
+
+#define DEFAULT_REQUEST_TIME_SIZE 32
+typedef struct {
+    unsigned t;
+    char timestr[DEFAULT_REQUEST_TIME_SIZE];
+    unsigned t_validate;
+} cached_request_time;
+
+#define TIME_CACHE_SIZE 4
+#define TIME_CACHE_MASK 3
+static cached_request_time request_time_cache[TIME_CACHE_SIZE];
 
 static const char *extract_request_time(request_rec *r, char *a)
 {
-	int timz;
-	struct tm *t;
-	char tstr[MAX_STRING_LEN];
+	apr_time_exp_t xt;
 
-	t = get_gmtoff(&timz);
-
+	/* Please read comments in mod_log_config.h for more info about
+	 * the I_INSIST....COMPLIANCE define
+	 */
 	if (a && *a) {     /* Custom format */
-		strftime(tstr, MAX_STRING_LEN, a, t);
+#ifdef I_INSIST_ON_EXTRA_CYCLES_FOR_CLF_COMPLIANCE
+        ap_explode_recent_localtime(&xt, apr_time_now());
+#else
+        ap_explode_recent_localtime(&xt, r->request_time);
+#endif
+        return extract_request_time_custom(r, a, &xt);
 	} else {		   /* CLF format */
-		char sign = (timz < 0 ? '-' : '+');
+        /* This code uses the same technique as ap_explode_recent_localtime():
+         * optimistic caching with logic to detect and correct race conditions.
+         * See the comments in server/util_time.c for more information.
+         */
+        cached_request_time* cached_time = apr_palloc(r->pool,
+                                                      sizeof(*cached_time));
+#ifdef I_INSIST_ON_EXTRA_CYCLES_FOR_CLF_COMPLIANCE
+        apr_time_t request_time = apr_time_now();
+#else
+        apr_time_t request_time = r->request_time;
+#endif
+        unsigned t_seconds = (unsigned)apr_time_sec(request_time);
+        unsigned i = t_seconds & TIME_CACHE_MASK;
+        memcpy(cached_time, &(request_time_cache[i]), sizeof(*cached_time));
+        if ((t_seconds != cached_time->t) ||
+            (t_seconds != cached_time->t_validate)) {
 
-		if (timz < 0) {
-			timz = -timz;
+            /* Invalid or old snapshot, so compute the proper time string
+             * and store it in the cache
+             */
+            char sign;
+            int timz;
+
+            ap_explode_recent_localtime(&xt, r->request_time);
+            timz = xt.tm_gmtoff;
+            if (timz < 0) {
+                timz = -timz;
+                sign = '-';
+            }
+            else {
+                sign = '+';
+            }
+            cached_time->t = t_seconds;
+            apr_snprintf(cached_time->timestr, DEFAULT_REQUEST_TIME_SIZE,
+                         "[%02d/%s/%d:%02d:%02d:%02d %c%.2d%.2d]",
+                         xt.tm_mday, apr_month_snames[xt.tm_mon],
+                         xt.tm_year+1900, xt.tm_hour, xt.tm_min, xt.tm_sec,
+                         sign, timz / (60*60), timz % (60*60));
+            cached_time->t_validate = t_seconds;
+            memcpy(&(request_time_cache[i]), cached_time,
+                   sizeof(*cached_time));
 		}
-		strftime(tstr, MAX_STRING_LEN, "[%d/%b/%Y:%H:%M:%S ", t);
-		ap_snprintf(tstr + strlen(tstr), sizeof(tstr) - strlen(tstr), "%c%.2d%.2d]", sign, timz / 60, timz % 60);
+		return cached_time->timestr;
 	}
-
-	return pstrdup(r->pool, tstr);
 }
 
 static const char *extract_request_duration(request_rec *r, char *a)
 {
-	char duration[22];			 /* Long enough for 2^64 */
+	apr_time_t duration = apr_time_now() - r->request_time;
+	return apr_psprintf(r->pool, "%" APR_TIME_T_FMT, apr_time_sec(duration));
+}
 
-	ap_snprintf(duration, sizeof(duration), "%ld", time(NULL) - r->request_time);
-	return pstrdup(r->pool, duration);
+static const char *extract_request_duration_microseconds(request_rec *r, char *a) __attribute__ ((unused));
+static const char *extract_request_duration_microseconds(request_rec *r, char *a)
+{
+    return apr_psprintf(r->pool, "%" APR_TIME_T_FMT, 
+                        (apr_time_now() - r->request_time));
 }
 
 static const char *extract_virtual_host(request_rec *r, char *a)
 {
-    return ap_get_server_name(r);
+    return apr_pstrdup(r->pool, r->server->server_hostname);
 }
 
 static const char *extract_machine_id(request_rec *r, char *a)
 {
-	if (!logsql_machid)
+	if (!global_config.machid)
 		return "-";
 	else
-		return logsql_machid;
+		return global_config.machid;
 }
 
 static const char *extract_server_port(request_rec *r, char *a)
 {
-	char portnum[22];
-
-	ap_snprintf(portnum, sizeof(portnum), "%u", r->server->port);
-	return pstrdup(r->pool, portnum);
+    return apr_psprintf(r->pool, "%u",
+                        r->server->port ? r->server->port : ap_default_port(r));
 }
 
 static const char *extract_child_pid(request_rec *r, char *a)
 {
-	char pidnum[22];
-	ap_snprintf(pidnum, sizeof(pidnum), "%ld", (long) getpid());
-	return pstrdup(r->pool, pidnum);
+    if (*a == '\0' || !strcmp(a, "pid")) {
+        return apr_psprintf(r->pool, "%" APR_PID_T_FMT, getpid());
+    }
+    else if (!strcmp(a, "tid")) {
+#if APR_HAS_THREADS
+        apr_os_thread_t tid = apr_os_thread_current();
+#else
+        int tid = 0; /* APR will format "0" anyway but an arg is needed */
+#endif
+        return apr_psprintf(r->pool, "%pT", &tid);
+    }
+    /* bogus format */
+    return a;
 }
 
 static const char *extract_referer(request_rec *r, char *a)
 {
 	const char *tempref;
 
-	tempref = table_get(r->headers_in, "Referer");
+	tempref = apr_table_get(r->headers_in, "Referer");
 	if (!tempref)
 	{
 		return "-";
@@ -338,7 +426,7 @@ static const char *extract_agent(request_rec *r, char *a)
 {
     const char *tempag;
 
-    tempag = table_get(r->headers_in, "User-Agent");
+    tempag = apr_table_get(r->headers_in, "User-Agent");
     if (!tempag)
     {
         return "-";
@@ -354,18 +442,21 @@ static const char *extract_cookie(request_rec *r, char *a)
 	char *isvalid;
 	char *cookiebuf;
 
-	logsql_state *cls = get_module_config(r->server->module_config, &sql_log_module);
+	logsql_state *cls = ap_get_module_config(r->server->module_config,
+											&log_sql_module);
 
 	if (cls->cookie_name != NULL) {
 		#ifdef DEBUG
-		  	ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"watching for cookie '%s'", cls->cookie_name);
+		  	ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0, r,
+				"watching for cookie '%s'", cls->cookie_name);
 		#endif
 
 		/* Fetch out the cookie header */
-	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
+	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie2");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie2: [%s]", cookiestr);
+				ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0, r,
+					"Cookie2: [%s]", cookiestr);
 			#endif
 			/* Does the cookie string contain one with our name? */
 			isvalid = strstr(cookiestr, cls->cookie_name);
@@ -373,7 +464,7 @@ static const char *extract_cookie(request_rec *r, char *a)
 				/* Move past the cookie name and equal sign */
 				isvalid += strlen(cls->cookie_name) + 1;
 				/* Duplicate it into the pool */
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 				/* Segregate just this cookie out of the string
 				 * with a terminating nul at the first semicolon */
 			    cookieend = strchr(cookiebuf, ';');
@@ -383,15 +474,16 @@ static const char *extract_cookie(request_rec *r, char *a)
 			}
 		}
 
-	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
+	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie: [%s]", cookiestr);
+				ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,r,
+					"Cookie: [%s]", cookiestr);
 			#endif
 			isvalid = strstr(cookiestr, cls->cookie_name);
 			if (isvalid != NULL) {
 				isvalid += strlen(cls->cookie_name) + 1;
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 			    cookieend = strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
@@ -399,15 +491,16 @@ static const char *extract_cookie(request_rec *r, char *a)
 			}
 		}
 
-	 	cookiestr = table_get(r->headers_out,  "set-cookie");
+	 	cookiestr = apr_table_get(r->headers_out,  "set-cookie");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-			     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Set-Cookie: [%s]", cookiestr);
+			     ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,r,
+					"Set-Cookie: [%s]", cookiestr);
 			#endif
 			isvalid = strstr(cookiestr, cls->cookie_name);
 			if (isvalid != NULL) {
 			    isvalid += strlen(cls->cookie_name) + 1;
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 			    cookieend = strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
@@ -428,14 +521,16 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 
 	if (a != NULL) {
 		#ifdef DEBUG
-		  	ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"watching for cookie '%s'", a);
+		  	ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,
+				r,"watching for cookie '%s'", a);
 		#endif
 
 		/* Fetch out the cookie header */
-	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie2");
+	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie2");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie2: [%s]", cookiestr);
+				ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,r,
+					"Cookie2: [%s]", cookiestr);
 			#endif
 			/* Does the cookie string contain one with our name? */
 			isvalid = strstr(cookiestr, a);
@@ -443,7 +538,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 				/* Move past the cookie name and equal sign */
 				isvalid += strlen(a) + 1;
 				/* Duplicate it into the pool */
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 				/* Segregate just this cookie out of the string
 				 * with a terminating nul at the first semicolon */
 			    cookieend = strchr(cookiebuf, ';');
@@ -453,15 +548,16 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 			}
 		}
 
-	 	cookiestr  = (char *)table_get(r->headers_in,  "cookie");
+	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Cookie: [%s]", cookiestr);
+				ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,r,
+					"Cookie: [%s]", cookiestr);
 			#endif
 			isvalid = strstr(cookiestr, a);
 			if (isvalid != NULL) {
 				isvalid += strlen(a) + 1;
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 			    cookieend = strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
@@ -469,15 +565,16 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 			}
 		}
 
-	 	cookiestr = table_get(r->headers_out,  "set-cookie");
+	 	cookiestr = apr_table_get(r->headers_out,  "set-cookie");
 	    if (cookiestr != NULL) {
 			#ifdef DEBUG
-			     ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"Set-Cookie: [%s]", cookiestr);
+			     ap_log_rerror(APLOG_MARK,APLOG_DEBUG,0,r,
+					"Set-Cookie: [%s]", cookiestr);
 			#endif
 			isvalid = strstr(cookiestr, a);
 			if (isvalid != NULL) {
 			    isvalid += strlen(a) + 1;
-			    cookiebuf = ap_pstrdup(r->pool, isvalid);
+			    cookiebuf = apr_pstrdup(r->pool, isvalid);
 			    cookieend = strchr(cookiebuf, ';');
 			    if (cookieend != NULL)
 			       *cookieend = '\0';
@@ -492,30 +589,27 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 
 static const char *extract_request_timestamp(request_rec *r, char *a)
 {
-	char tstr[32];
-
-	ap_snprintf(tstr, 32, "%ld", time(NULL));
-	return pstrdup(r->pool, tstr);
+	return apr_psprintf(r->pool, "%ld", time(NULL));
 }
 
 /*
 static const char *extract_note(request_rec *r, char *a)
 {
-	return ap_table_get(r->notes, a);
+	return apr_table_get(r->notes, a);
 
 }
 */
 
 static const char *extract_env_var(request_rec *r, char *a)
 {
-	return ap_table_get(r->subprocess_env, a);
+	return apr_table_get(r->subprocess_env, a);
 }
 
 static const char *extract_unique_id(request_rec *r, char *a)
 {
     const char *tempid;
 
-	tempid = ap_table_get(r->subprocess_env, "UNIQUE_ID");
+	tempid = apr_table_get(r->subprocess_env, "UNIQUE_ID");
 	if (!tempid)
 	  return "-";
 	else
@@ -532,7 +626,7 @@ struct log_sql_item_list {
 	  const char *sql_field_name;	/* its column in SQL */
 	  int want_orig_default;		/* if it requires the original request prior to internal redirection */
 	  int string_contents;			/* if it returns a string */
-    } log_sql_item_keys[] = {
+    } static log_sql_item_keys[] = {
 
 	{   'A', extract_agent,             "agent",            1, 1    },
 	{   'a', extract_request_args,      "request_args",     1, 1    },
@@ -569,7 +663,7 @@ struct log_sql_item_list {
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-const char *escape_query(const char *from_str, pool *p)
+static const char *escape_query(const char *from_str, apr_pool_t *p)
 {
 	if (!from_str)
 		return NULL;
@@ -581,12 +675,12 @@ const char *escape_query(const char *from_str, pool *p)
 		/* Pre-allocate a new string that could hold twice the original, which would only
 		 * happen if the whole original string was 'dangerous' characters.
 		 */
-		to_str = (char *) ap_palloc(p, length * 2 + 1);
+		to_str = (char *) apr_palloc(p, length * 2 + 1);
 		if (!to_str) {
 			return from_str;
 		}
 
-		if (!logsql_server_p) {
+		if (!global_config.server_p) {
 			/* Well, I would have liked to use the current database charset.  mysql is
 			 * unavailable, however, so I fall back to the slightly less respectful
 			 * mysql_escape_string() function that uses the default charset.
@@ -596,7 +690,7 @@ const char *escape_query(const char *from_str, pool *p)
 			/* MySQL is available, so I'll go ahead and respect the current charset when
 			 * I perform the escape.
 			 */
-			retval = mysql_real_escape_string(logsql_server_p, to_str, from_str, length);
+			retval = mysql_real_escape_string(global_config.server_p, to_str, from_str, length);
 		}
 
 		if (retval)
@@ -606,7 +700,7 @@ const char *escape_query(const char *from_str, pool *p)
 	}
 }
 
-int open_logdb_link(server_rec* s)
+static int open_logdb_link(server_rec* s)
 {
 	/* Returns:
 	   3 if preserve forced
@@ -615,91 +709,89 @@ int open_logdb_link(server_rec* s)
 	   0 if unsuccessful
 	*/
 
-	if (logsql_forcepreserve)
+	if (global_config.forcepreserve)
 		return 3;
 
-	if (logsql_server_p)
+	if (global_config.server_p)
 		return 2;
 
-	if ((logsql_dbname) && (logsql_dbhost) && (logsql_dbuser) && (logsql_dbpwd)) {
-		mysql_init(&logsql_server);
-		logsql_server_p = mysql_real_connect(&logsql_server, logsql_dbhost, logsql_dbuser, logsql_dbpwd, logsql_dbname, logsql_tcpport, logsql_socketfile, 0);
+	if ((global_config.dbname) && (global_config.dbhost) && (global_config.dbuser) && (global_config.dbpwd)) {
+		mysql_init(&global_config.server);
+		global_config.server_p = mysql_real_connect(&global_config.server, global_config.dbhost, global_config.dbuser, global_config.dbpwd, global_config.dbname, global_config.tcpport, global_config.socketfile, 0);
 
-		if (logsql_server_p) {
+		if (global_config.server_p) {
 			#ifdef DEBUG
-			  ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-			  										logsql_dbhost, logsql_tcpport, logsql_dbname, logsql_dbuser, logsql_socketfile);
+			  ap_log_error(APLOG_MARK,APLOG_DEBUG,0,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
+			  										global_config.dbhost, global_config.tcpport, global_config.dbname, global_config.dbuser, global_config.socketfile);
 			#endif
 			return 1;
 		} else {
 			#ifdef DEBUG
-			  ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"mod_log_sql: database connection error: %s",MYSQL_ERROR(&logsql_server));
-			  ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-			  										logsql_dbhost, logsql_tcpport, logsql_dbname, logsql_dbuser, logsql_socketfile);
+			  ap_log_error(APLOG_MARK,APLOG_DEBUG,0,s,"mod_log_sql: database connection error: %s",MYSQL_ERROR(&global_config.server));
+			  ap_log_error(APLOG_MARK,APLOG_DEBUG,0,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
+			  										global_config.dbhost, global_config.tcpport, global_config.dbname, global_config.dbuser, global_config.socketfile);
 		 	#endif
 			return 0;
 		}
 	} else {
-		ap_log_error(APLOG_MARK,ERRLEVEL,s,"mod_log_sql: insufficient configuration info to establish database link");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,s,"mod_log_sql: insufficient configuration info to establish database link");
 		return 0;
 	}
 }
 
-const char *extract_table(void *data, const char *key, const char *val)
+/*static const char *extract_table(void *data, const char *key, const char *val)
 {
     request_rec *r = (request_rec *)data;
 
-	return ap_pstrcat(r->pool, key, " = ", val, " ", NULL);
-}
+	return apr_pstrcat(r->pool, key, " = ", val, " ", NULL);
+}*/
 
-void preserve_entry(request_rec *r, const char *query)
+static void preserve_entry(request_rec *r, const char *query)
 {
-	FILE *fp;
-	logsql_state *cls = get_module_config(r->server->module_config, &sql_log_module);
+	apr_file_t *fp;
+	logsql_state *cls = ap_get_module_config(r->server->module_config, 
+											&log_sql_module);
 
-	fp = pfopen(r->pool, cls->preserve_file, "a");
-	if (fp == NULL)
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: attempted append of local preserve file but failed.");
-	else {
-		fprintf(fp,"%s;\n", query);
-		pfclose(r->pool, fp);
+	if (apr_file_open(&fp, cls->preserve_file,APR_APPEND, APR_OS_DEFAULT, r->pool)!=APR_SUCCESS) {
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: attempted append of local preserve file but failed.");
+	} else {
+		apr_file_printf(fp,"%s;\n", query);
+		apr_file_close(fp);
 		#ifdef DEBUG
-		  ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
+		  ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
 		#endif
 	}
 }
 
 
-/*-----------------------------------------------------*/
-/* safe_sql_query: perform a database query with       */
-/* a degree of safety and error checking.              */
-/*                                                     */
-/* Parms:   request record, SQL insert statement       */
-/* Returns: 0 (OK) on success                          */
-/*          1 if have no log handle                    */
-/*          2 if insert delayed failed (kluge)         */
-/*          the actual MySQL return code on error      */
-/*-----------------------------------------------------*/
-unsigned int safe_sql_query(request_rec *r, const char *query)
+/*-----------------------------------------------------*
+ * safe_sql_query: perform a database query with       *
+ * a degree of safety and error checking.              *
+ *                                                     *
+ * Parms:   request record, SQL insert statement       *
+ * Returns: 0 (OK) on success                          *
+ *          1 if have no log handle                    *
+ *          2 if insert delayed failed (kluge)         *
+ *          the actual MySQL return code on error      *
+ *-----------------------------------------------------*/
+static unsigned int safe_sql_query(request_rec *r, const char *query)
 {
 	int retval;
 	struct timespec delay, remainder;
 	int ret;
 	void (*handler) (int);
 	logsql_state *cls;
-	unsigned int real_error;
-	#ifdef WANT_DELAYED_MYSQL_INSERT
-	 char *real_error_str;
-	#endif
+	unsigned int real_error = 0;
+	char *real_error_str = NULL;
 
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
 	handler = signal(SIGPIPE, SIG_IGN);
 
 	/* First attempt for the query */
-	if (!logsql_server_p) {
+	if (!global_config.server_p) {
 		signal(SIGPIPE, handler);
 		return 1;
-	} else if (!(retval = mysql_query(logsql_server_p, query))) {
+	} else if (!(retval = mysql_query(global_config.server_p, query))) {
 		signal(SIGPIPE, handler);
 		return 0;
 	}
@@ -707,37 +799,38 @@ unsigned int safe_sql_query(request_rec *r, const char *query)
 	/* If we ran the query and it returned an error, try to be robust.
 	* (After all, the module thought it had a valid mysql_log connection but the query
 	* could have failed for a number of reasons, so we have to be extra-safe and check.) */
-	#ifdef WANT_DELAYED_MYSQL_INSERT
-	 real_error_str = MYSQL_ERROR(logsql_server_p);
-	#else
-	 real_error = mysql_errno(logsql_server_p);
-	#endif
+	if (global_config.insertdelayed) {
+	 real_error_str = MYSQL_ERROR(global_config.server_p);
+	} else {
+	 real_error = mysql_errno(global_config.server_p);
+	}
 
 	/* Check to see if the error is "nonexistent table" */
-	#ifdef WANT_DELAYED_MYSQL_INSERT
-	 if ((strstr(real_error_str, "Table")) && (strstr(real_error_str,"doesn't exist"))) {
-	#else
-	 if (real_error == ER_NO_SUCH_TABLE) {
-	#endif
-		if (logsql_createtables) {
-			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: table doesn't exist...creating now");
-			cls = get_module_config(r->server->module_config, &sql_log_module);
+	if (global_config.insertdelayed) {
+		retval = (strstr(real_error_str, "Table")) && (strstr(real_error_str,"doesn't exist"));
+	} else {
+		retval = (real_error == ER_NO_SUCH_TABLE);
+	}
+	if (retval) {
+		if (global_config.createtables) {
+			ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: table doesn't exist...creating now");
+			cls = ap_get_module_config(r->server->module_config, &log_sql_module);
 			if (safe_create_tables(cls, r)) {
-				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
+				ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
 				preserve_entry(r, query);
-				retval = mysql_errno(logsql_server_p);
+				retval = mysql_errno(global_config.server_p);
 			} else {
-				ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: tables successfully created - retrying query");
-				if (mysql_query(logsql_server_p, query)) {
-					ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: giving up, preserving query");
+				ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: tables successfully created - retrying query");
+				if (mysql_query(global_config.server_p, query)) {
+					ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: giving up, preserving query");
 					preserve_entry(r, query);
-					retval = mysql_errno(logsql_server_p);
+					retval = mysql_errno(global_config.server_p);
 				} else
-					ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: query successful after table creation");
+					ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: query successful after table creation");
 					retval = 0;
 			}
 		} else {
-			ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql, table doesn't exist, creation denied by configuration, preserving query");
+			ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql, table doesn't exist, creation denied by configuration, preserving query");
 			preserve_entry(r, query);
 			retval = ER_NO_SUCH_TABLE;
 		}
@@ -748,64 +841,66 @@ unsigned int safe_sql_query(request_rec *r, const char *query)
 
 	/* Handle all other types of errors */
 
-	cls = get_module_config(r->server->module_config, &sql_log_module);
+	cls = ap_get_module_config(r->server->module_config, &log_sql_module);
 
 	/* Something went wrong, so start by trying to restart the db link. */
-	#ifdef WANT_DELAYED_MYSQL_INSERT
+	if (global_config.insertdelayed) {
 	 real_error = 2;
-	#else
-	 real_error = mysql_errno(logsql_server_p);
-	#endif
-	ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: first attempt failed, API said: error %d, \"%s\"", real_error, MYSQL_ERROR(logsql_server_p));
-	mysql_close(logsql_server_p);
-	logsql_server_p = NULL;
+	} else {
+	 real_error = mysql_errno(global_config.server_p);
+	}
+
+	ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: first attempt failed, API said: error %d, \"%s\"", real_error, MYSQL_ERROR(global_config.server_p));
+	mysql_close(global_config.server_p);
+	global_config.server_p = NULL;
 	open_logdb_link(r->server);
 
-	if (logsql_server_p == NULL) {	 /* still unable to link */
+	if (global_config.server_p == NULL) {	 /* still unable to link */
 		signal(SIGPIPE, handler);
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: log entries are being preserved in %s", cls->preserve_file);
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: log entries are being preserved in %s", cls->preserve_file);
 		return 1;
 	} else
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: db reconnect successful");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: db reconnect successful");
 
 	/* First sleep for a tiny amount of time. */
 	delay.tv_sec = 0;
 	delay.tv_nsec = 250000000;  /* max is 999999999 (nine nines) */
 	ret = nanosleep(&delay, &remainder);
 	if (ret && errno != EINTR)
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: nanosleep unsuccessful");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: nanosleep unsuccessful");
 
 	/* Then make our second attempt */
-	retval = mysql_query(logsql_server_p,query);
+	retval = mysql_query(global_config.server_p,query);
 
 	/* If this one also failed, log that and append to our local offline file */
 	if (retval)	{
-		#ifdef WANT_DELAYED_MYSQL_INSERT
+		if (global_config.insertdelayed) {
 		 real_error = 2;
-		#else
-		 real_error = mysql_errno(logsql_server_p);
-		#endif
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: second attempt failed, API said: error %d, \"%s\" -- preserving", real_error, MYSQL_ERROR(logsql_server_p));
+		} else {
+		 real_error = mysql_errno(global_config.server_p);
+		}
+
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: second attempt failed, API said: error %d, \"%s\" -- preserving", real_error, MYSQL_ERROR(global_config.server_p));
 		preserve_entry(r, query);
 		retval = real_error;
 	} else
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: second attempt successful");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: second attempt successful");
 
 	/* Restore SIGPIPE to its original handler function */
 	signal(SIGPIPE, handler);
 	return retval;
 }
 
-/*-----------------------------------------------------*/
-/* safe_create_tables: create SQL table set for the    */
-/* virtual server represented by cls.                  */
-/*                                                     */
-/* Parms:   virtserver structure, request record       */
-/* Returns: 0 on no errors							   */
-/*          mysql error code on failure				   */
-/*-----------------------------------------------------*/
-int safe_create_tables(logsql_state *cls, request_rec *r)
+/*-----------------------------------------------------*
+ * safe_create_tables: create SQL table set for the    *
+ * virtual server represented by cls.                  *
+ *                                                     *
+ * Parms:   virtserver structure, request record       *
+ * Returns: 0 on no errors							   *
+ *          mysql error code on failure				   *
+ *-----------------------------------------------------*/
+static int safe_create_tables(logsql_state *cls, request_rec *r)
 {
 	int retval;
 	unsigned int create_results;
@@ -859,45 +954,45 @@ int safe_create_tables(logsql_state *cls, request_rec *r)
        val varchar(80))";
 
 	/* Find memory long enough to hold the whole CREATE string + \0 */
-	create_access = ap_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);
-	create_notes  = ap_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);
-	create_hout   = ap_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);
-	create_hin    = ap_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);
-	create_cookies= ap_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, NULL);
+	create_access = apr_pstrcat(r->pool, createprefix, cls->transfer_table_name, access_suffix, NULL);
+	create_notes  = apr_pstrcat(r->pool, createprefix, cls->notes_table_name, notes_suffix, NULL);
+	create_hout   = apr_pstrcat(r->pool, createprefix, cls->hout_table_name, headers_suffix, NULL);
+	create_hin    = apr_pstrcat(r->pool, createprefix, cls->hin_table_name, headers_suffix, NULL);
+	create_cookies= apr_pstrcat(r->pool, createprefix, cls->cookie_table_name, cookies_suffix, NULL);
 
 	#ifdef DEBUG
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_access);
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_notes);
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_hout);
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_hin);
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: create string: %s", create_cookies);
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_access);
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_notes);
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_hout);
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_hin);
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: create string: %s", create_cookies);
 	#endif
 
 	/* Assume that things worked unless told otherwise */
 	retval = 0;
 
   	if ((create_results = safe_sql_query(r, create_access))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create access table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create access table");
 		retval = create_results;
 	}
 
 	if ((create_results = safe_sql_query(r, create_notes))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create notes table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create notes table");
 		retval = create_results;
 	}
 
 	if ((create_results = safe_sql_query(r, create_hin))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create header_out table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_out table");
 		retval = create_results;
 	}
 
 	if ((create_results = safe_sql_query(r, create_hout))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create header_in table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create header_in table");
 		retval = create_results;
 	}
 
 	if ((create_results = safe_sql_query(r, create_cookies))) {
-		ap_log_error(APLOG_MARK,ERRLEVEL,r->server,"mod_log_sql: failed to create cookies table");
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,r->server,"mod_log_sql: failed to create cookies table");
 		retval = create_results;
 	}
 
@@ -909,250 +1004,107 @@ int safe_create_tables(logsql_state *cls, request_rec *r)
  * to the directives found at Apache runtime.      *
  * ------------------------------------------------*/
 
-const char *set_log_sql_massvirtual(cmd_parms *parms, void *dummy, int flag)
+
+static const char *set_global_flag_slot(cmd_parms *cmd, 
+										void *struct_ptr, 
+										int flag)
 {
-	logsql_massvirtual = ( flag ? 1 : 0);
-	return NULL;
+	int offset = (int)(long)&global_config;
+
+	*(int *)((char *)struct_ptr + offset) = flag ? 1 : 0;
+
+    return NULL;
 }
 
-const char *set_log_sql_force_preserve(cmd_parms *parms, void *dummy, int flag)
+static const char *set_global_nmv_flag_slot(cmd_parms *parms,
+											void *struct_ptr,
+											int flag)
 {
-	logsql_forcepreserve = ( flag ? 1 : 0);
-	return NULL;
-}
-
-const char *set_log_sql_machine_id(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_machid = arg;
-	return NULL;
-}
-
-const char *set_log_sql_create(cmd_parms *parms, void *dummy, int flag)
-{
-	if (logsql_massvirtual)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLCreateTables when LogSQLMassVirtualHosting is On. Ignoring.");
+	if (global_config.massvirtual)
+		return apr_psprintf(parms->pool,
+			"mod_log_sql: do not set %s  when LogSQLMassVirtualHosting is On.",
+			parms->cmd->name);
 	else
-		logsql_createtables = ( flag ? 1 : 0);
-	return NULL;
+		return set_global_flag_slot(parms,struct_ptr,flag);
 }
 
-const char *set_log_sql_db(cmd_parms *parms, void *dummy, char *arg)
+static const char *set_global_string_slot(cmd_parms *cmd,
+                                    	  void *struct_ptr,
+                                     	  const char *arg)
 {
-	logsql_dbname = arg;
-	return NULL;
+	int offset = (int)(long)&global_config;
+
+    *(const char **)((char *)struct_ptr + offset) = apr_pstrdup(cmd->pool,arg);
+    
+    return NULL;
 }
 
-const char *set_log_sql_cookie(cmd_parms *parms, void *dummy, char *arg)
+static const char *set_server_string_slot(cmd_parms *cmd,
+                                     		 void *struct_ptr,
+                                     		 const char *arg)
 {
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
+	int offset = (int)(long)ap_get_module_config(cmd->server->module_config,
+			&log_sql_module);
 
-	cls->cookie_name = arg;
-	return NULL;
+	*(const char **)((char *)struct_ptr + offset) = arg;
+    
+    return NULL;
 }
 
-const char *set_log_sql_preserve_file(cmd_parms *parms, void *dummy, char *arg)
+
+static const char *set_server_nmv_string_slot(cmd_parms *parms,
+											void *struct_ptr,
+											const char *arg)
 {
-	/* char *pfile; */
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	/* pfile = ap_pstrcat(parms->pool, "/tmp/", arg, NULL); */
-	cls->preserve_file = arg;
-	return NULL;
+	if (global_config.massvirtual)
+		return apr_psprintf(parms->pool,
+			"mod_log_sql: do not set %s  when LogSQLMassVirtualHosting is On.",
+			parms->cmd->name);
+	else
+		return set_server_string_slot(parms,struct_ptr,arg);
 }
 
-const char *set_log_sql_info(cmd_parms *parms, void *dummy, char *host, char *user, char *pwd)
+static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, const char *host, const char *user, const char *pwd)
 {
 	if (*host != '.') {
-		logsql_dbhost = host;
+		global_config.dbhost = apr_pstrdup(cmd->pool,host);
 	}
 	if (*user != '.') {
-		logsql_dbuser = user;
+		global_config.dbuser = apr_pstrdup(cmd->pool,user);
 	}
 	if (*pwd != '.') {
-		logsql_dbpwd = pwd;
+		global_config.dbpwd = apr_pstrdup(cmd->pool,pwd);
 	}
 	return NULL;
 }
 
-const char *set_log_sql_transfer_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	if (logsql_massvirtual != 0)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLTransferLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
-	else
-		cls->transfer_table_name = arg;
-	return NULL;
-}
-
-const char *set_log_sql_cookie_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	if (logsql_massvirtual != 0)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLCookieLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
-	else
-		cls->cookie_table_name = arg;
-	return NULL;
-}
-
-const char *set_log_sql_notes_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	if (logsql_massvirtual != 0)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLNotesLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
-	else
-		cls->notes_table_name = arg;
-	return NULL;
-}
-
-const char *set_log_sql_hin_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	if (logsql_massvirtual != 0)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLHeadersInLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
-	else
-		cls->hin_table_name = arg;
-	return NULL;
-}
-
-const char *set_log_sql_hout_table(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	if (logsql_massvirtual != 0)
-		ap_log_error(APLOG_MARK,WARNINGLEVEL,parms->server,"mod_log_sql: do not set LogSQLHeadersOutLogTable when LogSQLMassVirtualHosting is On. Ignoring.");
-	else
-		cls->hout_table_name = arg;
-	return NULL;
-}
-
-const char *set_log_sql_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	cls->transfer_log_format = arg;
-	return NULL;
-}
-
-const char *set_log_sql_socket_file(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_socketfile = arg;
-
-	return NULL;
-}
-
-const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, char *arg)
-{
-	logsql_tcpport = (unsigned int)atoi(arg);
-
-	return NULL;
-}
-
-const char *add_log_sql_transfer_accept(cmd_parms *parms, void *dummy, char *arg)
+static const char *add_server_string_slot(cmd_parms *cmd,
+                                     		 void *struct_ptr,
+                                     		 const char *arg)
 {
 	char **addme;
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
+	int offset = (int)(long)ap_get_module_config(cmd->server->module_config,
+			&log_sql_module);
+	apr_array_header_t *ary = *(apr_array_header_t **)((apr_array_header_t *)struct_ptr + offset);
 
-	addme = push_array(cls->transfer_accept_list);
-	*addme = pstrdup(cls->transfer_accept_list->pool, arg);
+	addme = apr_array_push(ary);
+	*addme = apr_pstrdup(ary->pool, arg);
+	    
+    return NULL;
+}
+
+static const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, const char *arg)
+{
+	global_config.tcpport = (unsigned int)atoi(arg);
+
 	return NULL;
 }
-
-const char *add_log_sql_transfer_ignore(cmd_parms *parms, void *dummy, char *arg)
-{
-	char **addme;
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	addme = push_array(cls->transfer_ignore_list);
-	*addme = pstrdup(cls->transfer_ignore_list->pool, arg);
-	return NULL;
-}
-
-const char *add_log_sql_remhost_ignore(cmd_parms *parms, void *dummy, char *arg)
-{
-	char **addme;
-	logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	addme = push_array(cls->remhost_ignore_list);
-	*addme = pstrdup(cls->remhost_ignore_list->pool, arg);
-	return NULL;
-}
-
-const char *add_log_sql_note(cmd_parms *parms, void *dummy, char *arg)
-{
-    char **addme;
-    logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-    addme = push_array(cls->notes_list);
-    *addme = pstrdup(cls->notes_list->pool, arg);
-    return NULL;
-}
-
-const char *add_log_sql_hout(cmd_parms *parms, void *dummy, char *arg)
-{
-    char **addme;
-    logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-    addme = push_array(cls->hout_list);
-    *addme = pstrdup(cls->hout_list->pool, arg);
-    return NULL;
-}
-
-const char *add_log_sql_hin(cmd_parms *parms, void *dummy, char *arg)
-{
-    char **addme;
-    logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-    addme = push_array(cls->hin_list);
-    *addme = pstrdup(cls->hin_list->pool, arg);
-    return NULL;
-}
-
-const char *add_log_sql_cookie(cmd_parms *parms, void *dummy, char *arg)
-{
-    char **addme;
-    logsql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-    addme = push_array(cls->cookie_list);
-    *addme = pstrdup(cls->cookie_list->pool, arg);
-    return NULL;
-}
-
-
 
 /*------------------------------------------------------------*
  * Apache-specific hooks into the module code                 *
  * that are defined in the array 'mysql_lgog_module' (at EOF) *
  *------------------------------------------------------------*/
 
-
-/*
- * This function is called during server initialisation when an heavy-weight
- * process (such as a child) is being initialised.  As with the
- * module-initialisation function, any information that needs to be recorded
- * must be in static cells, since there's no configuration record.
- *
- * There is no return value.
- */
-static void log_sql_child_init(server_rec *s, pool *p)
-{
-	int retval;
-
-	/* Open a link to the database */
-	retval = open_logdb_link(s);
-	if (!retval)
-		ap_log_error(APLOG_MARK,ERRLEVEL,s,"mod_log_sql: child spawned but unable to open database link");
-
-	#ifdef DEBUG
-	if ( (retval == 1) || (retval == 2) )
-		ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"mod_log_sql: open_logdb_link successful");
-	if (retval == 3)
- 		ap_log_error(APLOG_MARK,DEBUGLEVEL,s,"mod_log_sql: open_logdb_link said that preservation is forced");
-	#endif
-}
 
 /*
  * This function is called when an heavy-weight process (such as a child) is
@@ -1162,21 +1114,51 @@ static void log_sql_child_init(server_rec *s, pool *p)
  *
  * There is no return value.
  */
-static void log_sql_child_exit(server_rec *s, pool *p)
+static apr_status_t log_sql_close_link(void *data)
 {
-	mysql_close(logsql_server_p);
+	mysql_close(global_config.server_p);
+	return APR_SUCCESS;
 }
 
-
 /*
-void *log_sql_initializer(server_rec *main_server, pool *p)
+ * This function is called during server initialisation when an heavy-weight
+ * process (such as a child) is being initialised.  As with the
+ * module-initialisation function, any information that needs to be recorded
+ * must be in static cells, since there's no configuration record.
+ *
+ * There is no return value.
+ */
+static void log_sql_child_init(apr_pool_t *p, server_rec *s)
+{
+	apr_pool_cleanup_register(p, NULL, log_sql_close_link, log_sql_close_link);
+
+}
+
+static int log_sql_open(apr_pool_t *pc, apr_pool_t *p, apr_pool_t *pt, server_rec *s)
+{
+	int retval;
+		/* Open a link to the database */
+	retval = open_logdb_link(s);
+	if (!retval)
+		ap_log_error(APLOG_MARK,APLOG_ERR,0,s,"mod_log_sql: child spawned but unable to open database link");
+
+	#ifdef DEBUG
+	if ( (retval == 1) || (retval == 2) )
+		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,s,"mod_log_sql: open_logdb_link successful");
+	if (retval == 3)
+ 		ap_log_error(APLOG_MARK,APLOG_DEBUG,0,s,"mod_log_sql: open_logdb_link said that preservation is forced");
+	#endif
+	return OK;
+}
+/*
+void *log_sql_initializer(server_rec *main_server, apr_pool_t *p)
 {
 	server_rec *s;
 
-    logsql_state main_conf = ap_get_module_config(main_server->module_config, &sql_log_module);
+    logsql_state main_conf = ap_get_module_config(main_server->module_config, &log_sql_module);
 
 	for (server_rec *s = main_server; s; s = s->next) {
-	    conf = ap_get_module_config(s->module_config, &sql_log_module);
+	    conf = ap_get_module_config(s->module_config, &log_sql_module);
 	    if (conf->transfer_log_format == NULL && s != main_server) {
 	        *conf = *main_conf;
 		}
@@ -1193,10 +1175,18 @@ void *log_sql_initializer(server_rec *main_server, pool *p)
  * The return value is a pointer to the created module-specific
  * structure.
  */
-void *log_sql_make_state(pool *p, server_rec *s)
+static int log_sql_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp)
 {
+	/* Initialize Global configuration */
+	memset(&global_config,0,sizeof(global_config));
+	global_config.socketfile = "/tmp/mysql.sock";
+	global_config.tcpport = 3306;
+	return OK;
+}
 
-	logsql_state *cls = (logsql_state *) ap_palloc(p, sizeof(logsql_state));
+static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
+{
+	logsql_state *cls = (logsql_state *) apr_palloc(p, sizeof(logsql_state));
 
 	/* These defaults are overridable in the httpd.conf file. */
 	cls->transfer_table_name = NULL; /* No default b/c we want its absence to disable logging */
@@ -1207,111 +1197,32 @@ void *log_sql_make_state(pool *p, server_rec *s)
 	cls->cookie_table_name   = "cookies";
 	cls->preserve_file 		 = "/tmp/sql-preserve";
 
-	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
-	cls->transfer_accept_list = make_array(p, 1, sizeof(char *));
-	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
-	cls->notes_list           = make_array(p, 1, sizeof(char *));
-	cls->hin_list             = make_array(p, 1, sizeof(char *));
-	cls->hout_list            = make_array(p, 1, sizeof(char *));
-	cls->cookie_list          = make_array(p, 1, sizeof(char *));
+	cls->transfer_ignore_list = apr_array_make(p, 1, sizeof(char *));
+	cls->transfer_accept_list = apr_array_make(p, 1, sizeof(char *));
+	cls->remhost_ignore_list  = apr_array_make(p, 1, sizeof(char *));
+	cls->notes_list           = apr_array_make(p, 1, sizeof(char *));
+	cls->hin_list             = apr_array_make(p, 1, sizeof(char *));
+	cls->hout_list            = apr_array_make(p, 1, sizeof(char *));
+	cls->cookie_list          = apr_array_make(p, 1, sizeof(char *));
 	cls->cookie_name = NULL;
 
 	return (void *) cls;
 }
 
-
-/* Setup of the available httpd.conf configuration commands.
- * Structure: command, function called, NULL, where available, how many arguments, verbose description
- */
-command_rec log_sql_cmds[] = {
-	{"LogSQLTransferLogTable", set_log_sql_transfer_table, 			NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the transfer log"}
-	,
-	{"LogSQLNotesLogTable", set_log_sql_notes_table,	    		NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the notes"}
-	,
-	{"LogSQLHeadersOutLogTable", set_log_sql_hout_table,    		NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the outbound headers"}
-	,
-	{"LogSQLHeadersInLogTable", set_log_sql_hin_table,	    		NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the inbound headers"}
-	,
-	{"LogSQLCookieLogTable", set_log_sql_cookie_table,	    		NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the cookie info"}
-	,
-	{"LogSQLTransferLogFormat", set_log_sql_transfer_log_format,	NULL, 	RSRC_CONF, 	TAKE1,
-	 "Instruct the module what information to log to the database transfer log"}
-	,
-	{"LogSQLMachineID", set_log_sql_machine_id,						NULL, 	RSRC_CONF, 	TAKE1,
-	 "Machine ID that the module will log, useful in web clusters to differentiate machines"}
-	,
-	{"LogSQLRequestAccept", add_log_sql_transfer_accept,		NULL, 	RSRC_CONF, 	ITERATE,
-	 "List of URIs to accept for logging. Accesses that don't match will not be logged"}
-	,
-	{"LogSQLRequestIgnore", add_log_sql_transfer_ignore, 			NULL, 	RSRC_CONF, 	ITERATE,
-	 "List of URIs to ignore. Accesses that match will not be logged to database"}
-	,
-	{"LogSQLRemhostIgnore", add_log_sql_remhost_ignore, 			NULL, 	RSRC_CONF, 	ITERATE,
-	 "List of remote hosts to ignore. Accesses that match will not be logged to database"}
-	,
-	{"LogSQLDatabase", set_log_sql_db, 								NULL, 	RSRC_CONF, 	TAKE1,
-	 "The name of the database database for logging"}
-	,
-	{"LogSQLWhichCookie", set_log_sql_cookie, 						NULL, 	RSRC_CONF, 	TAKE1,
-	 "The single cookie that you want logged in the access_log when using the 'c' config directive"}
-	,
-	{"LogSQLLoginInfo", set_log_sql_info, 							NULL, 	RSRC_CONF, 	TAKE3,
-	 "The database host, user-id and password for logging"}
-	,
-	{"LogSQLCreateTables", set_log_sql_create,						NULL, 	RSRC_CONF, 	FLAG,
-	 "Turn on module's capability to create its SQL tables on the fly"}
-	,
-	{"LogSQLMassVirtualHosting", set_log_sql_massvirtual,      		NULL,   RSRC_CONF,  FLAG,
-	 "Activates option(s) useful for ISPs performing mass virutal hosting"}
-	,
-	{"LogSQLForcePreserve", set_log_sql_force_preserve,      		NULL,   RSRC_CONF,  FLAG,
-	 "Forces logging to preserve file and bypasses database"}
-	,
-	{"LogSQLPreserveFile", set_log_sql_preserve_file,				NULL, 	RSRC_CONF, 	TAKE1,
-	 "Name of the file to use for data preservation during database downtime"}
-	,
-	{"LogSQLSocketFile", set_log_sql_socket_file,					NULL, 	RSRC_CONF, 	TAKE1,
-	 "Name of the file to employ for socket connections to database"}
-	,
-	{"LogSQLTCPPort", set_log_sql_tcp_port,							NULL, 	RSRC_CONF, 	TAKE1,
-	 "Port number to use for TCP connections to database, defaults to 3306 if not set"}
-	,
-	{"LogSQLWhichNotes", add_log_sql_note,							NULL,	RSRC_CONF,	ITERATE,
-	 "Notes that you would like to log in a separate table"}
-	,
-	{"LogSQLWhichHeadersOut", add_log_sql_hout,						NULL,	RSRC_CONF,	ITERATE,
-	 "Outbound headers that you would like to log in a separate table"}
-	,
-	{"LogSQLWhichHeadersIn", add_log_sql_hin,						NULL,	RSRC_CONF,	ITERATE,
-	 "Inbound headers that you would like to log in a separate table"}
-	,
-	{"LogSQLWhichCookies", add_log_sql_cookie,	 					NULL, 	RSRC_CONF, 	ITERATE,
-	 "The cookie(s) that you would like to log in a separate table"}
-	,
-	{NULL}
-};
-
-
-
 /* Routine to perform the actual construction and execution of the relevant
  * INSERT statements.
  */
-int log_sql_transaction(request_rec *orig)
+static int log_sql_transaction(request_rec *orig)
 {
 	char **ptrptr, **ptrptr2;
-	logsql_state *cls = get_module_config(orig->server->module_config, &sql_log_module);
+	logsql_state *cls = ap_get_module_config(orig->server->module_config, &log_sql_module);
 	const char *access_query;
 	request_rec *r;
 
 	/* We handle mass virtual hosting differently.  Dynamically determine the name
 	 * of the table from the virtual server's name, and flag it for creation.
 	 */
-	if (logsql_massvirtual) {
+	if (global_config.massvirtual) {
 		char *access_base = "access_";
 		char *notes_base  = "notes_";
 		char *hout_base   = "headout_";
@@ -1325,11 +1236,11 @@ int log_sql_transaction(request_rec *orig)
 		unsigned int i;
 
 		/* Find memory long enough to hold the table name + \0. */
-		a_tablename = ap_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
-		n_tablename = ap_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
-		i_tablename = ap_pstrcat(orig->pool, hin_base,    ap_get_server_name(orig), NULL);
-		o_tablename = ap_pstrcat(orig->pool, hout_base,   ap_get_server_name(orig), NULL);
-		c_tablename = ap_pstrcat(orig->pool, cookie_base, ap_get_server_name(orig), NULL);
+		a_tablename = apr_pstrcat(orig->pool, access_base, ap_get_server_name(orig), NULL);
+		n_tablename = apr_pstrcat(orig->pool, notes_base,  ap_get_server_name(orig), NULL);
+		i_tablename = apr_pstrcat(orig->pool, hin_base,    ap_get_server_name(orig), NULL);
+		o_tablename = apr_pstrcat(orig->pool, hout_base,   ap_get_server_name(orig), NULL);
+		c_tablename = apr_pstrcat(orig->pool, cookie_base, ap_get_server_name(orig), NULL);
 
 		/* Transform any dots to underscores */
 		for (i = 0; i < strlen(a_tablename); i++) {
@@ -1361,7 +1272,7 @@ int log_sql_transaction(request_rec *orig)
 		cls->hout_table_name = o_tablename;
 		cls->hin_table_name = i_tablename;
 		cls->cookie_table_name = c_tablename;
-		logsql_createtables = 1;
+		global_config.createtables = 1;
 	}
 
 	/* Do we have enough info to log? */
@@ -1416,7 +1327,7 @@ int log_sql_transaction(request_rec *orig)
 		/* Go through each element of the ignore list and compare it to the
 		 * remote host.  If we get a match, return without logging */
 		ptrptr2 = (char **) (cls->remhost_ignore_list->elts + (cls->remhost_ignore_list->nelts * cls->remhost_ignore_list->elt_size));
-		thehost = get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME);
+		thehost = ap_get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME, NULL);
 		if (thehost) {
 			for (ptrptr = (char **) cls->remhost_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->remhost_ignore_list->elt_size))
 				if (strstr(thehost, *ptrptr)) {
@@ -1448,10 +1359,10 @@ int log_sql_transaction(request_rec *orig)
 					}
 
 				     /* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
-					fields = pstrcat(r->pool, fields, (i > 0 ? "," : ""),
+					fields = apr_pstrcat(r->pool, fields, (i > 0 ? "," : ""),
 									 log_sql_item_keys[j].sql_field_name, NULL);
 
-					values = pstrcat(r->pool, values, (i > 0 ? "," : ""),
+					values = apr_pstrcat(r->pool, values, (i > 0 ? "," : ""),
 									 (log_sql_item_keys[j].string_contents ? "'" : ""),
 								     escape_query(formatted_item, r->pool),
 									 (log_sql_item_keys[j].string_contents ? "'" : ""), NULL);
@@ -1469,8 +1380,8 @@ int log_sql_transaction(request_rec *orig)
 		ptrptr2 = (char **) (cls->notes_list->elts + (cls->notes_list->nelts * cls->notes_list->elt_size));
 		for (ptrptr = (char **) cls->notes_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->notes_list->elt_size)) {
 			/* If the specified note (*ptrptr) exists for the current request... */
-		    if ((theitem = ap_table_get(r->notes, *ptrptr))) {
-				itemsets = ap_pstrcat(r->pool, itemsets,
+		    if ((theitem = apr_table_get(r->notes, *ptrptr))) {
+				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "('",
 									  unique_id,
@@ -1484,9 +1395,10 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-			note_query = ap_pstrcat(r->pool, logsql_insertclause, "`", cls->notes_table_name, "` (id, item, val) values ", itemsets, NULL);
+			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+				global_config.insertdelayed?"delayed":NULL, cls->notes_table_name, itemsets);
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: note string: %s", note_query);
+				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: note string: %s", note_query);
 		   	#endif
 		}
 
@@ -1497,8 +1409,8 @@ int log_sql_transaction(request_rec *orig)
 		ptrptr2 = (char **) (cls->hout_list->elts + (cls->hout_list->nelts * cls->hout_list->elt_size));
 		for (ptrptr = (char **) cls->hout_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->hout_list->elt_size)) {
 			/* If the specified header (*ptrptr) exists for the current request... */
-		    if ((theitem = ap_table_get(r->headers_out, *ptrptr))) {
-				itemsets = ap_pstrcat(r->pool, itemsets,
+		    if ((theitem = apr_table_get(r->headers_out, *ptrptr))) {
+				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "('",
 									  unique_id,
@@ -1512,9 +1424,10 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-		    hout_query = ap_pstrcat(r->pool, logsql_insertclause, "`", cls->hout_table_name, "` (id, item, val) values ", itemsets, NULL);
+			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+				global_config.insertdelayed?"delayed":NULL, cls->hout_table_name, itemsets);
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_out string: %s", hout_query);
+				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: header_out string: %s", hout_query);
 		   	#endif
 		}
 
@@ -1526,8 +1439,8 @@ int log_sql_transaction(request_rec *orig)
 		ptrptr2 = (char **) (cls->hin_list->elts + (cls->hin_list->nelts * cls->hin_list->elt_size));
 		for (ptrptr = (char **) cls->hin_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->hin_list->elt_size)) {
 			/* If the specified header (*ptrptr) exists for the current request... */
-		    if ((theitem = ap_table_get(r->headers_in, *ptrptr))) {
-				itemsets = ap_pstrcat(r->pool, itemsets,
+		    if ((theitem = apr_table_get(r->headers_in, *ptrptr))) {
+				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "('",
 									  unique_id,
@@ -1541,9 +1454,11 @@ int log_sql_transaction(request_rec *orig)
 			}
 		}
 		if ( itemsets != "" ) {
-			hin_query = ap_pstrcat(r->pool, logsql_insertclause, "`", cls->hin_table_name, "` (id, item, val) values ", itemsets, NULL);
+			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+				global_config.insertdelayed?"delayed":NULL, cls->hin_table_name, itemsets);
+
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: header_in string: %s", hin_query);
+				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: header_in string: %s", hin_query);
 		   	#endif
 		}
 
@@ -1556,7 +1471,7 @@ int log_sql_transaction(request_rec *orig)
 		for (ptrptr = (char **) cls->cookie_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->cookie_list->elt_size)) {
 			/* If the specified cookie (*ptrptr) exists for the current request... */
 		    if ( strncmp((theitem = extract_specific_cookie(r, *ptrptr)), "-", 1) ) {
-				itemsets = ap_pstrcat(r->pool, itemsets,
+				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "('",
 									  unique_id,
@@ -1571,26 +1486,28 @@ int log_sql_transaction(request_rec *orig)
 
 		}
 		if ( itemsets != "" ) {
-			cookie_query = ap_pstrcat(r->pool, logsql_insertclause, "`", cls->cookie_table_name, "` (id, item, val) values ", itemsets, NULL);
+			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
+				global_config.insertdelayed?"delayed":NULL, cls->cookie_table_name, itemsets);
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
+				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
 		   	#endif
 		}
 
 
 		/* Set up the actual INSERT statement */
-		access_query = ap_pstrcat(r->pool, logsql_insertclause, "`", cls->transfer_table_name, "` (", fields, ") values (", values, ")", NULL);
+		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
+			global_config.insertdelayed?"delayed":NULL, cls->transfer_table_name, fields, values);
 
 		#ifdef DEBUG
-	        ap_log_error(APLOG_MARK,DEBUGLEVEL,r->server,"mod_log_sql: access string: %s", access_query);
+	        ap_log_error(APLOG_MARK,APLOG_DEBUG,0,r->server,"mod_log_sql: access string: %s", access_query);
 	    #endif
 
 		/* If the person activated force-preserve, go ahead and push all the entries
 		 * into the preserve file, then return.
 		 */
-		if (logsql_forcepreserve) {
+		if (global_config.forcepreserve) {
 			#ifdef DEBUG
-				ap_log_error(APLOG_MARK,DEBUGLEVEL,orig->server,"mod_log_sql: preservation forced");
+				ap_log_error(APLOG_MARK,APLOG_DEBUG,0,orig->server,"mod_log_sql: preservation forced");
 		   	#endif
 			preserve_entry(orig, access_query);
 			if ( note_query != NULL )
@@ -1605,12 +1522,12 @@ int log_sql_transaction(request_rec *orig)
 		}
 
 		/* How's our mysql link integrity? */
-		if (logsql_server_p == NULL) {
+		if (global_config.server_p == NULL) {
 
 			/* Make a try to establish the link */
 			open_logdb_link(r->server);
 
-			if (logsql_server_p == NULL) {
+			if (global_config.server_p == NULL) {
 				/* Unable to re-establish a DB link, so assume that it's really
 				 * gone and send the entry to the preserve file instead.
 				 * This short-circuits safe_sql_query() during a db outage and therefore
@@ -1629,7 +1546,7 @@ int log_sql_transaction(request_rec *orig)
 				return OK;
 			} else {
 				/* Whew, we got the DB link back */
-				ap_log_error(APLOG_MARK,NOTICELEVEL,orig->server,"mod_log_sql: child established database connection");
+				ap_log_error(APLOG_MARK,APLOG_NOTICE,0,orig->server,"mod_log_sql: child established database connection");
 			}
 		}
 
@@ -1660,28 +1577,120 @@ int log_sql_transaction(request_rec *orig)
 
 
 
+/* Setup of the available httpd.conf configuration commands.
+ * Structure: command, function called, NULL, where available, how many arguments, verbose description
+ */
+static const command_rec log_sql_cmds[] = {
+	AP_INIT_TAKE1("LogSQLTransferLogTable", set_server_nmv_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF, 
+	 "The database table that holds the transfer log")
+	,
+	AP_INIT_TAKE1("LogSQLNotesLogTable", set_server_nmv_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, notes_table_name), RSRC_CONF,
+	 "The database table that holds the notes")
+	,
+	AP_INIT_TAKE1("LogSQLHeadersOutLogTable", set_server_nmv_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, hout_table_name), RSRC_CONF,
+	 "The database table that holds the outbound headers")
+	,
+	AP_INIT_TAKE1("LogSQLHeadersInLogTable", set_server_nmv_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, hin_table_name), RSRC_CONF,
+	 "The database table that holds the inbound headers")
+	,
+	AP_INIT_TAKE1("LogSQLCookieLogTable", set_server_nmv_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, cookie_table_name), RSRC_CONF,
+	 "The database table that holds the cookie info")
+	,
+	AP_INIT_TAKE1("LogSQLTransferLogFormat", set_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state,transfer_log_format), RSRC_CONF,
+	 "Instruct the module what information to log to the database transfer log")
+	,
+	AP_INIT_TAKE1("LogSQLMachineID", set_global_string_slot,
+	 (void *)APR_OFFSETOF(global_config_t, machid), RSRC_CONF,
+	 "Machine ID that the module will log, useful in web clusters to differentiate machines")
+	,
+	AP_INIT_ITERATE("LogSQLRequestAccept", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, transfer_accept_list), RSRC_CONF,
+	 "List of URIs to accept for logging. Accesses that don't match will not be logged")
+	,
+	AP_INIT_ITERATE("LogSQLRequestIgnore", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, transfer_ignore_list), RSRC_CONF,
+	 "List of URIs to ignore. Accesses that match will not be logged to database")
+	,
+	AP_INIT_ITERATE("LogSQLRemhostIgnore", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, remhost_ignore_list), RSRC_CONF,
+	 "List of remote hosts to ignore. Accesses that match will not be logged to database")
+	,
+	AP_INIT_TAKE1("LogSQLDatabase", set_global_string_slot, 
+	 (void *)APR_OFFSETOF(global_config_t, dbname), RSRC_CONF,
+	 "The name of the database database for logging")
+	,
+	AP_INIT_TAKE1("LogSQLWhichCookie", set_server_string_slot, 
+	 (void *)APR_OFFSETOF(logsql_state, cookie_name), RSRC_CONF,
+	 "The single cookie that you want logged in the access_log when using the 'c' config directive")
+	,
+	AP_INIT_TAKE3("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
+	 "The database host, user-id and password for logging")
+	,
+	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
+	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
+	 "Turn on module's capability to create its SQL tables on the fly")
+	,
+	AP_INIT_FLAG("LogSQLMassVirtualHosting", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, massvirtual), RSRC_CONF,
+	 "Activates option(s) useful for ISPs performing mass virutal hosting")
+	,
+	AP_INIT_FLAG("LogSQLDelayedInserts", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, insertdelayed), RSRC_CONF,
+	 "Whether to use delayed inserts")
+	,
+	AP_INIT_FLAG("LogSQLForcePreserve", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
+	 "Forces logging to preserve file and bypasses database")
+	,
+	AP_INIT_TAKE1("LogSQLPreserveFile", set_global_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
+	 "Name of the file to use for data preservation during database downtime")
+	,
+	AP_INIT_TAKE1("LogSQLSocketFile", set_global_string_slot,
+	 (void *)APR_OFFSETOF(global_config_t, socketfile), RSRC_CONF,
+	 "Name of the file to employ for socket connections to database")
+	,
+	AP_INIT_TAKE1("LogSQLTCPPort", set_log_sql_tcp_port, NULL, RSRC_CONF,
+	 "Port number to use for TCP connections to database, defaults to 3306 if not set")
+	,
+	AP_INIT_ITERATE("LogSQLWhichNotes", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, notes_list), RSRC_CONF,
+	 "Notes that you would like to log in a separate table")
+	,
+	AP_INIT_ITERATE("LogSQLWhichHeadersOut", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, hout_list), RSRC_CONF,
+	 "Outbound headers that you would like to log in a separate table")
+	,
+	AP_INIT_ITERATE("LogSQLWhichHeadersIn", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, hin_list), RSRC_CONF,
+	 "Inbound headers that you would like to log in a separate table")
+	,
+	AP_INIT_ITERATE("LogSQLWhichCookies", add_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state, cookie_list), RSRC_CONF,
+	 "The cookie(s) that you would like to log in a separate table")
+	,
+	{NULL}
+};
 /* The configuration array that sets up the hooks into the module. */
-module sql_log_module = {
-	STANDARD_MODULE_STUFF,
-	NULL,					 /* module initializer 				*/
-	NULL,					 /* create per-dir config 			*/
-	NULL,					 /* merge per-dir config 			*/
-	log_sql_make_state,		 /* create server config 			*/
-	NULL,					 /* merge server config 			*/
-	log_sql_cmds,			 /* config directive table 			*/
-	NULL,					 /* [9] content handlers 			*/
-	NULL,					 /* [2] URI-to-filename translation */
-	NULL,					 /* [5] check/validate user_id 		*/
-	NULL,					 /* [6] check authorization 		*/
-	NULL,					 /* [4] check access by host		*/
-	NULL,					 /* [7] MIME type checker/setter 	*/
-	NULL,					 /* [8] fixups 						*/
-	log_sql_transaction,	 /* [10] logger 					*/
-	NULL					 /* [3] header parser 				*/
-#if MODULE_MAGIC_NUMBER >= 19970728 /* 1.3-dev or later support these additionals... */
-	,log_sql_child_init,   /* child process initializer 		*/
-	log_sql_child_exit,    /* process exit/cleanup 			*/
-	NULL					 /* [1] post read-request 			*/
-#endif
+static void register_hooks(apr_pool_t *p) {
+	ap_hook_pre_config(log_sql_pre_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
+	ap_hook_child_init(log_sql_child_init, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_open_logs(log_sql_open, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_log_transaction(log_sql_transaction, NULL, NULL, APR_HOOK_MIDDLE);
+}
 
+module AP_MODULE_DECLARE_DATA log_sql_module = {
+	STANDARD20_MODULE_STUFF,
+	NULL,		/* create per-directory config structures */
+    NULL,		/* merge per-directory config structures */
+    log_sql_make_state,		/* create per-server config structures */
+    NULL,		/* merge per-server config structures     */
+    log_sql_cmds,	/* command handlers */
+    register_hooks	/* register hooks */
 };
