@@ -1,11 +1,23 @@
-$Id: CHANGELOG,v 1.1 2001/11/28 05:26:54 helios Exp $
+$Id: CHANGELOG,v 1.2 2001/11/30 08:29:04 helios Stab $
 
 
 TODO:
 * Full commenting of the code.
+* Bounds checking on all data prior to INSERT
 
 
 CHANGES:
+
+1.10:
+
+* New capability:  log mod_usertrack cookies.
+* Some code cleanup and commenting.
+* Referer and User-Agent now set to want_orig=1 ( a very minor detail )
+* Corrected mysql_escape_log to properly check for and escape strings
+  with `dangerous' characters.  It appears that it was doing this 
+  incorrectly before.
+* Deleted log_mysql_child(), a function that was never called.
+
 
 1.09:
 

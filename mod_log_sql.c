@@ -1,6 +1,7 @@
-/* $Id: mod_log_sql.c,v 1.1 2001/11/28 05:26:55 helios Exp $
+/* $Id: mod_log_sql.c,v 1.2 2001/11/30 08:29:04 helios Stab $
  *
  * mod_log_mysql.c
+ * Release v 1.10
  *
  * Hi, I'm the new maintainer of this code.  If you have any questions,
  * comments or suggestions (which are always welcome), please contact Chris
@@ -70,15 +71,16 @@
  */
 
 
+#include <time.h>
+#include <mysql/mysql.h>
+
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
-#if MODULE_MAGIC_NUMBER >= 19980324
-#include "ap_compat.h"
-#endif
 #include "http_core.h"
-#include <time.h>
-#include <mysql/mysql.h>
+#if MODULE_MAGIC_NUMBER >= 19980324
+ #include "ap_compat.h"
+#endif
 
 module mysql_log_module;
 MYSQL log_sql_server, *mysql_log = NULL;
@@ -95,26 +97,26 @@ typedef struct {
 	char *transfer_log_format;
 } log_mysql_state;
 
-
+/* Defined in /usr/local/Apache/include/ap_mmn.h, 19990320 as of this writing. */
 #if MODULE_MAGIC_NUMBER < 19970103
-extern const char *log_remote_host(request_rec * r, char *a);
-extern const char *log_remote_logname(request_rec * r, char *a);
-extern const char *log_remote_user(request_rec * r, char *a);
-extern const char *log_request_time(request_rec * r, char *a);
-extern const char *log_request_timestamp(request_rec * r, char *a);
-extern const char *log_request_duration(request_rec * r, char *a);
-extern const char *log_request_line(request_rec * r, char *a);
-extern const char *log_request_file(request_rec * r, char *a);
-extern const char *log_request_uri(request_rec * r, char *a);
-extern const char *log_status(request_rec * r, char *a);
-extern const char *log_bytes_sent(request_rec * r, char *a);
-extern const char *log_header_in(request_rec * r, char *a);
-extern const char *log_header_out(request_rec * r, char *a);
-extern const char *log_note(request_rec * r, char *a);
-extern const char *log_env_var(request_rec * r, char *a);
-extern const char *log_virtual_host(request_rec * r, char *a);
-extern const char *log_server_port(request_rec * r, char *a);
-extern const char *log_child_pid(request_rec * r, char *a);
+extern const char *log_remote_host(request_rec *r, char *a);
+extern const char *log_remote_logname(request_rec *r, char *a);
+extern const char *log_remote_user(request_rec *r, char *a);
+extern const char *log_request_time(request_rec *r, char *a);
+extern const char *log_request_timestamp(request_rec *r, char *a);
+extern const char *log_request_duration(request_rec *r, char *a);
+extern const char *log_request_line(request_rec *r, char *a);
+extern const char *log_request_file(request_rec *r, char *a);
+extern const char *log_request_uri(request_rec *r, char *a);
+extern const char *log_status(request_rec *r, char *a);
+extern const char *log_bytes_sent(request_rec *r, char *a);
+extern const char *log_header_in(request_rec *r, char *a);
+extern const char *log_header_out(request_rec *r, char *a);
+extern const char *log_note(request_rec *r, char *a);
+extern const char *log_env_var(request_rec *r, char *a);
+extern const char *log_virtual_host(request_rec *r, char *a);
+extern const char *log_server_port(request_rec *r, char *a);
+extern const char *log_child_pid(request_rec *r, char *a);
 #else
 static char *format_integer(pool *p, int i)
 {
@@ -132,17 +134,22 @@ static char *pfmt(pool *p, int i)
 	}
 }
 
-static const char *log_remote_host(request_rec * r, char *a)
+/* Begin the individual functions that, given a request r,
+ * extract the needed information from it and return the
+ * value to the calling entity.
+ */
+
+static const char *log_remote_host(request_rec *r, char *a)
 {
 	return (char *) get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME);
 }
 
-static const char *log_remote_logname(request_rec * r, char *a)
+static const char *log_remote_logname(request_rec *r, char *a)
 {
 	return (char *) get_remote_logname(r);
 }
 
-static const char *log_remote_user(request_rec * r, char *a)
+static const char *log_remote_user(request_rec *r, char *a)
 {
 	char *rvalue = r->connection->user;
 
@@ -154,27 +161,27 @@ static const char *log_remote_user(request_rec * r, char *a)
 	return rvalue;
 }
 
-static const char *log_request_line(request_rec * r, char *a)
+static const char *log_request_line(request_rec *r, char *a)
 {
 	return r->the_request;
 }
 
-static const char *log_request_file(request_rec * r, char *a)
+static const char *log_request_file(request_rec *r, char *a)
 {
 	return r->filename;
 }
 
-static const char *log_request_uri(request_rec * r, char *a)
+static const char *log_request_uri(request_rec *r, char *a)
 {
 	return r->uri;
 }
 
-static const char *log_status(request_rec * r, char *a)
+static const char *log_status(request_rec *r, char *a)
 {
 	return pfmt(r->pool, r->status);
 }
 
-static const char *log_bytes_sent(request_rec * r, char *a)
+static const char *log_bytes_sent(request_rec *r, char *a)
 {
 	if (!r->sent_bodyct) {
 		return "-";
@@ -187,12 +194,12 @@ static const char *log_bytes_sent(request_rec * r, char *a)
 	}
 }
 
-static const char *log_header_in(request_rec * r, char *a)
+static const char *log_header_in(request_rec *r, char *a)
 {
 	return table_get(r->headers_in, a);
 }
 
-static const char *log_header_out(request_rec * r, char *a)
+static const char *log_header_out(request_rec *r, char *a)
 {
 	const char *cp = table_get(r->headers_out, a);
 	if (!strcasecmp(a, "Content-type") && r->content_type) {
@@ -204,7 +211,7 @@ static const char *log_header_out(request_rec * r, char *a)
 	return table_get(r->err_headers_out, a);
 }
 
-static const char *log_request_time(request_rec * r, char *a)
+static const char *log_request_time(request_rec *r, char *a)
 {
 	int timz;
 	struct tm *t;
@@ -227,7 +234,7 @@ static const char *log_request_time(request_rec * r, char *a)
 	return pstrdup(r->pool, tstr);
 }
 
-static const char *log_request_duration(request_rec * r, char *a)
+static const char *log_request_duration(request_rec *r, char *a)
 {
 	char duration[22];			 /* Long enough for 2^64 */
 
@@ -235,12 +242,12 @@ static const char *log_request_duration(request_rec * r, char *a)
 	return pstrdup(r->pool, duration);
 }
 
-static const char *log_virtual_host(request_rec * r, char *a)
+static const char *log_virtual_host(request_rec *r, char *a)
 {
 	return pstrdup(r->pool, r->server->server_hostname);
 }
 
-static const char *log_server_port(request_rec * r, char *a)
+static const char *log_server_port(request_rec *r, char *a)
 {
 	char portnum[22];
 
@@ -248,14 +255,14 @@ static const char *log_server_port(request_rec * r, char *a)
 	return pstrdup(r->pool, portnum);
 }
 
-static const char *log_child_pid(request_rec * r, char *a)
+static const char *log_child_pid(request_rec *r, char *a)
 {
 	char pidnum[22];
 	ap_snprintf(pidnum, sizeof(pidnum), "%ld", (long) getpid());
 	return pstrdup(r->pool, pidnum);
 }
 
-static const char *log_referer(request_rec * r, char *a)
+static const char *log_referer(request_rec *r, char *a)
 {
 	const char *tempref;
 
@@ -266,10 +273,9 @@ static const char *log_referer(request_rec * r, char *a)
 	} else {
 		return tempref;
 	}
-	
 }
 
-static const char *log_agent(request_rec * r, char *a)
+static const char *log_agent(request_rec *r, char *a)
 {
     const char *tempag;
     
@@ -282,7 +288,54 @@ static const char *log_agent(request_rec * r, char *a)
     }
 }
 
-const char *log_request_timestamp(request_rec * r, char *a)
+static const char *log_cookie(request_rec *r, char *a)
+{
+    const char *cookiestr;
+    char *cookieend;
+    
+	cookiestr  = table_get(r->headers_in,  "cookie");
+
+	/* First look for Cookie2: header */
+    if ( (cookiestr = table_get(r->headers_in,  "cookie2")) ) {
+    	cookieend = strchr(cookiestr, ';');
+    	if (cookieend)
+       		*cookieend = '\0';      /* Ignore anything after a ; */
+    	return cookiestr;
+	}
+	
+	/* Then try a Cookie: header */
+    else if ( (cookiestr = table_get(r->headers_in,  "cookie")) ) {
+    	cookieend = strchr(cookiestr, ';');
+    	if (cookieend)
+       		*cookieend = '\0';
+    	return cookiestr;
+	}
+	
+	/* Still none?  Use the Set-Cookie: header.  I feel a little
+	 * guilty about this, because some clients refuse cookies.  The
+	 * log will in their cases log a ton of different Set-Cookie requests
+	 * that aren't being honored.  However, it's necessary to insert this
+	 * check so that the first request of a series doesn't log a - ...
+	 */
+    else if ( (cookiestr  = table_get(r->headers_out,  "set-cookie")) ) {
+		cookieend = strchr(cookiestr, ';');
+		if (cookieend)
+	    	*cookieend = '\0';
+		return cookiestr;
+	}
+
+	/* Okay, fine, no eligible headers.  Return a - instead.
+	 * I /could/ insert a look for the Set-Cookie2: header here, but I think
+	 * it would be imprudent.  It's apparent that the current browsers don't
+	 * support Cookie2 cookies, so why bother logging a bunch of Set-Cookie2:
+	 * requests that aren't even going to be honored?
+	 */
+	else {    
+		return "-"; 
+    }
+}
+	   
+const char *log_request_timestamp(request_rec *r, char *a)
 {
 	char tstr[32];
 
@@ -290,51 +343,56 @@ const char *log_request_timestamp(request_rec * r, char *a)
 	return pstrdup(r->pool, tstr);
 }
 
-static const char *log_note(request_rec * r, char *a)
+static const char *log_note(request_rec *r, char *a)
 {
 	return table_get(r->notes, a);
 }
 
-static const char *log_env_var(request_rec * r, char *a)
+static const char *log_env_var(request_rec *r, char *a)
 {
 	return table_get(r->subprocess_env, a);
 }
 #endif
 
-struct log_mysql_item_list {
-	char ch;
-	item_key_func func;
-	const char *sql_field_name;
-	int want_orig_default;
-	int string_contents;
-} log_mysql_item_keys[] = {
 
-	{	'h', log_remote_host, "remote_host", 0, 1	},
-	{	'l', log_remote_logname, "remote_logname", 0, 1	},
-	{	'u', log_remote_user, "remote_user", 0, 1	},
-	{	't', log_request_time, "request_time", 0, 1	},
-	{	'S', log_request_timestamp, "time_stamp", 0, 0	},
-	{	'T', log_request_duration, "request_duration", 1, 0	},
-	{	'r', log_request_line, "request_line", 1, 1	},
-	{	'f', log_request_file, "request_file", 0, 1	},
-	{	'U', log_request_uri, "request_uri", 1, 1	},
-	{	's', log_status, "status", 1, 0	},
-	{	'b', log_bytes_sent, "bytes_sent", 0, 0	},
-	{	'i', log_header_in, "header_in", 0, 1	},
-	{	'o', log_header_out, "header_out", 0, 1	},
-	{	'n', log_note, "note", 0, 1	},
-	{	'e', log_env_var, "env_var", 0, 1	},
-	{	'v', log_virtual_host, "virtual_host", 0, 1	},
-	{	'p', log_server_port, "server_port", 0, 0	},
-	{	'P', log_child_pid, "child_pid", 0, 0	},
-	{	'R', log_referer, "referer", 0, 1	},
-	{	'A', log_agent, "agent", 0, 1	},
-	{	'\0'}
+/* End declarations of various log_ functions */
+
+
+struct log_mysql_item_list {
+	  char ch;
+	  item_key_func func;
+	  const char *sql_field_name;
+	  int want_orig_default;
+	  int string_contents;
+    } log_mysql_item_keys[] = {
+
+	{   'A', log_agent,             "agent",            1, 1    },
+    {   'b', log_bytes_sent,        "bytes_sent",       0, 0    },
+    {   'c', log_cookie,            "cookie",           0, 1    },
+    {   'e', log_env_var,           "env_var",          0, 1    },
+    {   'f', log_request_file,      "request_file",     0, 1    },
+    {   'h', log_remote_host,       "remote_host",      0, 1    },
+    {   'i', log_header_in,         "header_in",        0, 1    },
+    {   'l', log_remote_logname,    "remote_logname",   0, 1    },
+    {   'n', log_note,              "note",             0, 1    },
+    {   'o', log_header_out,        "header_out",       0, 1    },
+    {   'P', log_child_pid,         "child_pid",        0, 0    },
+    {   'p', log_server_port,       "server_port",      0, 0    },
+    {   'R', log_referer,           "referer",          1, 1    },
+    {   'r', log_request_line,      "request_line",     1, 1    },
+    {   'S', log_request_timestamp, "time_stamp",       0, 0    },
+    {   's', log_status,            "status",           1, 0    },
+    {   'T', log_request_duration,  "request_duration", 1, 0    },
+    {   't', log_request_time,      "request_time",     0, 1    },
+    {   'u', log_remote_user,       "remote_user",      0, 1    },
+    {   'U', log_request_uri,       "request_uri",      1, 1    },
+    {   'v', log_virtual_host,      "virtual_host",     0, 1    },
+	{'\0'}
 };
 
 
 /* Routine to escape 'dangerous' characters that would otherwise
- * corrupt the INSERT string.
+ * corrupt the INSERT string: ', \, and "
  */
 const char *mysql_escape_log(const char *str, pool *p)
 {
@@ -344,10 +402,12 @@ const char *mysql_escape_log(const char *str, pool *p)
 	if (!str) {
 		return NULL;
 	}
-	/* first find out if we need to escape */
+
+	/* First find out if we need to escape.   */
 	i = 0;
 	while (str[i]) {
-		if (str[i] != '\'' || str[i] != '\\' || str[i] != '\"') {
+		/* WAS THIS WRONG in 1.05?!?   if (str[i] != '\'' || str[i] != '\\' || str[i] != '\"') { */
+		if (str[i] == '\'' || str[i] == '\\' || str[i] == '\"') {
 			need_to_escape = 1;
 			break;
 		}
@@ -358,10 +418,15 @@ const char *mysql_escape_log(const char *str, pool *p)
 		char *tmp_str;
 		int length = strlen(str);
 
-		tmp_str = (char *) palloc(p, length * 2 + 1);	/* worst case situation, which wouldn't be a pretty sight :) */
+		/* Pre-allocate a new string that could hold twice the original, which would only
+		 * happen if the whole original string was 'dangerous' characters.
+		 */
+		tmp_str = (char *) palloc(p, length *2 + 1);
 		if (!tmp_str) {
 			return str;
 		}
+		
+		/* Walk through character-by-character, escaping any dangerous characters found. */
 		for (i = 0, j = 0; i < length; i++, j++) {
 			switch (str[i]) {
 			    case '\'':
@@ -373,7 +438,7 @@ const char *mysql_escape_log(const char *str, pool *p)
 				    tmp_str[j] = str[i];
 			}
 		}
-		tmp_str[j] = 0;
+		tmp_str[j] = '\0';
 		return tmp_str;
 	} else {
 		return str;
@@ -387,7 +452,6 @@ void open_log_dblink()
 		return;
 	}
 	if (log_db_name) {			 /* open an SQL link */
-		/* link to the MySQL database and register its cleanup!@$ */
 		mysql_log = mysql_connect(&log_sql_server, db_host, db_user, db_pwd);
 		if (mysql_log) {		 /* link opened */
 			if (mysql_select_db(mysql_log, log_db_name) != 0) {	/* unable to select database */
@@ -399,7 +463,7 @@ void open_log_dblink()
 }
 
 
-void *make_log_mysql_state(pool *p, server_rec * s)
+void *make_log_mysql_state(pool *p, server_rec *s)
 {
 	log_mysql_state *cls = (log_mysql_state *) palloc(p, sizeof(log_mysql_state));
 
@@ -411,7 +475,7 @@ void *make_log_mysql_state(pool *p, server_rec * s)
 	return (void *) cls;
 }
 
-const char *set_referer_log_mysql_table(cmd_parms * parms, void *dummy, char *arg)
+const char *set_referer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
 						 &mysql_log_module);
@@ -421,7 +485,7 @@ const char *set_referer_log_mysql_table(cmd_parms * parms, void *dummy, char *ar
 }
 
 
-const char *set_agent_log_mysql_table(cmd_parms * parms, void *dummy, char *arg)
+const char *set_agent_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
 						 &mysql_log_module);
@@ -431,7 +495,7 @@ const char *set_agent_log_mysql_table(cmd_parms * parms, void *dummy, char *arg)
 }
 
 
-const char *set_transfer_log_mysql_table(cmd_parms * parms, void *dummy, char *arg)
+const char *set_transfer_log_mysql_table(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
 						 &mysql_log_module);
@@ -441,7 +505,7 @@ const char *set_transfer_log_mysql_table(cmd_parms * parms, void *dummy, char *a
 }
 
 
-const char *set_transfer_log_format(cmd_parms * parms, void *dummy, char *arg)
+const char *set_transfer_log_format(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
 						 &mysql_log_module);
@@ -451,13 +515,13 @@ const char *set_transfer_log_format(cmd_parms * parms, void *dummy, char *arg)
 }
 
 
-const char *set_log_mysql_db(cmd_parms * parms, void *dummy, char *arg)
+const char *set_log_mysql_db(cmd_parms *parms, void *dummy, char *arg)
 {
 	log_db_name = arg;
 	return NULL;
 }
 
-const char *set_log_mysql_info(cmd_parms * parms, void *dummy, char *host, char *user, char *pwd)
+const char *set_log_mysql_info(cmd_parms *parms, void *dummy, char *host, char *user, char *pwd)
 {
 	if (*host != '.') {
 		db_host = host;
@@ -472,7 +536,7 @@ const char *set_log_mysql_info(cmd_parms * parms, void *dummy, char *host, char 
 }
 
 
-const char *add_referer_mysql_ignore(cmd_parms * parms, void *dummy, char *arg)
+const char *add_referer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
@@ -483,7 +547,7 @@ const char *add_referer_mysql_ignore(cmd_parms * parms, void *dummy, char *arg)
 	return NULL;
 }
 
-const char *add_transfer_mysql_ignore(cmd_parms * parms, void *dummy, char *arg)
+const char *add_transfer_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
@@ -494,7 +558,7 @@ const char *add_transfer_mysql_ignore(cmd_parms * parms, void *dummy, char *arg)
 	return NULL;
 }
 
-const char *add_remhost_mysql_ignore(cmd_parms * parms, void *dummy, char *arg)
+const char *add_remhost_mysql_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
 	log_mysql_state *cls = get_module_config(parms->server->module_config,
@@ -537,28 +601,7 @@ command_rec log_mysql_cmds[] = {
 };
 
 
-void log_mysql_child(void *cmd)
-{
-	/* Child process code for 'RefererLog "|..."';
-	 * may want a common framework for this, since I expect it will
-	 * be common for other foo-loggers to want this sort of thing...
-	 */
-
-	cleanup_for_exec();
-	signal(SIGHUP, SIG_IGN);
-#ifdef __EMX__
-	/* For OS/2 we need to use a '/' */
-	execl(SHELL_PATH, SHELL_PATH, "/c", (char *) cmd, NULL);
-#else
-	execl(SHELL_PATH, SHELL_PATH, "-c", (char *) cmd, NULL);
-#endif
-	perror("execl");
-	fprintf(stderr, "Exec of shell for logging failed!!!\n");
-	exit(1);
-}
-
-
-int safe_mysql_query(request_rec * r, const char *query)
+int safe_mysql_query(request_rec *r, const char *query)
 {
 	int error = 1;
 	struct timespec delay, remainder;
@@ -566,8 +609,10 @@ int safe_mysql_query(request_rec * r, const char *query)
 	char *str;
 	void (*handler) (int);
 
-	handler = signal(SIGPIPE, SIG_IGN);	 /* a failed mysql_query() may send a SIGPIPE */
+	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
+	handler = signal(SIGPIPE, SIG_IGN);	 
 
+	/* If there's no DB link, or if we run the query and it gacks, try to be graceful */
 	if ( !mysql_log || 
 	     (
 	        (error = mysql_query(mysql_log, query)) && 
@@ -576,13 +621,12 @@ int safe_mysql_query(request_rec * r, const char *query)
 	   ) 
 	   
 	   {    /* We need to restart the server link */
-
 		    mysql_log = NULL;
 		    log_error("MySQL:  connection lost, attempting reconnect", r->server);
 
     		open_log_dblink();
 
-    		if (mysql_log == NULL) {	 /* unable to link */
+    		if (mysql_log == NULL) {	 /* still unable to link */
     			signal(SIGPIPE, handler);
     			log_error("MySQL:  reconnect failed.", r->server);
     			return error;
@@ -590,13 +634,13 @@ int safe_mysql_query(request_rec * r, const char *query)
 
     		log_error("MySQL:  reconnect successful.", r->server);
     		error = mysql_query(mysql_log, query);
-    	}
+	}
 
+	/* Restore SIGPIPE to its original handler function */
 	signal(SIGPIPE, handler);
 
 	if (error) {
 	    /* Attempt a single re-try... First sleep for a tiny amount of time. */
-	    
         delay.tv_sec = 0;
         delay.tv_nsec = 500000000;  /* max is 999999999 (nine nines) */
         ret = nanosleep(&delay, &remainder);
@@ -622,7 +666,7 @@ int safe_mysql_query(request_rec * r, const char *query)
 /* Routine to perform the actual construction and execution of the relevant
  * INSERT statements.
  */
-int log_mysql_transaction(request_rec * orig)
+int log_mysql_transaction(request_rec *orig)
 {
 	char **ptrptr, **ptrptr2;
 	log_mysql_state *cls = get_module_config(orig->server->module_config,
@@ -633,7 +677,7 @@ int log_mysql_transaction(request_rec * orig)
 	int retvalue = DECLINED;
 	int referer_needed, agent_needed, transfer_needed;
 
-	/* Are there configuration directives for these logs?  For each found
+	/* Are there configuration directives for these SQL logs?  For each found
 	 * config directive that is found, mark that type as 'needed'.
 	 */
 	referer_needed = ((cls->referer_table_name[0] != '\0') ? 1 : 0);
@@ -643,12 +687,14 @@ int log_mysql_transaction(request_rec * orig)
 	if (!referer_needed && !agent_needed && !transfer_needed) {
 		return OK;
 	}
+
 	if (mysql_log == NULL) {		 /* mysql link not up, hopefully we can do something about it */
 		open_log_dblink();
 		if (mysql_log == NULL) {
 			return OK;
 		}
 	}
+
 	for (r = orig; r->next; r = r->next) {
 		continue;
 	}
@@ -660,12 +706,12 @@ int log_mysql_transaction(request_rec * orig)
 		if (referer != NULL) {
 
 			/* The following is an upsetting mess of pointers, I'm sorry
-			   Anyone with the motiviation and/or the time should feel free
-			   to make this cleaner... */
+			 * Anyone with the motiviation and/or the time should feel free
+			 * to make this cleaner... */
 			ptrptr2 = (char **) (cls->referer_ignore_list->elts + (cls->referer_ignore_list->nelts * cls->referer_ignore_list->elt_size));
 
 			/* Go through each element of the ignore list and compare it to the
-			   referer_host.  If we get a match, return without logging */
+			 * referer_host.  If we get a match, return without logging */
 			for (ptrptr = (char **) cls->referer_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->referer_ignore_list->elt_size)) {
 				if (strstr(referer, *ptrptr)) {
 					return OK;
@@ -679,8 +725,10 @@ int log_mysql_transaction(request_rec * orig)
 	/* Log the 'user agent' to its own log if configured to do so. */
 	if (agent_needed) {			 
 		const char *agent, *str;
+		
 		retvalue = OK;
 		agent = table_get(orig->headers_in, "User-Agent");
+		
 		if (agent != NULL) {
 			str = pstrcat(orig->pool, "insert into ", cls->agent_table_name, "(agent,time_stamp) values ('", mysql_escape_log(agent, orig->pool), "',unix_timestamp(now()) )", NULL);
 			safe_mysql_query(orig, str);
@@ -699,12 +747,12 @@ int log_mysql_transaction(request_rec * orig)
 
 
 		/* The following is a stolen upsetting mess of pointers, I'm sorry
-		   Anyone with the motiviation and/or the time should feel free
-		   to make this cleaner, and while at it, clean the same mess at the RefererLog part :) */
+		 * Anyone with the motiviation and/or the time should feel free
+		 * to make this cleaner, and while at it, clean the same mess at the RefererLog part :) */
 		ptrptr2 = (char **) (cls->transfer_ignore_list->elts + (cls->transfer_ignore_list->nelts * cls->transfer_ignore_list->elt_size));
 
 		/* Go through each element of the ignore list and compare it to the
-		   request_uri.  If we get a match, return without logging */
+		 * request_uri.  If we get a match, return without logging */
 		if (r->uri) {
 			for (ptrptr = (char **) cls->transfer_ignore_list->elts; ptrptr < ptrptr2; ptrptr = (char **) ((char *) ptrptr + cls->transfer_ignore_list->elt_size)) {
 				if (strstr(r->uri, *ptrptr)) {
@@ -713,9 +761,8 @@ int log_mysql_transaction(request_rec * orig)
 			}
 		}
 
-
 		/* Go through each element of the ignore list and compare it to the
-		   remote host.  If we get a match, return without logging */
+		 * remote host.  If we get a match, return without logging */
 		ptrptr2 = (char **) (cls->remhost_ignore_list->elts + (cls->remhost_ignore_list->nelts * cls->remhost_ignore_list->elt_size));
 		thehost = get_remote_host(r->connection, r->per_dir_config, REMOTE_NAME);
 		if (thehost) {
@@ -726,21 +773,23 @@ int log_mysql_transaction(request_rec * orig)
 			}
 		}
 
-
+		/* If not specified by the user, use the default format */
 		if (cls->transfer_log_format[0] == '\0') {	
-			/* If not specified by the user, use the default format */
 			cls->transfer_log_format = "huSUsbTvRA";
 		}
 		length = strlen(cls->transfer_log_format);
 
-		/* Iterate through the characters and set up the INSERT string according to
+		/* Iterate through the format characters and set up the INSERT string according to
 		 * what the user has configured. */
 		for (i = 0; i < length; i++) {
 			j = 0;
 			while (log_mysql_item_keys[j].ch) {
 				if (log_mysql_item_keys[j].ch == cls->transfer_log_format[i]) {
-					/* Yes, this key is one of the configured keys */
+					/* Yes, this key is one of the configured keys.
+					 * Call the key's function and put the returned value into 'formatted_item' */
 					formatted_item = log_mysql_item_keys[j].func(log_mysql_item_keys[j].want_orig_default ? orig : r, "");
+				    
+				     /* Massage 'formatted_item' for proper SQL eligibility... */
 					if (!formatted_item) {
 						formatted_item = "";
 					} else if (formatted_item[0] == '-' && formatted_item[1] == '\0' && !log_mysql_item_keys[j].string_contents) {
@@ -748,6 +797,8 @@ int log_mysql_transaction(request_rec * orig)
 						 * because the database expects an integer. */
 						formatted_item = "0";
 					}
+				    
+				     /* Append the fieldname and value-to-insert to teh appropriate strings, quoting stringvals with ' as appropriate */
 					fields = pstrcat(orig->pool, fields, (i > 0 ? "," : ""), log_mysql_item_keys[j].sql_field_name, NULL);
 					values = pstrcat(orig->pool, values, (i > 0 ? "," : ""), (log_mysql_item_keys[j].string_contents ? "'" : ""), mysql_escape_log(formatted_item, orig->pool), (log_mysql_item_keys[j].string_contents ? "'" : ""), NULL);
 					break;
