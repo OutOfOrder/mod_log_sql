@@ -14,13 +14,6 @@
 #define APR_SUCCESS 0
 #define APR_OFFSETOF XtOffsetOf
 
-/*AP_INIT_TAKE1("LogSQLTransferLogTable", set_server_nmv_string_slot,
-	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF, 
-	 "The database table that holds the transfer log")
-
-{"LogSQLTransferLogTable", set_log_sql_transfer_table, 			NULL, 	RSRC_CONF, 	TAKE1,
-	 "The database table that holds the transfer log"}*/
-
 /** method of declaring a directive which takes 1 argument */
 # define AP_INIT_TAKE1(directive, func, mconfig, where, help) \
     { directive, func, mconfig, where, TAKE1, help }
@@ -66,8 +59,8 @@
 
 #define apr_tolower ap_tolower
 
-static void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 5,6)));
-static inline void log_error(char *file, int line, int level, const server_rec *s, const char *fmt, ...)
+static void log_error(char *file, int line, int level, apr_status_t status, const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 5,6)));
+static inline void log_error(char *file, int line, int level, apr_status_t status, const server_rec *s, const char *fmt, ...)
 {
 	static char buff[MAX_STRING_LEN];
 	va_list args;

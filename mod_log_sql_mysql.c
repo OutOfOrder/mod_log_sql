@@ -50,13 +50,13 @@ logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 
 	if (mysql_real_connect(dblink, host, user, passwd, database, tcpport,
 						socketfile, 0)) {
-		log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
+		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_SUCCESS;
 	} else {
-		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: database connection error: %s",
+		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"mod_log_sql: database connection error: %s",
 				MYSQL_ERROR(dblink));
-		log_error(APLOG_MARK,APLOG_DEBUG,s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
+		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
 				host, tcpport, database, user, socketfile);
 		return LOGSQL_OPENDB_FAIL;
 	}
@@ -135,7 +135,7 @@ logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 	real_error = mysql_errno(dblink);
 
 	if (real_error == ER_NO_SUCH_TABLE) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"table does not exist, preserving query");
+		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"table does not exist, preserving query");
 		/* Restore SIGPIPE to its original handler function */
 		signal(SIGPIPE, handler);
 		return LOGSQL_QUERY_NOTABLE;
@@ -213,7 +213,7 @@ logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
 	create_sql = apr_pstrcat(r->pool, create_prefix, table_name, create_suffix,
 						type_suffix, NULL);
 
-	log_error(APLOG_MARK,APLOG_DEBUG,r->server,"create string: %s", create_sql);
+	log_error(APLOG_MARK,APLOG_DEBUG,0, r->server,"create string: %s", create_sql);
 
 	if (!dblink) {
 		return LOGSQL_QUERY_NOLINK;
@@ -223,7 +223,7 @@ logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
 
 	/* Run the create query */
   	if ((retval = mysql_query(dblink, create_sql))) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"failed to create table: %s",
+		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"failed to create table: %s",
 			table_name);
 		signal(SIGPIPE, handler);
 		return LOGSQL_TABLE_FAIL;

@@ -164,7 +164,8 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 		}
 		return result;
 	} else {
-		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: insufficient configuration info to establish database link");
+		log_error(APLOG_MARK, APLOG_ERR, 0, s,
+			"mod_log_sql: insufficient configuration info to establish database link");
 		return LOGSQL_OPENDB_FAIL;
 	}
 }
@@ -188,10 +189,11 @@ static void preserve_entry(request_rec *r, const char *query)
 		FILE *fp;
 		int result;
 		fp = ap_pfopen(r->pool, cls->preserve_file, "a");
-		result = (fp)?0:1;
+		result = (fp)?0:errno;
 	#endif
 	if (result != APR_SUCCESS) {
-		log_error(APLOG_MARK,APLOG_ERR,r->server,"attempted append of local preserve file '%s' but failed.",cls->preserve_file);
+		log_error(APLOG_MARK, APLOG_ERR, result, r->server,
+			"attempted append of local preserve file '%s' but failed.",cls->preserve_file);
 	} else {
 		#if defined(WITH_APACHE20)
 			apr_file_printf(fp,"%s;\n", query);
@@ -200,7 +202,8 @@ static void preserve_entry(request_rec *r, const char *query)
 			fprintf(fp,"%s;\n", query);
 			ap_pfclose(r->pool, fp);
 		#endif
-		log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: entry preserved in %s", cls->preserve_file);
+		log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
+			"mod_log_sql: entry preserved in %s", cls->preserve_file);
 	}
 }
 
@@ -403,14 +406,17 @@ static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 	retval = log_sql_opendb_link(s);
 	switch (retval) {
 	case LOGSQL_OPENDB_FAIL:
-		log_error(APLOG_MARK,APLOG_ERR,s,"mod_log_sql: child spawned but unable to open database link");
+		log_error(APLOG_MARK, APLOG_ERR, 0, s,
+			"mod_log_sql: child spawned but unable to open database link");
 		break;
 	case LOGSQL_OPENDB_SUCCESS:
 	case LOGSQL_OPENDB_ALREADY:
-		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: open_logdb_link successful");
+		log_error(APLOG_MARK,APLOG_DEBUG,0, s,
+			"mod_log_sql: open_logdb_link successful");
 		break;
 	case LOGSQL_OPENDB_PRESERVE:
- 		log_error(APLOG_MARK,APLOG_DEBUG,s,"mod_log_sql: open_logdb_link said that preservation is forced");
+ 		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,
+			"mod_log_sql: open_logdb_link said that preservation is forced");
 		break;
 	}
 }
@@ -488,7 +494,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		global_config.db.connected = 0;
 		/* re-open the connection and try again */
 		if (log_sql_opendb_link(r->server) != LOGSQL_OPENDB_FAIL) {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,"db reconnect successful");
+			log_error(APLOG_MARK,APLOG_NOTICE,0, r->server,"db reconnect successful");
 #			if defined(WITH_APACHE20)
 			apr_sleep(apr_time_from_sec(0.25)); /* pause for a quarter second */
 #			elif defined(WITH_APACHE13)
@@ -499,7 +505,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 				delay.tv_nsec = 250000000; /* pause for a quarter second */
 				nanoret = nanosleep(&delay, &remainder);
 				if (nanoret && errno != EINTR) {
-					log_error(APLOG_MARK,APLOG_ERR,r->server,"nanosleep unsuccessful");
+					log_error(APLOG_MARK,APLOG_ERR, errno, r->server,"nanosleep unsuccessful");
 				}
 			}
 #			endif
@@ -507,50 +513,52 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 			if (result == LOGSQL_QUERY_SUCCESS) {
 				return LOGSQL_QUERY_SUCCESS;
 			} else {
-				log_error(APLOG_MARK,APLOG_ERR,r->server,"second attempt failed");
+				log_error(APLOG_MARK,APLOG_ERR,0,r->server,"second attempt failed");
 				preserve_entry(r, query);
 				return LOGSQL_QUERY_PRESERVED;
 			}
 		} else {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,"reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
-			log_error(APLOG_MARK,APLOG_ERR,r->server,"log entries are being preserved in %s",cls->preserve_file);
+			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
+				"reconnect failed, unable to reach database. SQL logging stopped until child regains a db connection.");
+			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
+				"log entries are being preserved in %s",cls->preserve_file);
 			preserve_entry(r, query);
 			return LOGSQL_QUERY_PRESERVED;
 		}
 		break;
 	case LOGSQL_QUERY_NOTABLE:
 		if (global_config.createtables) {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,
+			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
 					"table doesn't exist...creating now");
 			if ((result = log_sql_mysql_create(r, &global_config.db, table_type, 
 				table_name))!=LOGSQL_TABLE_SUCCESS) {
-				log_error(APLOG_MARK,APLOG_ERR,r->server,
+				log_error(APLOG_MARK,APLOG_ERR,result,r->server,
 					"child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
 				preserve_entry(r, query);
 				return LOGSQL_QUERY_PRESERVED;
 			} else {
-				log_error(APLOG_MARK,APLOG_ERR,r->server,
+				log_error(APLOG_MARK,APLOG_ERR,result, r->server,
 					"tables successfully created - retrying query");
 				if ((result = log_sql_mysql_query(r,&global_config.db,query))!=LOGSQL_QUERY_SUCCESS) {
-					log_error(APLOG_MARK,APLOG_ERR,r->server,
+					log_error(APLOG_MARK,APLOG_ERR,result, r->server,
 						"giving up, preserving query");
 					preserve_entry(r, query);
 					return LOGSQL_QUERY_PRESERVED;
 				} else {
-					log_error(APLOG_MARK,APLOG_ERR,r->server,
+					log_error(APLOG_MARK,APLOG_NOTICE,0, r->server,
 						"query successful after table creation");
 					return LOGSQL_QUERY_SUCCESS;
 				}
 			}
 		} else {
-			log_error(APLOG_MARK,APLOG_ERR,r->server,
+			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
 				"table doesn't exist, creation denied by configuration, preserving query");
 			preserve_entry(r, query);
 			return LOGSQL_QUERY_PRESERVED;
 		}
 		break;
 	default:
-		log_error(APLOG_MARK,APLOG_ERR,r->server,
+		log_error(APLOG_MARK,APLOG_ERR,0, r->server,
 				"Invalid return code from mog_log_query");
 		return LOGSQL_QUERY_FAIL;
 		break;
@@ -773,7 +781,7 @@ static int log_sql_transaction(request_rec *orig)
 		for (i = 0; i<length; i++) {
 			logsql_item *item = cls->parsed_log_format[i];
 			if (item==NULL) {
-				log_error(APLOG_MARK, APLOG_ERR, orig->server,
+				log_error(APLOG_MARK, APLOG_ERR, 0, orig->server,
 					"Log Format '%c' unknown",cls->transfer_log_format[i]);
 				continue;
 			}
@@ -825,7 +833,7 @@ static int log_sql_transaction(request_rec *orig)
 			note_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", notes_tablename, itemsets);
 
-			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: note string: %s", note_query);
+			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: note string: %s", note_query);
 		}
 
 		/* Work through the list of headers-out defined by LogSQLWhichHeadersOut*/
@@ -853,7 +861,7 @@ static int log_sql_transaction(request_rec *orig)
 			hout_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hout_tablename, itemsets);
 
-			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_out string: %s", hout_query);
+			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: header_out string: %s", hout_query);
 		}
 
 
@@ -882,7 +890,7 @@ static int log_sql_transaction(request_rec *orig)
 			hin_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hin_tablename, itemsets);
 
-			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: header_in string: %s", hin_query);
+			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: header_in string: %s", hin_query);
 		}
 
 
@@ -912,7 +920,7 @@ static int log_sql_transaction(request_rec *orig)
 			cookie_query = apr_psprintf(r->pool, "insert %s into `%s` (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", cookie_tablename, itemsets);
 
-			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: cookie string: %s", cookie_query);
+			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: cookie string: %s", cookie_query);
 		}
 
 
@@ -920,13 +928,13 @@ static int log_sql_transaction(request_rec *orig)
 		access_query = apr_psprintf(r->pool, "insert %s into `%s` (%s) values (%s)",
 			/*global_config.insertdelayed?"delayed":*/"", transfer_tablename, fields, values);
 
-        log_error(APLOG_MARK,APLOG_DEBUG,r->server,"mod_log_sql: access string: %s", access_query);
+        log_error(APLOG_MARK,APLOG_DEBUG,0, r->server,"mod_log_sql: access string: %s", access_query);
 
 		/* If the person activated force-preserve, go ahead and push all the entries
 		 * into the preserve file, then return.
 		 */
 		if (global_config.forcepreserve) {
-			log_error(APLOG_MARK,APLOG_DEBUG,orig->server,"mod_log_sql: preservation forced");
+			log_error(APLOG_MARK,APLOG_DEBUG,0, orig->server,"mod_log_sql: preservation forced");
 			preserve_entry(orig, access_query);
 			if ( note_query != NULL )
 				preserve_entry(orig, note_query);
@@ -964,7 +972,7 @@ static int log_sql_transaction(request_rec *orig)
 				return OK;
 			} else {
 				/* Whew, we got the DB link back */
-				log_error(APLOG_MARK,APLOG_NOTICE,orig->server,"mod_log_sql: child established database connection");
+				log_error(APLOG_MARK,APLOG_NOTICE,0, orig->server,"mod_log_sql: child established database connection");
 			}
 		}
 

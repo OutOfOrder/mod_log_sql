@@ -175,13 +175,13 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	char *cookiebuf;
 
 	if (a != NULL) {
-	  	log_error(APLOG_MARK,APLOG_DEBUG,
-			r->server,"watching for cookie '%s'", a);
+	  	log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
+			"watching for cookie '%s'", a);
 
 		/* Fetch out the cookie header */
 	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie2");
 	    if (cookiestr != NULL) {
-			log_error(APLOG_MARK,APLOG_DEBUG,r->server,
+			log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Cookie2: [%s]", cookiestr);
 			/* Does the cookie string contain one with our name? */
 			isvalid = strstr(cookiestr, a);
@@ -201,7 +201,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 
 	 	cookiestr  = (char *)apr_table_get(r->headers_in,  "cookie");
 	    if (cookiestr != NULL) {
-			log_error(APLOG_MARK,APLOG_DEBUG,r->server,
+			log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Cookie: [%s]", cookiestr);
 			isvalid = strstr(cookiestr, a);
 			if (isvalid != NULL) {
@@ -216,7 +216,7 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 
 	 	cookiestr = apr_table_get(r->headers_out,  "set-cookie");
 	    if (cookiestr != NULL) {
-		     log_error(APLOG_MARK,APLOG_DEBUG,r->server,
+		     log_error(APLOG_MARK,APLOG_DEBUG, 0, r->server,
 				"Set-Cookie: [%s]", cookiestr);
 			isvalid = strstr(cookiestr, a);
 			if (isvalid != NULL) {

@@ -101,7 +101,8 @@ module.doc.files=\
 	LICENSE\
 	AUTHORS\
 	TODO\
-	Documentation/manual.xml
+	Documentation/manual.xml\
+	TODO.in
 
 module.po.expanded=0
 module.po.files=
