@@ -24,9 +24,10 @@
 #define LOGSQL_DECLARE_DATA             __declspec(dllimport)
 #endif
 
+/* Registration function for extract functions */
+
 typedef const char *logsql_item_func(request_rec *r, char *a);
 
-/* Registration Function for extract functions */
 LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 		char key, logsql_item_func *func, const char *sql_field_name,
 		int want_orig_default, int string_contents);
@@ -73,14 +74,54 @@ typedef enum {
 	LOGSQL_TABLE_HEADERSIN | LOGSQL_TABLE_HEADERSOUT | LOGSQL_TABLE_COOKIES
 
 /* MySQL module calls */
-logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db);
-void log_sql_mysql_close(logsql_dbconnection *db);
-const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
-								logsql_dbconnection *db);
-logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
-								const char *query);
-logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
-						logsql_tabletype table_type, const char *table_name);
 
+/* Registration function for database drivers */
+
+typedef struct {
+	/* NULL terminated list of drivers strings */
+	char **provided_drivers;
+	/* create a connection to the underlying database layer */
+	logsql_opendb_ret (*connect)(server_rec *s, logsql_dbconnection *db);
+	/* disconnect from the underlying database layer */
+	void (*disconnect)(logsql_dbconnection *db);
+	/* escape the SQL statement according to database rules */
+	const char *(*escape)(const char *from_str, apr_pool_t *p, 
+		logsql_dbconnection *db);
+	/* insert a SQL query statement */
+	logsql_query_ret (*insert)(request_rec *r,logsql_dbconnection *db,
+		const char *query);
+	/* create a SQL table named table_name of table_type */
+	logsql_table_ret (*create_table)(request_rec *r, logsql_dbconnection *db,
+		logsql_tabletype table_type, const char *table_name);
+} logsql_dbdriver;
+
+LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
+		logsql_dbdriver *driver);
+
+/* Module initialization Macros */
+#if defined(WITH_APACHE20)
+#	define LOGSQL_REGISTER(driver) \
+	static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s); \
+	static void register_hooks(apr_pool_t *p) { \
+		ap_hook_post_config(post_config, NULL, NULL, APR_HOOK_REALLY_FIRST); \
+	} \
+	\
+	module AP_MODULE_DECLARE_DATA log_sql_##driver##_module = { \
+		STANDARD20_MODULE_STUFF, \
+		NULL, NULL,  NULL, NULL,  NULL, register_hooks }; \
+	static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
+#elif defined(WITH_APACHE13)
+#	define LOGSQL_REGISTER() \
+	static void module_init(server_rec *s, apr_pool_t *p); \
+	module log_sql_##driver##_module = { \
+		STANDARD_MODULE_STUFF, module_init };
+	static void module_init(server_rec *s, apr_pool_t *p)
+#endif
+
+#if defined(WITH_APACHE20)
+#define LOGSQL_REGISTER_RETURN return OK;
+#elif defined(WITH_APACHE13)
+#define LOGSQL_REGISTER_RETURN
+#endif
 
 #endif /* MOD_LOG_SQL_H */

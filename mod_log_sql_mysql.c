@@ -29,13 +29,13 @@
 #define MYSQL_ERROR(mysql) ((mysql)?(mysql_error(mysql)):"MySQL server has gone away")
 
 /* Connect to the MYSQL database */
-logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
+static logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 {
-	const char *host = apr_table_get(db->parms,"host");
-	const char *user = apr_table_get(db->parms,"user");
-	const char *passwd = apr_table_get(db->parms,"passwd");
+	const char *host = apr_table_get(db->parms,"hostname");
+	const char *user = apr_table_get(db->parms,"username");
+	const char *passwd = apr_table_get(db->parms,"password");
 	const char *database = apr_table_get(db->parms,"database");
-	const char *s_tcpport = apr_table_get(db->parms,"tcpport");
+	const char *s_tcpport = apr_table_get(db->parms,"port");
 	unsigned int tcpport = (s_tcpport)?atoi(s_tcpport):3306;
 	const char *socketfile = apr_table_get(db->parms,"socketfile");
 	MYSQL *dblink = db->handle;
@@ -63,7 +63,7 @@ logsql_opendb_ret log_sql_mysql_connect(server_rec *s, logsql_dbconnection *db)
 }
 
 /* Close the DB link */
-void log_sql_mysql_close(logsql_dbconnection *db)
+static void log_sql_mysql_close(logsql_dbconnection *db)
 {
 	mysql_close((MYSQL *)db->handle);
 }
@@ -71,7 +71,7 @@ void log_sql_mysql_close(logsql_dbconnection *db)
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
+static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
 								logsql_dbconnection *db)
 {
 	if (!from_str)
@@ -110,7 +110,7 @@ const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 }
 
 /* Run a mysql insert query and return a categorized error or success */
-logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
+static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 								const char *query)
 {
 	int retval;
@@ -147,7 +147,7 @@ logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *db,
 }
 
 /* Create table table_name of type table_type. */
-logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
+static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
 						logsql_tabletype table_type, const char *table_name)
 {
 	int retval;
@@ -230,4 +230,19 @@ logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection *db,
 	}
 	signal(SIGPIPE, handler);
 	return LOGSQL_TABLE_SUCCESS;
+}
+
+static char *supported_drivers[] = {"mysql",NULL};
+static logsql_dbdriver mysql_driver = {
+	supported_drivers,
+	log_sql_mysql_connect,	/* open DB connection */
+	log_sql_mysql_close,	/* close DB connection */
+	log_sql_mysql_escape,	/* escape query */
+	log_sql_mysql_query,	/* insert query */
+	log_sql_mysql_create	/* create table */
+};
+
+LOGSQL_REGISTER(mysql) {
+	log_sql_register_driver(p,&mysql_driver);
+	LOGSQL_REGISTER_RETURN;
 }

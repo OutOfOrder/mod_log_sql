@@ -2,8 +2,7 @@
 
 # Modify these top variables.
 SUBDIRS = Documentation contrib
-SOURCES = @PACKAGE_NAME@.c \
-		@PACKAGE_NAME@_mysql.c
+SOURCES = @PACKAGE_NAME@.c
 
 HEADERS = mod_log_sql.h \
 		functions.h \
@@ -14,22 +13,28 @@ HEADERS = mod_log_sql.h \
 
 CFLAGS = -Wc,-Wall -Wc,-Werror -Wc,-fno-strict-aliasing
 
-INCLUDES = @MYSQL_CFLAGS@
-
-LDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@ @RT_LIBS@
+LDADD = @RT_LIBS@
 
 EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG
 
 TARGET = @PACKAGE_NAME@@APXS_EXTENSION@
 
 sslSOURCES = @PACKAGE_NAME@_ssl.c
-
 sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
+sslLDADD = 
+sslCFLAGS = @MOD_SSL_CFLAGS@ 
+sslNAME = log_sql_ssl
+
+mysqlSOURCES = @PACKAGE_NAME@_mysql.c
+mysqlTARGET = @PACKAGE_NAME@_mysql@APXS_EXTENSION@
+mysqlLDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
+mysqlCFLAGS = @MYSQL_CFLAGS@
+mysqlNAME = log_sql_mysql
 
 ifeq (@WANT_SSL_MOD@,1)
-TARGETS = $(TARGET) $(sslTARGET)
+TARGETS = $(TARGET) $(mysqlTARGET) $(sslTARGET)
 else
-TARGETS = $(TARGET)
+TARGETS = $(TARGET) $(mysqlTARGET)
 endif
 
 #Don't modify anything below here
@@ -39,11 +44,11 @@ PROVIDERS_SUBDIRS = @subdirs@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o)
+OBJ = $(SOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o)
 
-LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo)
+LO = $(SOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo)
 
-SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo)
+SLO = $(SOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
 	config.sub \
@@ -55,7 +60,8 @@ STD_DIST = install-sh \
 	stamp-h.in \
 	config.h.in
 
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(sslSOURCES) $(HEADERS)
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(sslSOURCES) $(mysqlSOURCES) \
+	$(HEADERS)
 
 all: $(TARGETS) all-subdirs
 
@@ -78,12 +84,16 @@ TODO: TODO.in
 	@./gen_todo.pl
 
 $(TARGET): $(SOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(TARGET) $(INCLUDES) $(CFLAGS) \
+	@@APXS_BIN@ -c -o $(TARGET) $(CFLAGS) \
 		$(LDADD) @DEFS@ @APACHE_DEFS@ $(SOURCES)
 
 $(sslTARGET): $(sslSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(sslTARGET) $(INCLUDES) @MOD_SSL_CFLAGS@ $(CFLAGS) \
-		@DEFS@ @APACHE_DEFS@ $(sslSOURCES)
+	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
+		@DEFS@ @APACHE_DEFS@ $(sslLDADD) $(sslSOURCES)
+
+$(mysqlTARGET): $(mysqlSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(mysqlTARGET) $(mysqlCFLAGS) $(CFLAGS) \
+		@DEFS@ @APACHE_DEFS@ $(mysqlLDADD) $(mysqlSOURCES)
 
 include:
 	rm -rf include
@@ -91,8 +101,9 @@ include:
 
 install: $(TARGETS) install-subdirs
 	@@APXS_BIN@ -i $(TARGET); \
+	@APXS_BIN@ -n $(mysqlNAME) -i $(mysqlTARGET); \
 	if test @WANT_SSL_MOD@ -eq 1; then \
-		@APXS_BIN@ -i $(sslTARGET); \
+		@APXS_BIN@ -n $(sslNAME) -i $(sslTARGET); \
 	fi; \
 	echo "*************************************************************************"; \
 	echo "*** The mod_log_sql modules have been installed."; \

@@ -2,6 +2,10 @@ $Id: CHANGELOG,v 1.18 2004/03/22 20:32:16 urkle Exp $
 ?: ?
 * fixed apache.m4 to work with apache 2 setups with different include
   directories for APR and APU then core Apache
+* cleaned up configuration documentation (updated due to deprecated commands)
+* LogSQLLoginInfo updated to support a connection URI
+* new module "registration" macros to clean up new driver modules
+* mysql driver completely separted from core module
 
 1.96: 2004-03-04
 * fixed LogSQLPreserveFile config parameter

@@ -55,7 +55,9 @@ typedef struct {
 	int createtables;
 	int forcepreserve;
 	char *machid;
+	int announce;
 	logsql_dbconnection db;
+	logsql_dbdriver *driver;
 } global_config_t;
 
 static global_config_t global_config;
@@ -99,7 +101,7 @@ typedef struct {
 /* list of "handlers" for log types */
 static apr_array_header_t *logsql_item_list;
 
-/* Registration Function for extract functions *
+/* Registration function for extract functions *
  * and update parse cache for transfer_log_format *
  * this is exported from the module */
 LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
@@ -132,7 +134,14 @@ LOGSQL_DECLARE(void) log_sql_register_item(server_rec *s, apr_pool_t *p,
 	}
 }
 
-/* Include all the extract functions */
+/* Registration function for database drivers */
+LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
+		logsql_dbdriver *driver)
+{
+	global_config.driver = driver;
+}
+
+/* Include all the core extract functions */
 #include "functions.h"
 #if defined(WITH_APACHE13)
 #	include "functions13.h"
@@ -156,7 +165,7 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 		passwd
 	*/
 	if (global_config.db.parms) {
-		result = log_sql_mysql_connect(s, &global_config.db);
+		result = global_config.driver->connect(s, &global_config.db);
 		if (result==LOGSQL_OPENDB_FAIL) {
 			global_config.db.connected = 0;
 		} else {
@@ -315,25 +324,23 @@ static const char *set_dbparam_slot(cmd_parms *cmd,
 static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, 
 						const char *host, const char *user, const char *pwd)
 {
-	ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, cmd->server,
-		"%s - %s - %s", host, user, pwd);
 	if (!user) { /* user is null, so only one arg passed */
 		apr_uri_t uri;
 		apr_uri_parse(cmd->pool, host, &uri);
 		if (uri.scheme) {
-			/* set DB plugin */
+			set_dbparam(cmd, NULL, "driver", uri.scheme);
 		}
 		if (uri.hostname) {
-			set_dbparam(cmd, NULL, "host", uri.hostname);
+			set_dbparam(cmd, NULL, "hostname", uri.hostname);
 		}
 		if (uri.user) {
-			set_dbparam(cmd, NULL, "user", uri.user);
+			set_dbparam(cmd, NULL, "username", uri.user);
 		}
 		if (uri.password) {
-			set_dbparam(cmd, NULL, "passwd", uri.password);
+			set_dbparam(cmd, NULL, "password", uri.password);
 		}
 		if (uri.port_str) {
-			set_dbparam(cmd, NULL, "tcpport", uri.port_str);
+			set_dbparam(cmd, NULL, "port", uri.port_str);
 		}
 		if (uri.path) {
 			/* extract Database name */
@@ -345,13 +352,13 @@ static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 		}
 	} else {
 		if (*host != '.') {
-			set_dbparam(cmd, NULL, "host", host);
+			set_dbparam(cmd, NULL, "hostname", host);
 		}
 		if (*user != '.') {
-			set_dbparam(cmd, NULL, "user", user);
+			set_dbparam(cmd, NULL, "username", user);
 		}
 		if (*pwd != '.') {
-			set_dbparam(cmd, NULL, "passwd", pwd);
+			set_dbparam(cmd, NULL, "password", pwd);
 		}
 	}
 	return NULL;
@@ -380,7 +387,7 @@ static const char *add_server_string_slot(cmd_parms *cmd,
 #if defined(WITH_APACHE20)
 static apr_status_t log_sql_close_link(void *data)
 {
-	log_sql_mysql_close(&global_config.db);
+	global_config.driver->disconnect(&global_config.db);
 	return APR_SUCCESS;
 }
 #elif defined(WITH_APACHE13)
@@ -454,6 +461,10 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 	log_sql_register_item(s,p,'U', extract_request_uri,       "request_uri",      1, 1);
 	log_sql_register_item(s,p,'v', extract_virtual_host,      "virtual_host",     0, 1);
 
+	if (global_config.announce) {
+		ap_add_version_component(p, PACKAGE_NAME"/"PACKAGE_VERSION);
+	}
+
 #if defined(WITH_APACHE20)
 	return OK;
 #endif
@@ -478,7 +489,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		return LOGSQL_QUERY_NOLINK;
 	}
 
-	result = log_sql_mysql_query(r,&global_config.db,query);
+	result = global_config.driver->insert(r,&global_config.db,query);
 
 	/* If we ran the query and it returned an error, try to be robust.
 	* (After all, the module thought it had a valid mysql_log connection but the query
@@ -490,7 +501,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		return LOGSQL_QUERY_FAIL;
 		/* TODO: What do we do here */
 	case LOGSQL_QUERY_FAIL:
-		log_sql_mysql_close(&global_config.db);
+		global_config.driver->disconnect(&global_config.db);
 		global_config.db.connected = 0;
 		/* re-open the connection and try again */
 		if (log_sql_opendb_link(r->server) != LOGSQL_OPENDB_FAIL) {
@@ -509,7 +520,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 				}
 			}
 #			endif
-			result = log_sql_mysql_query(r,&global_config.db,query);
+			result = global_config.driver->insert(r,&global_config.db,query);
 			if (result == LOGSQL_QUERY_SUCCESS) {
 				return LOGSQL_QUERY_SUCCESS;
 			} else {
@@ -530,7 +541,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		if (global_config.createtables) {
 			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
 					"table doesn't exist...creating now");
-			if ((result = log_sql_mysql_create(r, &global_config.db, table_type, 
+			if ((result = global_config.driver->create_table(r, &global_config.db, table_type, 
 				table_name))!=LOGSQL_TABLE_SUCCESS) {
 				log_error(APLOG_MARK,APLOG_ERR,result,r->server,
 					"child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
@@ -539,7 +550,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 			} else {
 				log_error(APLOG_MARK,APLOG_ERR,result, r->server,
 					"tables successfully created - retrying query");
-				if ((result = log_sql_mysql_query(r,&global_config.db,query))!=LOGSQL_QUERY_SUCCESS) {
+				if ((result = global_config.driver->insert(r,&global_config.db,query))!=LOGSQL_QUERY_SUCCESS) {
 					log_error(APLOG_MARK,APLOG_ERR,result, r->server,
 						"giving up, preserving query");
 					preserve_entry(r, query);
@@ -600,20 +611,92 @@ static void *log_sql_make_state(apr_pool_t *p, server_rec *s)
 	return (void *) cls;
 }
 
+
+/* Iterates through an array of char* and searches for a matching element
+ * Returns 0 if not found, 1 if found */
+static int in_array(apr_array_header_t *ary, const char *elem)
+{
+	int itr;
+	for (itr = 0; itr < ary->nelts; itr++) {
+		if (!strcmp(elem,((char **)ary->elts)[itr])) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Debugging print */
+#define PRINT_ARRAY(ary) { \
+	char **a_ptr =  (char **)(ary->elts); \
+	int a_itr; \
+	fprintf(stderr, "\nPrinting %s\n\n", #ary); \
+	for (a_itr=0; a_itr<ary->nelts; a_itr++) { \
+		fprintf(stderr, "Array Elem: %s\n",a_ptr[a_itr]); \
+	} \
+}
+
+/* Parse through cookie lists and merge based on +/- prefixes */
+#define DO_MERGE_ARRAY(parent,child,pool) \
+if (apr_is_empty_array(child)) { \
+	apr_array_cat(child, parent); \
+} else { \
+	apr_array_header_t *addlist, *dellist; \
+	char **elem, **ptr = (char **)(child->elts); \
+	int itr, overwrite = 0; \
+	addlist = apr_array_make(pool,5,sizeof(char *)); \
+	dellist = apr_array_make(subp,5,sizeof(char *)); \
+\
+	for (itr=0; itr<child->nelts; itr++) { \
+		if (*ptr[itr] == '+') { \
+			elem = (char **)apr_array_push(addlist); \
+			*elem = (ptr[itr]+1); \
+		} else if (*ptr[itr] == '-') { \
+			elem = (char **)apr_array_push(dellist); \
+			*elem = (ptr[itr]+1); \
+		} else { \
+			overwrite = 1; \
+			elem = (char **)apr_array_push(addlist); \
+			*elem = ptr[itr]; \
+		} \
+	} \
+	PRINT_ARRAY(addlist); \
+	PRINT_ARRAY(dellist); \
+	PRINT_ARRAY(parent); \
+	child = apr_array_make(p,1,sizeof(char *)); \
+	ptr = (char **)(parent->elts); \
+	if (overwrite==0) { \
+		/* if we are not overwriting the existing then prepare for merge */ \
+		for (itr=0; itr<parent->nelts; itr++) { \
+			if (!in_array(addlist, ptr[itr]) && !in_array(dellist,ptr[itr])) { \
+				elem = apr_array_push(child); \
+				*elem = apr_pstrdup(p, ptr[itr]); \
+			} \
+		} \
+	} \
+	PRINT_ARRAY(child); \
+	apr_array_cat(child, addlist); \
+	PRINT_ARRAY(child); \
+}
+
 static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 {
 	/* Fetch the two states to merge */
 	logsql_state *parent = (logsql_state *) basev;
 	logsql_state *child = (logsql_state *) addv;
 
+	apr_pool_t *subp;
+
+	apr_pool_create(&subp,p);
+
 	/* Child can override these, otherwise they default to parent's choice.
 	 * If the parent didn't set them, create reasonable defaults for the
 	 * ones that should have such default settings.  Leave the others null. */
 
-	child->transfer_table_name = child->transfer_table_name ?
-				child->transfer_table_name : parent->transfer_table_name;
 	/* No default for transfer_table_name because we want its absence
 	 * to disable logging. */
+	if (!child->transfer_table_name) {
+		child->transfer_table_name = parent->transfer_table_name;
+	}
 
 	if (child->transfer_log_format == DEFAULT_TRANSFER_LOG_FMT) {
 		child->transfer_log_format = parent->transfer_log_format;
@@ -637,29 +720,19 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 	if (child->cookie_table_name == DEFAULT_COOKIE_TABLE_NAME)
 		child->cookie_table_name = parent->cookie_table_name;
 
-	if (apr_is_empty_array(child->transfer_ignore_list))
-		apr_array_cat(child->transfer_ignore_list, parent->transfer_ignore_list);
+	DO_MERGE_ARRAY(parent->transfer_ignore_list, child->transfer_ignore_list, subp);
+	DO_MERGE_ARRAY(parent->transfer_accept_list, child->transfer_accept_list, subp);
+	DO_MERGE_ARRAY(parent->remhost_ignore_list, child->remhost_ignore_list, subp);
+	DO_MERGE_ARRAY(parent->notes_list, child->notes_list, subp);
+	DO_MERGE_ARRAY(parent->hin_list, child->hin_list, subp);
+	DO_MERGE_ARRAY(parent->hout_list, child->hout_list, subp);
+	DO_MERGE_ARRAY(parent->cookie_list,child->cookie_list, subp);
 
-	if (apr_is_empty_array(child->transfer_accept_list))
-		apr_array_cat(child->transfer_accept_list, parent->transfer_accept_list);
-
-	if (apr_is_empty_array(child->remhost_ignore_list))
-		apr_array_cat(child->remhost_ignore_list, parent->remhost_ignore_list);
-
-	if (apr_is_empty_array(child->notes_list))
-		apr_array_cat(child->notes_list, parent->notes_list);
-
-	if (apr_is_empty_array(child->hin_list))
-		apr_array_cat(child->hin_list, parent->hin_list);
-
-	if (apr_is_empty_array(child->hout_list))
-		apr_array_cat(child->hout_list, parent->hout_list);
-
-	if (apr_is_empty_array(child->cookie_list))
-		apr_array_cat(child->cookie_list, parent->cookie_list);
+	apr_pool_destroy(subp);
 
 	if (!child->cookie_name)
 		child->cookie_name = parent->cookie_name;
+
 
 	return (void*) child;
 }
@@ -804,7 +877,7 @@ static int log_sql_transaction(request_rec *orig)
 						 item->sql_field_name, NULL);
 			values = apr_pstrcat(r->pool, values, (i ? "," : ""),
 						 (item->string_contents ? "'" : ""),
-					     log_sql_mysql_escape(formatted_item, r->pool,&global_config.db),
+					     global_config.driver->escape(formatted_item, r->pool,&global_config.db),
 						 (item->string_contents ? "'" : ""), NULL);
 		}
 
@@ -821,9 +894,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -849,9 +922,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -878,9 +951,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -907,9 +980,9 @@ static int log_sql_transaction(request_rec *orig)
 									  "('",
 									  unique_id,
 									  "','",
-									  log_sql_mysql_escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
 									  "','",
-									  log_sql_mysql_escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(theitem, r->pool,&global_config.db),
 									  "')",
 									  NULL);
 				i++;
@@ -1005,7 +1078,34 @@ static int log_sql_transaction(request_rec *orig)
  * Structure: command, function called, NULL, where available, how many arguments, verbose description
  */
 static const command_rec log_sql_cmds[] = {
+	AP_INIT_FLAG("LogSQLAnnounce", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, announce), RSRC_CONF,
+	 "Whether to announce that mod_log_sql is loaded in the server header")
+	,
+	/* DB connection parameters */
+	AP_INIT_TAKE13("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
+	 "The database connection URI in the form<br>driver://user:password@hostname:port/database")
+	,
+	AP_INIT_TAKE2("LogSQLDBParam", set_dbparam, NULL, RSRC_CONF,
+	 "First argument is the DB parameter, second is the value to assign")
+	,
+	AP_INIT_FLAG("LogSQLForcePreserve", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
+	 "Forces logging to preserve file and bypasses database")
+	,
+	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_string_slot,
+	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
+	 "Name of the file to use for data preservation during database downtime")
+	,
+	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
+	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
+	 "Turn on module's capability to create its SQL tables on the fly")
+	,
 	/* Table names */
+	AP_INIT_FLAG("LogSQLMassVirtualHosting", set_global_flag_slot,
+	 (void *)APR_OFFSETOF(global_config_t, massvirtual), RSRC_CONF,
+	 "Activates option(s) useful for ISPs performing mass virutal hosting")
+	,
 	AP_INIT_TAKE1("LogSQLTransferLogTable", set_server_nmv_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF, 
 	 "The database table that holds the transfer log")
@@ -1025,10 +1125,6 @@ static const command_rec log_sql_cmds[] = {
 	AP_INIT_TAKE1("LogSQLCookieLogTable", set_server_nmv_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, cookie_table_name), RSRC_CONF,
 	 "The database table that holds the cookie info")
-	,
-	AP_INIT_FLAG("LogSQLMassVirtualHosting", set_global_flag_slot,
-	 (void *)APR_OFFSETOF(global_config_t, massvirtual), RSRC_CONF,
-	 "Activates option(s) useful for ISPs performing mass virutal hosting")
 	,
 	/* Log format */
 	AP_INIT_TAKE1("LogSQLTransferLogFormat", set_logformat_slot,
@@ -1053,13 +1149,10 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state, remhost_ignore_list), RSRC_CONF,
 	 "List of remote hosts to ignore. Accesses that match will not be logged to database")
 	,
+	/* Special loggin table configuration */
 	AP_INIT_TAKE1("LogSQLWhichCookie", set_server_string_slot, 
 	 (void *)APR_OFFSETOF(logsql_state, cookie_name), RSRC_CONF,
 	 "The single cookie that you want logged in the access_log when using the 'c' config directive")
-	,
-	AP_INIT_TAKE1("LogSQLPreserveFile", set_server_string_slot,
-	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
-	 "Name of the file to use for data preservation during database downtime")
 	,
 	AP_INIT_ITERATE("LogSQLWhichNotes", add_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, notes_list), RSRC_CONF,
@@ -1077,36 +1170,25 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state, cookie_list), RSRC_CONF,
 	 "The cookie(s) that you would like to log in a separate table")
 	,
-	/* DB connection parameters */
-	AP_INIT_FLAG("LogSQLForcePreserve", set_global_flag_slot,
-	 (void *)APR_OFFSETOF(global_config_t, forcepreserve), RSRC_CONF,
-	 "Forces logging to preserve file and bypasses database")
+	AP_INIT_RAW_ARGS("LogSQLDeprecated", ap_set_deprecated, NULL, RSRC_CONF,
+	 "<br><b>Deprecated</b><br>The following Commands are deprecated and should not be used.. <br>Read the documentation for more information<br><b>Deprecated</b>")
 	,
-	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
-	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
-	 "Turn on module's capability to create its SQL tables on the fly")
-	,
-	AP_INIT_TAKE13("LogSQLLoginInfo", set_log_sql_info, NULL, RSRC_CONF,
-	 "The database host, user-id and password for logging")
-	,
-	AP_INIT_TAKE2("LogSQLDBParam", set_dbparam, NULL, RSRC_CONF,
-	 "First argument is the DB parameter, second is the value to assign")
-	,
+	/* Deprecated commands */
 	AP_INIT_TAKE1("LogSQLDatabase", set_dbparam_slot, 
 	 (void *)"database", RSRC_CONF,
-	 "The name of the database database for logging")
+	 "<b>(Deprecated) Use LogSQLDBParam database dbname.</b> The name of the database database for logging")
 	,
 	AP_INIT_TAKE1("LogSQLTableType", set_dbparam_slot,
 	 (void *)"tabletype", RSRC_CONF,
-	 "What kind of table to create (MyISAM, InnoDB,...) when creating tables")
+	 "<b>(Deprecated) Use LogSQLDBParam tabletype type.</b> What kind of table to create (MyISAM, InnoDB,...) when creating tables")
 	,
 	AP_INIT_TAKE1("LogSQLSocketFile", set_dbparam_slot,
 	 (void *)"socketfile", RSRC_CONF,
-	 "Name of the file to employ for socket connections to database")
+	 "<b>(Deprecated) Use LogSQLDBParam socketfile socket.</b> Name of the file to employ for socket connections to database")
 	,
 	AP_INIT_TAKE1("LogSQLTCPPort", set_dbparam_slot, 
-	 (void *)"tcpport", RSRC_CONF,
-	 "Port number to use for TCP connections to database, defaults to 3306 if not set")
+	 (void *)"port", RSRC_CONF,
+	 "<b>(Deprecated) Use LogSQLDBParam port port.</b> Port number to use for TCP connections to database, defaults to 3306 if not set")
 	,
 	{NULL}
 };
