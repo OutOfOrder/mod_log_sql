@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 2002/11/14 03:51:34 helios Exp $
+# $Id: Makefile,v 1.13 2002/11/14 22:52:54 helios Exp $
 
 #####################################
 # Important:
@@ -25,6 +25,10 @@ APXSOPTS = -Wc,-O2 -Wc,-Wall -Wc,-DEAPI
 CC       = gcc
 INSTALL  = /usr/bin/install -m 664
 RM       = /bin/rm
+LYX      = /usr/bin/lyx
+DVIPS    = /usr/bin/dvips
+LINKS    = /usr/bin/links
+LATEX2HTML=/usr/bin/latex2html
 
 ifdef MODSSLHDRS
    SSLDEF  = -DWANT_SSL_LOGGING
@@ -37,7 +41,7 @@ all:
 	@echo "You can choose to make mod_log_sql as a static or dynamic module."
 	@echo "Either 'make dso' or 'make static'."
 	@echo
-	@echo "Please read the INSTALL file carefully!"
+	@echo "Please first read the documentation carefully!"
 
 dso: mod_log_sql.so
 
@@ -60,12 +64,34 @@ statinstall: static
 
 clean:
 	$(RM) -rf *.o *.so
+	$(RM) -f Documentation/HTML/*.html Documentation/HTML/*.css
+	$(RM) -f Documentation/*.tex
+	$(RM) -f Documentation/*.dvi
+	$(RM) -f Documentation/*.ps
+	$(RM) -f Documentation/*.txt
 
 distro: all
-	cp -f INSTALL $(APACHEINST)/html/mod_log_sql/
-	cp -f README $(APACHEINST)/html/mod_log_sql/
 	cp -f CHANGELOG $(APACHEINST)/html/mod_log_sql/
-	cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS mod_log_sql/; $(INSTALL) mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
-	rm -f $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
+	cd ..; tar zcf mod_log_sql-$(MLMVERS).tar.gz --exclude mod_log_sql/CVS --exclude mod_log_sql/Documentation/CVS mod_log_sql/; $(INSTALL) mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/; rm -f mod_log_sql-$(MLMVERS).tar.gz
+	$(RM) $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
 	ln -s mod_log_sql-$(MLMVERS).tar.gz $(APACHEINST)/html/mod_log_sql/mod_log_sql.tar.gz
 
+documentation: Documentation/documentation.lyx
+	@echo "Creating LaTeX docs..."
+	@$(LYX) --export latex Documentation/documentation.lyx 2>/dev/null
+	@echo "Creating DVI docs..."
+	@$(LYX) --export dvi Documentation/documentation.lyx 2>/dev/null
+	@echo "Creating PostScript docs..."
+	@$(DVIPS) Documentation/documentation.dvi -o Documentation/documentation.ps 2>/dev/null
+	@echo "Creating HTML docs..."
+	@$(LATEX2HTML) -show_section_numbers -split 4 -navigation -noindex_in_navigation -contents_in_navigation -dir Documentation/HTML Documentation/documentation.tex >/dev/null 2>&1
+	@echo "Creating plain text docs..."
+	@$(LATEX2HTML) -show_section_numbers -split 0 -dir Documentation/ Documentation/documentation.tex >/dev/null 2>&1
+	@$(LINKS) -dump Documentation/documentation.html > Documentation/documentation.txt 2>/dev/null
+	@echo "Cleaning up..."
+	@$(RM) -f Documentation/*.html Documentation/WARNINGS Documentation/*.pl Documentation/*.aux Documentation/*.css Documentation/*.toc Documentation/*.log
+	@$(RM) -f Documentation/HTML/WARNINGS Documentation/HTML/*.pl 
+
+
+
+	

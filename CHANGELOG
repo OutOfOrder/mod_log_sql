@@ -1,10 +1,9 @@
-$Id: CHANGELOG,v 1.16 2002/11/14 03:51:34 helios Exp $
-
+$Id: CHANGELOG,v 1.17 2002/11/14 22:52:53 helios Exp $
 
 TODO:
 * Rethink documentation flow and rewrite?
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
-PostgreSQL.
+  PostgreSQL.
 * check for mandatory conf directives / syntax quit if not
 * GNU autoconf
 * merge server config into vh config
@@ -14,36 +13,12 @@ PostgreSQL.
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * new format char: IP as bigint?
 * socket-based middleman daemon with configurable conns?
-
-
-* Cookies in separate table
 * ignore by cookie
-
-
 
 
 CHANGES:
 
 1.17:
-* In make_combined_log.pl, backtick-quoted the table name and added an 
-  order-by clause within the select statement.
-* TCP port number for db connection is now configurable using LogSqlTCPPort
-* New directive LogSQLForcePreserve sends all log entries directly to the
-  preserve file and *entirely bypasses* the db.  Useful for debugging, but
-  can be dangerous if you forget it's set!
-* Table names are now quoted in all cases with backticks in order to permit
-  names containing dashes (since many hostnames contain dashes).
-* The request_method field is now created as a varchar(10) instead of (6),
-  after it was pointed out to me that some methods can be longer than 6.
-* New directive LogSQLMachineID sets a string identifier for the webserver
-  machine.  This is useful if you have a cluster of many webservers and you
-  want to differentiate between them in the logs:  you can tell which log
-  entries came from each machine and thereby analyze your loadbalacing
-  performance.  Activate with the TransferLogFormat character 'M'.  Much
-  faster than doing some sort of wacky IP addr lookup via local_addr().
-* Added an alternative way of logging cookies. If you need to associate 
-  multiple cookies with each request, the new way involves using 
-  LogSQLWhichCookies (note the plural) and LogSQLCookieLogTable.
 
 * Renamed the module mod_log_sql to conform to the project goal of
   database-inspecificity.
@@ -89,6 +64,27 @@ CHANGES:
 * Migrated to the Artistic License (as used by Perl).
 * Moved table creation into its own callable function
 * Robustifying table creation
+* In make_combined_log.pl, backtick-quoted the table name and added an 
+  order-by clause within the select statement.
+* TCP port number for db connection is now configurable using LogSqlTCPPort
+* New directive LogSQLForcePreserve sends all log entries directly to the
+  preserve file and *entirely bypasses* the db.  Useful for debugging, but
+  can be dangerous if you forget it's set!
+* Table names are now quoted in all cases with backticks in order to permit
+  names containing dashes (since many hostnames contain dashes).
+* The request_method field is now created as a varchar(10) instead of (6),
+  after it was pointed out to me that some methods can be longer than 6.
+* New directive LogSQLMachineID sets a string identifier for the webserver
+  machine.  This is useful if you have a cluster of many webservers and you
+  want to differentiate between them in the logs:  you can tell which log
+  entries came from each machine and thereby analyze your loadbalacing
+  performance.  Activate with the TransferLogFormat character 'M'.  Much
+  faster than doing some sort of wacky IP addr lookup via local_addr().
+* Added an alternative way of logging cookies. If you need to associate 
+  multiple cookies with each request, the new way involves using 
+  LogSQLWhichCookies (note the plural) and LogSQLCookieLogTable.
+* Removed LogSQLRefererIgnore references, since it was never actually
+  activated anyway and the idea probably was of minimal value.
 
 
 1.16:

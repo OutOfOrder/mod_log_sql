@@ -1,0 +1,6 @@
+$Id: README,v 1.1 2002/11/14 22:52:56 helios Exp $
+
+The "original" document is the LyX file "documentation.lyx" -- all other
+files here are derived from it.  The most visually accurate document
+and the one I'd recommend reading is the PostScript (.ps) file, although
+a whole host of formats are made available here to suit your preference.

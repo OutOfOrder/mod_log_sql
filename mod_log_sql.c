@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.17 2002/11/14 03:51:35 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.18 2002/11/14 22:52:54 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -68,7 +68,6 @@ typedef const char *(*item_key_func) (request_rec *, char *);
  */
 typedef struct {
 	int table_made;
-	array_header *referer_ignore_list;
 	array_header *transfer_ignore_list;
 	array_header *remhost_ignore_list;
 	array_header *notes_list;
@@ -1003,16 +1002,6 @@ const char *set_log_sql_tcp_port(cmd_parms *parms, void *dummy, char *arg)
 	return NULL;
 }
 
-const char *add_log_sql_referer_ignore(cmd_parms *parms, void *dummy, char *arg)
-{
-	char **addme;
-	log_sql_state *cls = get_module_config(parms->server->module_config, &sql_log_module);
-
-	addme = push_array(cls->referer_ignore_list);
-	*addme = pstrdup(cls->referer_ignore_list->pool, arg);
-	return NULL;
-}
-
 const char *add_log_sql_transfer_ignore(cmd_parms *parms, void *dummy, char *arg)
 {
 	char **addme;
@@ -1158,7 +1147,6 @@ void *log_sql_make_state(pool *p, server_rec *s)
 	cls->cookie_table_name   = "cookies";
 	cls->preserve_file 		 = "/tmp/sql-preserve";
 
-	cls->referer_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->transfer_ignore_list = make_array(p, 1, sizeof(char *));
 	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
 	cls->notes_list           = make_array(p, 1, sizeof(char *));
@@ -1196,9 +1184,6 @@ command_rec log_sql_cmds[] = {
 	,
 	{"LogSQLMachineID", set_log_sql_machine_id,						NULL, 	RSRC_CONF, 	TAKE1,
 	 "Machine ID that the module will log, useful in web clusters to differentiate machines"}
-	,
-	{"LogSQLRefererIgnore", add_log_sql_referer_ignore, 			NULL, 	RSRC_CONF, 	ITERATE,
-	 "List of referers to ignore. Accesses that match will not be logged to database"}
 	,
 	{"LogSQLRequestIgnore", add_log_sql_transfer_ignore, 			NULL, 	RSRC_CONF, 	ITERATE,
 	 "List of URIs to ignore. Accesses that match will not be logged to database"}
