@@ -1,4 +1,4 @@
-/* $Id: mod_log_sql.c,v 1.10 2002/04/23 03:46:20 helios Exp $ */
+/* $Id: mod_log_sql.c,v 1.11 2002/04/23 17:26:15 helios Exp $ */
 
 /* --------*
  * DEFINES *
@@ -50,6 +50,7 @@ module mysql_log_module;
 MYSQL sql_server, *mysql_log = NULL;
 
 int massvirtual = 0;
+int create_tables = 0;
 char *db_name = NULL;
 char *db_host = NULL;
 char *db_user = NULL;
@@ -65,7 +66,6 @@ typedef const char *(*item_key_func) (request_rec *, char *);
  * Each child process has its own segregated copy of this structure.
  */
 typedef struct {
-	int create_tables;
 	int table_made;
 	char *transfer_table_name;
 	array_header *referer_ignore_list;
@@ -609,9 +609,7 @@ const char *set_mysql_massvirtual(cmd_parms *parms, void *dummy, int flag)
 
 const char *set_log_mysql_create(cmd_parms *parms, void *dummy, int flag)
 {
-	log_mysql_state *cls = get_module_config(parms->server->module_config, &mysql_log_module);
-	
-	cls->create_tables = ( flag ? 1 : 0);
+	create_tables = ( flag ? 1 : 0);
 	return NULL;
 }
 
@@ -791,7 +789,6 @@ void *log_mysql_make_state(pool *p, server_rec *s)
 	cls->remhost_ignore_list  = make_array(p, 1, sizeof(char *));
 	
 	cls->table_made    = 0;
-	cls->create_tables = 0;
 	
 	cls->preserve_file = "/tmp/mysql-preserve";
 	
@@ -875,7 +872,7 @@ int log_mysql_transaction(request_rec *orig)
 		 * turn on create_tables, which is implied by massvirtual.
 		 */
 		cls->transfer_table_name = tablename;
-		cls->create_tables = 1;
+		create_tables = 1;
 	}
 		
 	/* Do we have enough info to log? */
@@ -967,7 +964,7 @@ int log_mysql_transaction(request_rec *orig)
 		 * to avoid extra processing with each request.  If it's not flagged as made,
 		 * set up the CREATE string.
 		 */													  
-		if ((cls->table_made != 1) && (cls->create_tables != 0)) {		
+		if ((cls->table_made != 1) && (create_tables != 0)) {		
 			char *createprefix = "create table if not exists ";
 			char *createsuffix =
 			 " (agent varchar(255),\
@@ -1029,7 +1026,7 @@ int log_mysql_transaction(request_rec *orig)
 		}
 
 		/* Make the table if we're supposed to */
-		if ((cls->table_made != 1) && (cls->create_tables != 0)) {
+		if ((cls->table_made != 1) && (create_tables != 0)) {
 		  	mysql_query(mysql_log,createstring);
 		  	cls->table_made = 1;
 		}
