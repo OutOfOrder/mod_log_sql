@@ -26,12 +26,7 @@
 
 #include "libpq-fe.h"
 
-typedef struct {
-	PGconn *PG;
-	char *connectioninfo;
-} pg_conn_rec;
-
-/* Connect to the MYSQL database */
+/* Connect to the PGSQL database */
 static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnection *db)
 {
 	const char *host = apr_table_get(db->parms,"hostname");
@@ -39,28 +34,18 @@ static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnectio
 	const char *passwd = apr_table_get(db->parms,"password");
 	const char *database = apr_table_get(db->parms,"database");
 	const char *s_tcpport = apr_table_get(db->parms,"port");
-	unsigned int tcpport = (s_tcpport)?atoi(s_tcpport):3306;
-	const char *socketfile = apr_table_get(db->parms,"socketfile");
-	pg_conn_rec *dblink = db->handle;
+	
+	db->handle = PQsetdbLogin(host, s_tcpport, NULL, NULL, database, user, passwd);
 
-	dblink = mysql_init(dblink);
-	db->handle = (void *)dblink;
-
-
-	if (!socketfile) {
-		socketfile = "/var/lib/mysql/mysql.sock";
-	}
-
-	if (PQconnectdb(dblink, host, user, passwd, database, tcpport,
-						socketfile, 0)) {
-		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-				host, tcpport, database, user, socketfile);
+	if (PQstatus(db->handle) == CONNECTION_OK) {
+		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"HOST: '%s' PORT: '%s' DB: '%s' USER: '%s'",
+				host, s_tcpport, database, user);
 		return LOGSQL_OPENDB_SUCCESS;
 	} else {
 		log_error(APLOG_MARK,APLOG_DEBUG,0, s,"mod_log_sql: database connection error: %s",
-				MYSQL_ERROR(dblink));
-		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,"HOST: '%s' PORT: '%d' DB: '%s' USER: '%s' SOCKET: '%s'",
-				host, tcpport, database, user, socketfile);
+				PQerrorMessage(db->handle));
+		log_error(APLOG_MARK,APLOG_DEBUG, 0, s,"HOST: '%s' PORT: '%s' DB: '%s' USER: '%s'",
+				host, s_tcpport, database, user);
 		return LOGSQL_OPENDB_FAIL;
 	}
 }
@@ -68,15 +53,18 @@ static logsql_opendb_ret log_sql_pgsql_connect(server_rec *s, logsql_dbconnectio
 /* Close the DB link */
 static void log_sql_pgsql_close(logsql_dbconnection *db)
 {
-	PQfinish(((pg_conn_rec *)db->handle)->PG);
+	PQfinish((PGconn*)(db->handle));
 }
 
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
+ * Also PQescapeString does not place the ' around the string. So we have
+ * to do this manually
  */
 static const char *log_sql_pgsql_escape(const char *from_str, apr_pool_t *p, 
 								logsql_dbconnection *db)
 {
+	char *temp;
 	if (!from_str)
 		return NULL;
 	else {
@@ -85,67 +73,72 @@ static const char *log_sql_pgsql_escape(const char *from_str, apr_pool_t *p,
 		unsigned long retval;
 
 		/* Pre-allocate a new string that could hold twice the original, which would only
-		 * happen if the whole original string was 'dangerous' characters.
+		 * happen if the whole original string was 'dangerous' characters. 
+		 * And forsee the space for the 2 '
 		 */
-		to_str = (char *) apr_palloc(p, length * 2 + 1);
+		temp = to_str = (char *) apr_palloc(p, length * 2 + 3);
 		if (!to_str) {
 			return from_str;
 		}
 
-		if (!db->connected) {
-			/* Well, I would have liked to use the current database charset.  mysql is
-			 * unavailable, however, so I fall back to the slightly less respectful
-			 * mysql_escape_string() function that uses the default charset.
-			 */
-			retval = mysql_escape_string(to_str, from_str, length);
-		} else {
-			/* MySQL is available, so I'll go ahead and respect the current charset when
-			 * I perform the escape.
-			 */
-			retval = mysql_real_escape_string((MYSQL *)db->handle, to_str, from_str, length);
-		}
-
-		if (retval)
+		*temp = '\'';
+		temp++;
+		
+		retval = PQescapeString(temp, from_str, length);
+		
+		/* avoid the string to be tolong for the sql database*/
+		if (retval > 250) retval = 250;
+		
+		*(temp+retval) = '\'';
+		*(temp+retval+1) = '\0';
+		
+		/* We must always return the to_str, because we always need the ' added */
+//		if (retval)
 		  return to_str;
-		else
-		  return from_str;
+//		else
+//		  return from_str;
 	}
 }
 
-/* Run a mysql insert query and return a categorized error or success */
+/* Run a sql insert query and return a categorized error or success */
 static logsql_query_ret log_sql_pgsql_query(request_rec *r,logsql_dbconnection *db,
 								const char *query)
 {
-	int retval;
+	PGresult *result;
 	void (*handler) (int);
 	unsigned int real_error = 0;
 	/*const char *real_error_str = NULL;*/
 
-	pg_conn_rec *dblink = db->handle;
+	PGconn *conn = db->handle;
 
-	if (!dblink) {
+	if (PQstatus(conn) != CONNECTION_OK) {
 		return LOGSQL_QUERY_NOLINK;
 	}
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
+	/* Does postgresql do this also ??? */
 	handler = signal(SIGPIPE, SIG_IGN);
-
+	
+	result = PQexec(conn, query);
 	/* Run the query */
-	if (!(retval = mysql_query(dblink, query))) {
+	if (PQresultStatus(result) == PGRES_COMMAND_OK) {
 		signal(SIGPIPE, handler);
+		PQclear(result);
 		return LOGSQL_QUERY_SUCCESS;
 	}
 	/* Check to see if the error is "nonexistent table" */
+	/*	removed ... don't know how ! (sorry)
 	real_error = mysql_errno(dblink);
 
 	if (real_error == ER_NO_SUCH_TABLE) {
 		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"table does not exist, preserving query");
-		/* Restore SIGPIPE to its original handler function */
 		signal(SIGPIPE, handler);
+		PQclear(result);
 		return LOGSQL_QUERY_NOTABLE;
-	}
-
+	}*/
+	
 	/* Restore SIGPIPE to its original handler function */
 	signal(SIGPIPE, handler);
+	PQclear(result);
 	return LOGSQL_QUERY_FAIL;
 }
 
@@ -153,7 +146,7 @@ static logsql_query_ret log_sql_pgsql_query(request_rec *r,logsql_dbconnection *
 static logsql_table_ret log_sql_pgsql_create(request_rec *r, logsql_dbconnection *db,
 						logsql_tabletype table_type, const char *table_name)
 {
-	int retval;
+	PGresult *result;
 	const char *tabletype = apr_table_get(db->parms,"tabletype");
 	void (*handler) (int);
 	char *type_suffix = NULL;
@@ -162,7 +155,7 @@ static logsql_table_ret log_sql_pgsql_create(request_rec *r, logsql_dbconnection
 	char *create_suffix = NULL;
 	char *create_sql;
 
-	pg_conn_rec *dblink = db->handle;
+	PGconn *conn = db->handle;
 
 /*	if (!global_config.createtables) {
 		return APR_SUCCESS;
@@ -218,20 +211,23 @@ static logsql_table_ret log_sql_pgsql_create(request_rec *r, logsql_dbconnection
 
 	log_error(APLOG_MARK,APLOG_DEBUG,0, r->server,"create string: %s", create_sql);
 
-	if (!dblink) {
+	if (PQstatus(conn) != CONNECTION_OK) {
 		return LOGSQL_QUERY_NOLINK;
 	}
 	/* A failed mysql_query() may send a SIGPIPE, so we ignore that signal momentarily. */
 	handler = signal(SIGPIPE, SIG_IGN);
 
 	/* Run the create query */
-  	if ((retval = mysql_query(dblink, create_sql))) {
+	result = PQexec(conn, create_sql);
+  	if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"failed to create table: %s",
 			table_name);
 		signal(SIGPIPE, handler);
+		PQclear(result);
 		return LOGSQL_TABLE_FAIL;
 	}
 	signal(SIGPIPE, handler);
+	PQclear(result);
 	return LOGSQL_TABLE_SUCCESS;
 }
 
