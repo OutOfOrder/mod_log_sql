@@ -1,4 +1,4 @@
-$Id: CHANGELOG,v 1.5 2004/01/06 00:32:46 urkle Exp $
+$Id: CHANGELOG,v 1.6 2004/01/20 16:27:34 urkle Exp $
 
 TODO:
 * Port connection portion to other DBMS?  Genericize the module?  Start with 
@@ -8,17 +8,27 @@ TODO:
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * new format char: IP as bigint? ( not w/ ipV6 )
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
+	DBI connection pool when I switch to DBI.
 * ignore by cookie
-* tools to import logs into SQL
+* tools to import logs into SQL (waiting on permission from author)
 * Directive to yes/no create ancillary tables (or just access table)
 * break module into separate code files
     separate DB implimentation into sub-modules via provider mechanism
     separate module for SSL support
+	apache version specific code already split into separate files.
 * add document building to Makefile.in
-* backport patch for apache 1.3
 * investigate thread safety issues (libmysqlclient_r)
 
 CHANGES:
+1.93: 2004-01-20
+* Compiles for apache 1.3 AND 2.0
+* split apache version specific functions to seperate header files
+* split apache version specific includes to seperate header files
+* added wrapper defines for apache 1.3
+* updated configure m4 scripts to detect both apache versions at the same time 
+	and assign defines as to which version was found.
+* made install default to not activate module in configuration files.
+
 1.92: 2004-01-05
 * fixed compilation issue with mysql 4.x where mysql_error returns const char *
 * Have SSL support compiling (though not really tested)

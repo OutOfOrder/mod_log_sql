@@ -15,7 +15,7 @@ AC_ARG_WITH(
 		ssl_incdir="$withval",
 	)
 
-	if test "$ssl_val" = "yes"; then
+	if test "x$ssl_val" = "xyes"; then
 		ac_save_CFLAGS=$CFLAGS
 		ac_save_CPPFLAGS=$CPPFLAGS
 		MOD_SSL_CFLAGS="-I/usr/include/openssl"
