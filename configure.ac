@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.99)
+AC_INIT(mod_log_sql, 1.100)
 OOO_CONFIG_NICE(config.nice)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
@@ -14,18 +14,18 @@ AC_PROG_CC
 APACHE20_VERSION=2.0.40
 APACHE13_VERSION=1.3.20
 CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
-		:,
-		:,
-		AC_MSG_ERROR([*** The correct version Apache was not found!])
-		AC_MSG_ERROR([*** You need either Apache 1.3 version $APACHE13_VERSION or greater])
-		AC_MSG_ERROR([*** or Apache 2.0/2.1 version $APACHE20_VERSION or greater!])
-		)
+        :,
+        :,
+        AC_MSG_ERROR([*** The correct version Apache was not found!])
+        AC_MSG_ERROR([*** You need either Apache 1.3 version $APACHE13_VERSION or greater])
+        AC_MSG_ERROR([*** or Apache 2.0/2.1 version $APACHE20_VERSION or greater!])
+        )
 
 CHECK_MYSQL(
         WANT_MYSQL_MOD=1,
-		AC_MSG_WARN([*** Mysql client libraries not found!])
+        AC_MSG_WARN([*** Mysql client libraries not found!])
         WANT_MYSQL_MOD=0
-		)
+        )
 
 AC_SUBST(WANT_MYSQL_MOD)
 
@@ -41,22 +41,22 @@ AC_SUBST(WANT_PGSQL_MOD)
 
 
 CHECK_MOD_SSL(
-		WANT_SSL_MOD=1,
+        WANT_SSL_MOD=1,
         AC_MSG_WARN([** mod_ssl.h not found or missing SSL headers!])
-		WANT_SSL_MOD=0
-		)
+        WANT_SSL_MOD=0
+        )
 
 AC_SUBST(WANT_SSL_MOD)
 
 case "$target" in
-	*-*-solaris* | *-*-osf* )
-		if test $AP_VERSION -eq 1.3; then
-			RT_LIBS=-lrt
-		fi
-		;;
-	*)
-		RT_LIBS=""
-		;;
+    *-*-solaris* | *-*-osf* )
+        if test $AP_VERSION -eq 1.3; then
+            RT_LIBS=-lrt
+        fi
+        ;;
+    *)
+        RT_LIBS=""
+        ;;
 esac
 
 AC_SUBST(RT_LIBS)

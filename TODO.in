@@ -6,7 +6,8 @@ TODO:
   ServerAlias?
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
-* DBI connection pool when I switch to DBI.
+* DBI connection pooling.
+* apr_dbd backend driver
 * ignore by cookie
 * investigate thread safety issues 
 	Use libmysqlclient_r for threaded MPM (or always?)

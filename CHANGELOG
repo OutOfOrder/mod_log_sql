@@ -1,10 +1,12 @@
-1.100: 2004-09-?f
+1.100: 2005-01-11
 * fixes for NULL fields (empty request_args)
 * fixed a mysql reconnect bug
 * wrong hostname was logged when using mass virtual hosting
   Use, the new 'V' logformat
 * formatted massvirutalhosting tables to swap - with _.
 * included winconfig.h in makefile
+* fixed quoting of unique_id
+* converted documentation to OOO Docbook ( a subset of the full docbook DTD)
 
 1.99: 2004-07-28
 * Added DBI support (not completed yet)
