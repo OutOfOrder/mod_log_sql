@@ -666,6 +666,7 @@ static int in_array(apr_array_header_t *ary, const char *elem)
 
 
 /* Parse through cookie lists and merge based on +/- prefixes */
+/* TODO: rewrite as a function */
 #define DO_MERGE_ARRAY(parent,child,pool) \
 if (apr_is_empty_array(child)) { \
 	apr_array_cat(child, parent); \
@@ -930,7 +931,7 @@ static int log_sql_transaction(request_rec *orig)
 				i++;
 			}
 		}
-		if ( itemsets != "" ) {
+		if ( *itemsets != '\0' ) {
 			note_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", notes_tablename, itemsets);
 
@@ -958,7 +959,7 @@ static int log_sql_transaction(request_rec *orig)
 				i++;
 			}
 		}
-		if ( itemsets != "" ) {
+		if ( *itemsets != '\0' ) {
 			hout_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hout_tablename, itemsets);
 
@@ -987,7 +988,7 @@ static int log_sql_transaction(request_rec *orig)
 				i++;
 			}
 		}
-		if ( itemsets != "" ) {
+		if ( *itemsets != '\0' ) {
 			hin_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", hin_tablename, itemsets);
 
@@ -1017,7 +1018,7 @@ static int log_sql_transaction(request_rec *orig)
 			}
 
 		}
-		if ( itemsets != "" ) {
+		if ( *itemsets != '\0' ) {
 			cookie_query = apr_psprintf(r->pool, "insert %s into %s (id, item, val) values %s",
 				/*global_config.insertdelayed?"delayed":*/"", cookie_tablename, itemsets);
 
