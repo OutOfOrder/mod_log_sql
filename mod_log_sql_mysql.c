@@ -9,7 +9,7 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-/* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
+/* Undefine these to prevent conflicts between Apache ap_config_auto.h and
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
  */
 #undef PACKAGE_BUGREPORT
@@ -74,7 +74,7 @@ static void log_sql_mysql_close(logsql_dbconnection *db)
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p, 
+static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
 								logsql_dbconnection *db)
 {
         /* Return "NULL" for empty strings */
@@ -185,7 +185,7 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
 
 	switch (table_type) {
 	case LOGSQL_TABLE_ACCESS:
-		create_suffix = 
+		create_suffix =
 	"` (id char(19),\
        agent varchar(255),\
        bytes_sent int unsigned,\
@@ -210,21 +210,23 @@ static logsql_table_ret log_sql_mysql_create(request_rec *r, logsql_dbconnection
        ssl_maxkeysize smallint unsigned,\
        status smallint unsigned,\
        time_stamp int unsigned,\
-       virtual_host varchar(255))";
+       virtual_host varchar(255),\
+       bytes_in int unsigned,\
+       bytes_out int unsigned)";
 		break;
 	case LOGSQL_TABLE_COOKIES:
 	case LOGSQL_TABLE_HEADERSIN:
 	case LOGSQL_TABLE_HEADERSOUT:
 	case LOGSQL_TABLE_NOTES:
-		create_suffix = 
+		create_suffix =
 	"` (id char(19),\
 	   item varchar(80),\
 	   val varchar(80))";
 		break;
 	}
-	
+
 	if (tabletype) {
-		type_suffix = apr_pstrcat(r->pool, " TYPE=", 
+		type_suffix = apr_pstrcat(r->pool, " TYPE=",
 							tabletype, NULL);
 	}
 	/* Find memory long enough to hold the whole CREATE string + \0 */
