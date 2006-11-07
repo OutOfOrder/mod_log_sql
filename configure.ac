@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.100)
+AC_INIT(mod_log_sql, 1.101)
 OOO_CONFIG_NICE(config.nice)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
@@ -20,6 +20,13 @@ CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
         AC_MSG_ERROR([*** You need either Apache 1.3 version $APACHE13_VERSION or greater])
         AC_MSG_ERROR([*** or Apache 2.0/2.1 version $APACHE20_VERSION or greater!])
         )
+
+if test $AP_VERSION = "2.0"; then
+    WANT_LOGIO_MOD=1
+else
+    WANT_LOGIO_MOD=0
+fi
+AC_SUBST(WANT_LOGIO_MOD)
 
 CHECK_MYSQL(
         WANT_MYSQL_MOD=1,
@@ -50,7 +57,7 @@ AC_SUBST(WANT_SSL_MOD)
 
 case "$target" in
     *-*-solaris* | *-*-osf* )
-        if test $AP_VERSION -eq 1.3; then
+        if test $AP_VERSION = "1.3"; then
             RT_LIBS=-lrt
         fi
         ;;
@@ -81,6 +88,13 @@ else
     AC_MSG_RESULT([SSL Support     : no])
     AC_MSG_RESULT([*** Make sure OpenSSL headers, and mod_ssl.h are installed.])
 fi
+if test $WANT_LOGIO_MOD -eq 1; then
+    AC_MSG_RESULT([LogIO Module    : yes])
+else
+    AC_MSG_RESULT([LogIO Module    : no])
+    AC_MSG_RESULT([*** Logio does not work with Apache 1.3.])
+fi
+
 AC_MSG_RESULT([Enabled drivers :])
 if test $WANT_MYSQL_MOD -eq 1; then
     AC_MSG_RESULT([      MySQL Driver])

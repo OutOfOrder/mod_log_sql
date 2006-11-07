@@ -18,7 +18,7 @@ CFLAGS += -Wc,-Werror
 endif
 
 EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG \
-	build-apache13.bat build-apache2.bat
+	build-apache13.bat build-apache2.bat \
 
 coreSOURCES = @PACKAGE_NAME@.c
 coreTARGET = @PACKAGE_NAME@@APXS_EXTENSION@
@@ -35,6 +35,16 @@ sslNAME = log_sql_ssl
 
 ifeq (@WANT_SSL_MOD@,1)
 TARGETS += $(sslTARGET)
+endif
+
+logioSOURCES = @PACKAGE_NAME@_logio.c
+logioTARGET = @PACKAGE_NAME@_logio@APXS_EXTENSION@
+logioLDADD = 
+logioCFLAGS = 
+logioNAME = log_sql_logio
+
+ifeq (@WANT_LOGIO_MOD@,1)
+TARGETS += $(logioTARGET)
 endif
 
 mysqlSOURCES = @PACKAGE_NAME@_mysql.c
@@ -74,13 +84,13 @@ PROVIDERS_SUBDIRS = @subdirs@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-OBJ = $(coreSOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
+OBJ = $(coreSOURCES:.c=.o) $(logioSOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
 	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o)
 
-LO = $(coreSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
+LO = $(coreSOURCES:.c=.lo) $(logioSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
 	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo)
 
-SLO = $(coreSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
+SLO = $(coreSOURCES:.c=.slo) $(logioSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
 	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
@@ -94,7 +104,7 @@ STD_DIST = install-sh \
 	config.h.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
-    $(sslSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES)
+    $(sslSOURCES) $(logioSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES)
 
 all: $(TARGETS) all-subdirs
 
@@ -119,6 +129,10 @@ TODO: TODO.in
 $(coreTARGET): $(coreSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(coreTARGET) $(coreCFLAGS) $(CFLAGS) \
 		@DEFS@ @AP_DEFS@ $(coreLDADD) $(coreSOURCES)
+
+$(logioTARGET): $(logioSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(logioTARGET) $(logioCFLAGS) $(CFLAGS) \
+		@DEFS@ @AP_DEFS@ $(logioLDADD) $(logioSOURCES)
 
 $(sslTARGET): $(sslSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
@@ -150,6 +164,9 @@ install: $(TARGETS) install-subdirs
 	if test @WANT_SSL_MOD@ -eq 1; then \
 		@APXS_BIN@ -n $(sslNAME) -i $(sslTARGET); \
 	fi; \
+	if test @WANT_LOGIO_MOD@ -eq 1; then \
+	    @APXS_BIN@ -n $(logioNAME) -i $(logioTARGET); \
+    fi; \
 	echo "*************************************************************************"; \
 	echo "*** The mod_log_sql modules have been installed."; \
 	echo "*** Please edit your Apache configuration files and"; \
