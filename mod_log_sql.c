@@ -9,7 +9,7 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-/* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
+/* Undefine these to prevent conflicts between Apache ap_config_auto.h and
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
  */
 #undef PACKAGE_BUGREPORT
@@ -153,6 +153,9 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 {
 	logsql_opendb_ret result;
+    if (global_config.driver == NULL) {
+        return LOGSQL_OPENDB_FAIL;
+    }
 	if (global_config.forcepreserve) {
 		//global_config.db.connected = 1;
 		return LOGSQL_OPENDB_PRESERVE;
@@ -170,7 +173,7 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 		if (result==LOGSQL_OPENDB_FAIL) {
 			global_config.db.connected = 0;
 		} else {
-			global_config.db.connected = 1;			
+			global_config.db.connected = 1;
 		}
 		return result;
 	} else {
@@ -182,7 +185,7 @@ static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 
 static void preserve_entry(request_rec *r, const char *query)
 {
-	logsql_state *cls = ap_get_module_config(r->server->module_config, 
+	logsql_state *cls = ap_get_module_config(r->server->module_config,
 											&log_sql_module);
 	#if defined(WITH_APACHE20)
 		apr_file_t *fp;
@@ -223,8 +226,8 @@ static void preserve_entry(request_rec *r, const char *query)
  * ------------------------------------------------*/
 
 
-static const char *set_global_flag_slot(cmd_parms *cmd, 
-										void *struct_ptr, 
+static const char *set_global_flag_slot(cmd_parms *cmd,
+										void *struct_ptr,
 										int flag)
 {
 	void *ptr = &global_config;
@@ -268,7 +271,7 @@ static const char *set_server_string_slot(cmd_parms *cmd,
 	int offset = (int)(long)cmd->info;
 
 	*(const char **)((char *)ptr + offset) = arg;
-    
+
     return NULL;
 }
 
@@ -282,14 +285,14 @@ static const char *set_server_file_slot(cmd_parms *cmd,
     const char *path;
 
     path = ap_server_root_relative(cmd->pool, (char *)arg);
-                            
+
     if (!path) {
         return apr_pstrcat(cmd->pool, "Invalid file path ",
                            arg, NULL);
     }
-    
+
     *(const char **)((char*)ptr + offset) = path;
-    
+
     return NULL;
 }
 
@@ -299,7 +302,7 @@ static const char *set_logformat_slot(cmd_parms *cmd,
 {
 	logsql_state *cfg = ap_get_module_config(cmd->server->module_config,
 					&log_sql_module);
-    
+
 	cfg->transfer_log_format = arg;
 /*	apr_pool_clear(cfg->parsed_pool);*/
 	cfg->parsed_log_format = apr_pcalloc(cfg->parsed_pool,
@@ -342,7 +345,7 @@ static const char *set_dbparam_slot(cmd_parms *cmd,
 }
 
 /* Sets basic connection info */
-static const char *set_log_sql_info(cmd_parms *cmd, void *dummy, 
+static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 						const char *host, const char *user, const char *pwd)
 {
 	if (!user) { /* user is null, so only one arg passed */
@@ -370,7 +373,7 @@ static const char *set_log_sql_info(cmd_parms *cmd, void *dummy,
 			if (off)
 				*off='\0';
 			set_dbparam(cmd, NULL, "database", uri.path);
-			
+
 		}
 	} else {
 		if (*host != '.') {
@@ -397,7 +400,7 @@ static const char *add_server_string_slot(cmd_parms *cmd,
 	apr_array_header_t *ary = *(apr_array_header_t **)((char *)ptr + offset);
 	addme = apr_array_push(ary);
 	*addme = apr_pstrdup(ary->pool, arg);
-	    
+
     return NULL;
 }
 
@@ -409,13 +412,15 @@ static const char *add_server_string_slot(cmd_parms *cmd,
 #if defined(WITH_APACHE20)
 static apr_status_t log_sql_close_link(void *data)
 {
-	global_config.driver->disconnect(&global_config.db);
+	if (global_config.driver)
+        global_config.driver->disconnect(&global_config.db);
 	return APR_SUCCESS;
 }
 #elif defined(WITH_APACHE13)
 static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
 {
-	global_config.driver->disconnect(&global_config.db);
+	if (global_config.driver)
+        global_config.driver->disconnect(&global_config.db);
 }
 #endif
 
@@ -435,8 +440,13 @@ static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 	retval = log_sql_opendb_link(s);
 	switch (retval) {
 	case LOGSQL_OPENDB_FAIL:
-		log_error(APLOG_MARK, APLOG_ERR, 0, s,
-			"mod_log_sql: child spawned but unable to open database link");
+        if (global_config.driver==NULL) {
+            log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                "mod_log_sql: Driver module not loaded");
+        } else {
+            log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                "mod_log_sql: child spawned but unable to open database link");
+        }
 		break;
 	case LOGSQL_OPENDB_SUCCESS:
 	case LOGSQL_OPENDB_ALREADY:
@@ -505,8 +515,8 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 #endif
 }
 
-/* This function handles calling the DB module,  handling errors 
- * of missing tables and lost DB connections, and falling back to 
+/* This function handles calling the DB module,  handling errors
+ * of missing tables and lost DB connections, and falling back to
  * preserving the DB query.
  *
  * Parms: request record, table type, table name, and the full SQL command
@@ -519,7 +529,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 	logsql_state *cls = ap_get_module_config(r->server->module_config,
 									&log_sql_module);
 
-	if (!global_config.db.connected) {
+	if (!global_config.db.connected || global_config.driver == NULL) {
 		/* preserve query */
 		return LOGSQL_QUERY_NOLINK;
 	}
@@ -580,7 +590,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		if (global_config.createtables) {
 			log_error(APLOG_MARK,APLOG_ERR,0,r->server,
 					"table doesn't exist...creating now");
-			if ((result = global_config.driver->create_table(r, &global_config.db, table_type, 
+			if ((result = global_config.driver->create_table(r, &global_config.db, table_type,
 				table_name))!=LOGSQL_TABLE_SUCCESS) {
 				log_error(APLOG_MARK,APLOG_ERR,result,r->server,
 					"child attempted but failed to create one or more tables for %s, preserving query", ap_get_server_name(r));
@@ -736,7 +746,7 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 	/* server_root_relative the preserve file location */
 	if (child->preserve_file == DEFAULT_PRESERVE_FILE)
         child->preserve_file = ap_server_root_relative(p, DEFAULT_PRESERVE_FILE);
- 
+
 	if (child->notes_table_name == DEFAULT_NOTES_TABLE_NAME)
 		child->notes_table_name = parent->notes_table_name;
 
@@ -780,7 +790,9 @@ static int log_sql_transaction(request_rec *orig)
 	const char *hout_tablename = cls->hout_table_name;
 	const char *hin_tablename = cls->hin_table_name;
 	const char *cookie_tablename = cls->cookie_table_name;
-
+    if (global_config.driver == NULL) {
+        return OK;
+    }
 	/* We handle mass virtual hosting differently.  Dynamically determine the name
 	 * of the table from the virtual server's name, and flag it for creation.
 	 */
@@ -803,7 +815,7 @@ static int log_sql_transaction(request_rec *orig)
 			if (*p == '-') *p = '_';
 			++p;
 		}
-		
+
 		/* Find memory long enough to hold the table name + \0. */
 		transfer_tablename = apr_pstrcat(orig->pool, access_base, servername, NULL);
 		notes_tablename = apr_pstrcat(orig->pool, notes_base,  servername, NULL);
@@ -814,7 +826,7 @@ static int log_sql_transaction(request_rec *orig)
 		/* Tell this virtual server its transfer table name, and
 		 * turn on create_tables, which is implied by massvirtual.
 		 */
-		
+
 		global_config.createtables = 1;
 	}
 
@@ -1130,7 +1142,7 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)APR_OFFSETOF(logsql_state,preserve_file), RSRC_CONF,
 	 "Name of the file to use for data preservation during database downtime")
 	,
-	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot, 
+	AP_INIT_FLAG("LogSQLCreateTables", set_global_nmv_flag_slot,
 	 (void *)APR_OFFSETOF(global_config_t, createtables), RSRC_CONF,
 	 "Turn on module's capability to create its SQL tables on the fly")
 	,
@@ -1140,7 +1152,7 @@ static const command_rec log_sql_cmds[] = {
 	 "Activates option(s) useful for ISPs performing mass virutal hosting")
 	,
 	AP_INIT_TAKE1("LogSQLTransferLogTable", set_server_nmv_string_slot,
-	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF, 
+	 (void *)APR_OFFSETOF(logsql_state, transfer_table_name), RSRC_CONF,
 	 "The database table that holds the transfer log")
 	,
 	AP_INIT_TAKE1("LogSQLNotesLogTable", set_server_nmv_string_slot,
@@ -1183,7 +1195,7 @@ static const command_rec log_sql_cmds[] = {
 	 "List of remote hosts to ignore. Accesses that match will not be logged to database")
 	,
 	/* Special loggin table configuration */
-	AP_INIT_TAKE1("LogSQLWhichCookie", set_server_string_slot, 
+	AP_INIT_TAKE1("LogSQLWhichCookie", set_server_string_slot,
 	 (void *)APR_OFFSETOF(logsql_state, cookie_name), RSRC_CONF,
 	 "The single cookie that you want logged in the access_log when using the 'c' config directive")
 	,
@@ -1207,7 +1219,7 @@ static const command_rec log_sql_cmds[] = {
 	 "<br><b>Deprecated</b><br>The following Commands are deprecated and should not be used.. <br>Read the documentation for more information<br><b>Deprecated</b>")
 	,
 	/* Deprecated commands */
-	AP_INIT_TAKE1("LogSQLDatabase", set_dbparam_slot, 
+	AP_INIT_TAKE1("LogSQLDatabase", set_dbparam_slot,
 	 (void *)"database", RSRC_CONF,
 	 "<b>(Deprecated) Use LogSQLDBParam database dbname.</b> The name of the database database for logging")
 	,
@@ -1219,7 +1231,7 @@ static const command_rec log_sql_cmds[] = {
 	 (void *)"socketfile", RSRC_CONF,
 	 "<b>(Deprecated) Use LogSQLDBParam socketfile socket.</b> Name of the file to employ for socket connections to database")
 	,
-	AP_INIT_TAKE1("LogSQLTCPPort", set_dbparam_slot, 
+	AP_INIT_TAKE1("LogSQLTCPPort", set_dbparam_slot,
 	 (void *)"port", RSRC_CONF,
 	 "<b>(Deprecated) Use LogSQLDBParam port port.</b> Port number to use for TCP connections to database, defaults to 3306 if not set")
 	,
