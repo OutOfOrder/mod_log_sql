@@ -53,8 +53,8 @@
 </profile>
 </item>
 <item id="org.eclipse.cdt.core.pathentry">
-<pathentry include="/misc/projects/apache_incs/2.0/apr-0" kind="inc" path="" system="true"/>
-<pathentry include="/misc/projects/apache_incs/2.0/httpd" kind="inc" path="" system="true"/>
+<pathentry include="/home/urkle/Projects/Apache/apache_include/2.0/apr-0" kind="inc" path="" system="true"/>
+<pathentry include="/home/urkle/Projects/Apache/apache_include/2.0/http" kind="inc" path="" system="true"/>
 <pathentry include="/usr/include/mysql" kind="inc" path="" system="true"/>
 <pathentry kind="mac" name="WITH_APACHE20" path="" value=""/>
 <pathentry kind="src" path=""/>

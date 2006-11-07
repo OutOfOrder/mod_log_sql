@@ -19,7 +19,7 @@ DISTFILES = $(STD_DIST) $(EXTRA_DIST)
 all: all-subdirs
 
 %.html: %.xml
-		@xmlto html-nochunks $<
+		@xmlto xhtml-nochunks $<
 
 %.pdf: %.xml
 		@xmlto pdf $<
