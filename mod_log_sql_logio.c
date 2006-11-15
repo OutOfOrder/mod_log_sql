@@ -106,7 +106,12 @@ static int logio_pre_conn(conn_rec *c, void *csd) {
     return OK;
 }
 
-static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s);
+static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
+{
+    log_sql_register_item(s,p,'i', log_bytes_in,   "bytes_in",    0, 0);
+    log_sql_register_item(s,p,'o', log_bytes_out,  "bytes_out",   0, 0);
+    return OK;
+}
 static void register_hooks(apr_pool_t *p) {
     static const char *pre[] = { "mod_log_sql.c", NULL };
 
@@ -126,9 +131,3 @@ module AP_MODULE_DECLARE_DATA log_sql_logio_module = {
     STANDARD20_MODULE_STUFF,
     NULL, NULL,  NULL, NULL,  NULL, register_hooks
 };
-static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
-{
-	log_sql_register_item(s,p,'i', log_bytes_in,   "bytes_in",    0, 0);
-	log_sql_register_item(s,p,'o', log_bytes_out,  "bytes_out",   0, 0);
-    return OK;
-}
