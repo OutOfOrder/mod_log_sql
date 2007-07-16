@@ -147,10 +147,10 @@ static logsql_query_ret log_sql_mysql_query(request_rec *r,logsql_dbconnection *
 	        SIGNAL_RELEASE
 		return LOGSQL_QUERY_SUCCESS;
 	}
-        log_error(APLOG_MARK, APLOG_ERR, 0, r->server,
-            "mysql_query returned (%d)", retval);
-	/* Check to see if the error is "nonexistent table" */
 	real_error = mysql_errno(dblink);
+    log_error(APLOG_MARK, APLOG_ERR, 0, r->server,
+            "mysql_query returned (%d) \"%s\"", real_error, MYSQL_ERROR(dblink));
+	/* Check to see if the error is "nonexistent table" */
 
 	if (real_error == ER_NO_SUCH_TABLE) {
 		log_error(APLOG_MARK,APLOG_ERR,0, r->server,"table does not exist, preserving query");
