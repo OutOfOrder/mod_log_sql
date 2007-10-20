@@ -9,7 +9,7 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-/* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
+/* Undefine these to prevent conflicts between Apache ap_config_auto.h and
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
  */
 #undef PACKAGE_BUGREPORT
@@ -52,7 +52,7 @@ static const char *extract_ssl_keysize(request_rec *r, char *a)
 static const char *extract_ssl_maxkeysize(request_rec *r, char *a)
 {
 	char *result = NULL;
-	if (TEST_SSL(r) != NULL) 
+	if (TEST_SSL(r) != NULL)
 	{
 		result = header_ssl_lookup(r->pool, r->server, r->connection, r, "SSL_CIPHER_ALGKEYSIZE");
    	    log_error(APLOG_MARK,APLOG_DEBUG,0, r->server,"SSL_ALGKEYSIZE: %s", result);
@@ -84,9 +84,21 @@ static const char *extract_ssl_cipher(request_rec *r, char *a)
 
 LOGSQL_REGISTER(ssl)
 {
-	log_sql_register_item(s,p,'q', extract_ssl_keysize,       "ssl_keysize",      0, 1);
-	log_sql_register_item(s,p,'Q', extract_ssl_maxkeysize,    "ssl_maxkeysize",   0, 1);
-	log_sql_register_item(s,p,'z', extract_ssl_cipher,        "ssl_cipher",       0, 1);
+	log_sql_register_function(p, "ssl_keysize",		extract_ssl_keysize,       LOGSQL_FUNCTION_REQ_FINAL);
+	log_sql_register_function(p, "ssl_maxkeysize",	extract_ssl_maxkeysize,    LOGSQL_FUNCTION_REQ_FINAL);
+	log_sql_register_function(p, "ssl_cipher",		extract_ssl_cipher,        LOGSQL_FUNCTION_REQ_FINAL);
+
+	log_sql_register_alias(s,p,'q', "ssl_keysize");
+	log_sql_register_alias(s,p,'Q', "ssl_maxkeysize");
+	log_sql_register_alias(s,p,'z', "ssl_cipher");
+
+	log_sql_register_field(p, "ssl_keysize",		"ssl_keysize", NULL,
+			"ssl_keysize",  LOGSQL_DATATYPE_VARCHAR, 0);
+	log_sql_register_field(p, "ssl_maxkeysize",	"ssl_maxkeysize", NULL,
+			"ssl_maxkeysize", LOGSQL_DATATYPE_VARCHAR, 0);
+	log_sql_register_field(p, "ssl_cipher",		"ssl_cipher", NULL,
+			"ssl_cipher", LOGSQL_DATATYPE_VARCHAR, 0);
+
 #if defined(WITH_APACHE20)
     header_ssl_lookup = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
 #endif

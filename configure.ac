@@ -1,15 +1,15 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.101)
+AC_INIT(mod_log_sql, 1.102)
 OOO_CONFIG_NICE(config.nice)
 AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(config.h)
-
 AC_CONFIG_SRCDIR(mod_log_sql.c)
 
 OOO_MAINTAIN_MODE
 
 dnl Add a test for a compiler.
 AC_PROG_CC
+AC_PROG_LIBTOOL
 
 APACHE20_VERSION=2.0.40
 APACHE13_VERSION=1.3.20

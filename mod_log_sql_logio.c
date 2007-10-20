@@ -21,6 +21,8 @@
 
 #include "mod_log_sql.h"
 
+#include "http_connection.h"
+
 module AP_MODULE_DECLARE_DATA log_sql_logio_module;
 
 // From apachge 2.2's mod_logio.c to provide logging ACTUAL incoming and outgoing bytes
@@ -96,7 +98,7 @@ static apr_status_t logio_out_filter(ap_filter_t *f,
 }
 
 static int logio_pre_conn(conn_rec *c, void *csd) {
-    logio_config_t *cf = apr_pcalloc(c->pool, sizeof(*cf));
+    logio_config_t *cf = apr_pcalloc(c->pool, sizeof(logio_config_t));
 
     ap_set_module_config(c->conn_config, &log_sql_logio_module, cf);
 
@@ -108,10 +110,21 @@ static int logio_pre_conn(conn_rec *c, void *csd) {
 
 static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-    log_sql_register_item(s,p,'i', log_bytes_in,   "bytes_in",    0, 0);
-    log_sql_register_item(s,p,'o', log_bytes_out,  "bytes_out",   0, 0);
+    log_sql_register_function(p, "bytes_in", log_bytes_in,   LOGSQL_FUNCTION_REQ_FINAL);
+    log_sql_register_function(p, "bytes_out", log_bytes_out,  LOGSQL_FUNCTION_REQ_FINAL);
+
+    log_sql_register_alias(s,p,'i', "bytes_in");
+    log_sql_register_alias(s,p,'o', "bytes_out");
+
+    log_sql_register_field(p, "bytes_in",	"bytes_in", NULL,
+    		"bytes_in", LOGSQL_DATATYPE_INT, 0);
+    log_sql_register_field(p, "bytes_out",	"bytes_out", NULL,
+    		"bytes_out", LOGSQL_DATATYPE_INT, 0);
+
+    log_sql_register_finish(s);
     return OK;
 }
+
 static void register_hooks(apr_pool_t *p) {
     static const char *pre[] = { "mod_log_sql.c", NULL };
 

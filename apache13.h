@@ -47,7 +47,7 @@
 /* Functions */
 #define ap_get_remote_host(a,b,c,d) ap_get_remote_host(a,b,c)
 #define ap_set_deprecated NULL
-	
+
 #define apr_uri_unparse ap_unparse_uri_components
 #define apr_uri_parse ap_parse_uri_components
 #define ap_add_version_component(p,s) ap_add_version_component(s)
@@ -75,15 +75,18 @@
 #define apr_array_cat ap_array_cat
 #define apr_is_empty_array(t) (((t) == NULL)||((t)->nelts == 0))
 
+#define apr_file_t FILE
+#define apr_file_printf fprintf
+
 #define apr_tolower ap_tolower
 
-void log_error(char *file, int line, int level, apr_status_t status, 
+void log_error(char *file, int line, int level, apr_status_t status,
 	const server_rec *s, const char *fmt, ...) __attribute__ ((format (printf, 6,7)));
-	
+
 #ifndef WIN32
 inline
 #endif
-void log_error(char *file, int line, int level, 
+void log_error(char *file, int line, int level,
 	apr_status_t status, const server_rec *s, const char *fmt, ...)
 {
 	static char buff[MAX_STRING_LEN];

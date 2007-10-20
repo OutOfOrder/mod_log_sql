@@ -52,11 +52,11 @@ static const char *extract_request_line(request_rec *r, char *a)
 	 * (note the truncation before the protocol string for HTTP/0.9 requests)
 	 * (note also that r->the_request contains the unmodified request)
 	 */
-	return (r->parsed_uri.password) 
+	return (r->parsed_uri.password)
 				? apr_pstrcat(r->pool, r->method, " ",
 					apr_uri_unparse(r->pool,
 						&r->parsed_uri, 0),
-					r->assbackwards ? NULL : " ", 
+					r->assbackwards ? NULL : " ",
 					r->protocol, NULL)
 				: r->the_request;
 }
@@ -239,13 +239,13 @@ static const char *extract_specific_cookie(request_rec *r, char *a)
 	return "-";
 }
 
-static const char *extract_cookie(request_rec *r, char *a)
+/*static const char *extract_cookie(request_rec *r, char *a)
 {
 	logsql_state *cls = ap_get_module_config(r->server->module_config,
 											&log_sql_module);
 
 	return extract_specific_cookie(r, (char *)cls->cookie_name);
-}
+}*/
 
 static const char *extract_unique_id(request_rec *r, char *a)
 {
