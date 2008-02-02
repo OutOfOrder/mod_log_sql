@@ -213,7 +213,7 @@ LOGSQL_DECLARE(void) log_sql_register_finish(server_rec *s)
 				item->func = func;
 				if (global_config.showconfig_fp) {
 					apr_file_printf(global_config.showconfig_fp," Item : %s using function %s(%s)\n"
-							"\tStoring in field %s of type %s(%d)\n",
+							"\tStoring in field %s of type %s(%"APR_SIZE_T_FMT")\n",
 							item->alias, item->funcalias, item->param,
 							item->sql_field_name, item->string_contents ? "TEXT":"NUMERIC", item->size);
 				}
@@ -566,7 +566,7 @@ static const char *set_register_field(cmd_parms *cmd,
 	size = atoi(size_s);
 
 	log_error(APLOG_MARK, APLOG_DEBUG, 0, cmd->server,
-				"%s, %s, %s, %s, %s(%d), %s(%d)",
+				"%s, %s, %s, %s, %s(%d), %s(%"APR_SIZE_T_FMT")",
 				alias, funcalias, param, field, datatype_s, datatype, size_s, size);
 
 	log_sql_register_field(cmd->pool, alias, funcalias, param,
