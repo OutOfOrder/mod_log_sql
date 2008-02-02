@@ -12,5 +12,6 @@ fi
 rm -rf autom4te.cache
 $ACLOCAL -I m4
 $AUTOHEADER
+libtoolize -c --force
 $AUTOCONF
 touch stamp-h.in
