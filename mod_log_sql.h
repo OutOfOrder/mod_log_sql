@@ -24,7 +24,7 @@
 #define LOGSQL_DECLARE_DATA             __declspec(dllimport)
 #endif
 
-#define LOG_SQL_PLUGIN_VERSION 20070704
+#define LOG_SQL_PLUGIN_VERSION 20080318
 
 /* Registration function for extract functions */
 
@@ -115,7 +115,7 @@ typedef struct {
 	/* disconnect from the underlying database layer */
 	void (*disconnect)(logsql_dbconnection *db);
 	/* escape the SQL statement according to database rules */
-	const char *(*escape)(const char *from_str, apr_pool_t *p,
+	const char *(*escape)(request_rec *r,const char *from_str, apr_pool_t *p,
 		logsql_dbconnection *db);
 	/* insert a SQL query statement */
 	logsql_query_ret (*insert)(request_rec *r,logsql_dbconnection *db,

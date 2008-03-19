@@ -77,6 +77,16 @@ ifeq (@WANT_DBI_MOD@,1)
 TARGETS += $(dbiTARGET)
 endif
 
+dbdSOURCES = @PACKAGE_NAME@_dbd.c
+dbdTARGET = @PACKAGE_NAME@_dbd@APXS_EXTENSION@
+dbdLDADD = 
+dbdCFLAGS = 
+dbdNAME = log_sql_dbd
+
+ifeq (@WANT_DBD_MOD@,1)
+TARGETS += $(dbdTARGET)
+endif
+
 #Don't modify anything below here
 
 PROVIDERS_SUBDIRS = @subdirs@
@@ -85,13 +95,13 @@ srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
 OBJ = $(coreSOURCES:.c=.o) $(logioSOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
-	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o)
+	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o) $(dbdSOURCES:.c=.o)
 
 LO = $(coreSOURCES:.c=.lo) $(logioSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
-	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo)
+	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo) $(dbdSOURCES:.c=.lo)
 
 SLO = $(coreSOURCES:.c=.slo) $(logioSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
-	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo)
+	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo) $(dbdSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
 	config.sub \
@@ -104,7 +114,7 @@ STD_DIST = install-sh \
 	config.h.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
-    $(sslSOURCES) $(logioSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES)
+    $(sslSOURCES) $(logioSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES) $(dbdSOURCES)
 
 all: $(TARGETS) all-subdirs
 
@@ -150,6 +160,11 @@ $(dbiTARGET): $(dbiSOURCES) $(HEADERS)
 	@@APXS_BIN@ -c -o $(dbiTARGET) $(dbiCFLAGS) $(CFLAGS) \
 		@DEFS@ @AP_DEFS@ $(dbiLDADD) $(dbiSOURCES)
 
+$(dbdTARGET): $(dbdSOURCES) $(HEADERS)
+	@@APXS_BIN@ -c -o $(dbdTARGET) $(dbdCFLAGS) $(CFLAGS) \
+		@DEFS@ @AP_DEFS@ $(dbdLDADD) $(dbdSOURCES)
+
+
 install: $(TARGETS) install-subdirs
 	@@APXS_BIN@ -n $(coreNAME) -i $(coreTARGET); \
 	if test @WANT_MYSQL_MOD@ -eq 1; then \
@@ -160,6 +175,9 @@ install: $(TARGETS) install-subdirs
     fi; \
 	if test @WANT_DBI_MOD@ -eq 1; then \
 	    @APXS_BIN@ -n $(dbiNAME) -i $(dbiTARGET); \
+    fi; \
+	if test @WANT_DBD_MOD@ -eq 1; then \
+	    @APXS_BIN@ -n $(dbdNAME) -i $(dbdTARGET); \
     fi; \
 	if test @WANT_SSL_MOD@ -eq 1; then \
 		@APXS_BIN@ -n $(sslNAME) -i $(sslTARGET); \
@@ -241,7 +259,7 @@ stamp-h: config.h.in config.status
 	./config.status
 
 $(srcdir)/configure: configure.ac aclocal.m4
-	cd $(srcdir) && autoconf-2.53
+	cd $(srcdir) && autoconf
 
 Makefile: Makefile.in config.status
 	./config.status

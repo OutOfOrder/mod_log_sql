@@ -26,7 +26,16 @@ if test $AP_VERSION = "2.0"; then
 else
     WANT_LOGIO_MOD=0
 fi
+
 AC_SUBST(WANT_LOGIO_MOD)
+
+if test $AP_VERSION = "2.0"; then
+	WANT_DBD_MOD=1
+else
+	WANT_DBD_MOD=0	
+fi
+
+AC_SUBST(WANT_DBD_MOD)
 
 CHECK_MYSQL(
         WANT_MYSQL_MOD=1,
@@ -104,6 +113,9 @@ if test $WANT_PGSQL_MOD -eq 1; then
 fi
 if test $WANT_DBI_MOD -eq 1; then
     AC_MSG_RESULT([      libDBI Driver])
+fi
+if test $WANT_DBD_MOD -eq 1; then
+    AC_MSG_RESULT([      APR DBD Driver])
 fi
 if test $OOO_MAINTAIN -eq 1; then
     AC_MSG_RESULT([Maintainer mode is on. -Werror is in effect])

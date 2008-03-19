@@ -1,5 +1,5 @@
 TODO:
-* verify a db driver has been loaded.
+* restructure to be more friendly toward DBD pooling
 * validate table names before trying to log them.
 * write alternate DB driver (PostgreSQL, libDBI, mod_*_pool)
 * look at forcing table name to ServerName instead of on of the names in 
@@ -7,7 +7,6 @@ TODO:
 * LogSQLRotateLogs directive with daily/monthly/weekly/etc.
 * socket-based middleman daemon with configurable conns, or connect/disconnect.
 * DBI connection pooling.
-* apr_dbd backend driver
 * ignore by cookie
 * investigate thread safety issues 
 	Use libmysqlclient_r for threaded MPM (or always?)

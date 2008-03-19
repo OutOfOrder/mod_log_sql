@@ -1201,7 +1201,7 @@ static int log_sql_transaction(request_rec *orig)
 			fields = apr_pstrcat(r->pool, fields, (showcomma ? "," : ""),
 						 item->sql_field_name, NULL);
 			values = apr_pstrcat(r->pool, values, (showcomma ? "," : ""),
-					     global_config.driver->escape(formatted_item, r->pool,&global_config.db), NULL);
+					     global_config.driver->escape(r, formatted_item, r->pool,&global_config.db), NULL);
 			showcomma = 1;
 		}
 
@@ -1216,11 +1216,11 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
+									  global_config.driver->escape(r, unique_id, r->pool, &global_config.db),
 									  ",",
-									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(r, *ptrptr, r->pool,&global_config.db),
 									  ",",
-									  global_config.driver->escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(r, theitem, r->pool,&global_config.db),
 									  ")",
 									  NULL);
 				i++;
@@ -1244,11 +1244,11 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
+									  global_config.driver->escape(r,unique_id, r->pool, &global_config.db),
 									  ",",
-									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(r,*ptrptr, r->pool,&global_config.db),
 									  ",",
-									  global_config.driver->escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(r,theitem, r->pool,&global_config.db),
 									  ")",
 									  NULL);
 				i++;
@@ -1273,11 +1273,11 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
+									  global_config.driver->escape(r,unique_id, r->pool, &global_config.db),
 									  ",",
-									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(r,*ptrptr, r->pool,&global_config.db),
 									  ",",
-									  global_config.driver->escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(r,theitem, r->pool,&global_config.db),
 									  ")",
 									  NULL);
 				i++;
@@ -1302,11 +1302,11 @@ static int log_sql_transaction(request_rec *orig)
 				itemsets = apr_pstrcat(r->pool, itemsets,
 									  (i > 0 ? "," : ""),
 									  "(",
-									  global_config.driver->escape(unique_id, r->pool, &global_config.db),
+									  global_config.driver->escape(r,unique_id, r->pool, &global_config.db),
 									  ",",
-									  global_config.driver->escape(*ptrptr, r->pool,&global_config.db),
+									  global_config.driver->escape(r,*ptrptr, r->pool,&global_config.db),
 									  ",",
-									  global_config.driver->escape(theitem, r->pool,&global_config.db),
+									  global_config.driver->escape(r,theitem, r->pool,&global_config.db),
 									  ")",
 									  NULL);
 				i++;

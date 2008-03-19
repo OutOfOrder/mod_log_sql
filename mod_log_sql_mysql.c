@@ -74,7 +74,7 @@ static void log_sql_mysql_close(logsql_dbconnection *db)
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-static const char *log_sql_mysql_escape(const char *from_str, apr_pool_t *p,
+static const char *log_sql_mysql_escape(request_rec *r, const char *from_str, apr_pool_t *p,
 								logsql_dbconnection *db)
 {
         /* Return "NULL" for empty strings */
