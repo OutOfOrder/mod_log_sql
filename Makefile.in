@@ -1,107 +1,16 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = docs contrib
-
-HEADERS = mod_log_sql.h \
-		functions.h \
-		functions13.h \
-		functions20.h \
-		apache13.h \
-		apache20.h \
-		winconfig.h
-
-CFLAGS = -Wc,-Wall -Wc,-fno-strict-aliasing
-
-ifeq (@OOO_MAINTAIN@,1)
-CFLAGS += -Wc,-Werror
-endif
+SUBDIRS = docs contrib src
 
 EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG \
 	build-apache13.bat build-apache2.bat \
 
-coreSOURCES = @PACKAGE_NAME@.c
-coreTARGET = @PACKAGE_NAME@@APXS_EXTENSION@
-coreLDADD = @RT_LIBS@
-coreCFLAGS =
-coreNAME = log_sql
-TARGETS = $(coreTARGET)
-
-sslSOURCES = @PACKAGE_NAME@_ssl.c
-sslTARGET = @PACKAGE_NAME@_ssl@APXS_EXTENSION@
-sslLDADD = 
-sslCFLAGS = @MOD_SSL_CFLAGS@ 
-sslNAME = log_sql_ssl
-
-ifeq (@WANT_SSL_MOD@,1)
-TARGETS += $(sslTARGET)
-endif
-
-logioSOURCES = @PACKAGE_NAME@_logio.c
-logioTARGET = @PACKAGE_NAME@_logio@APXS_EXTENSION@
-logioLDADD = 
-logioCFLAGS = 
-logioNAME = log_sql_logio
-
-ifeq (@WANT_LOGIO_MOD@,1)
-TARGETS += $(logioTARGET)
-endif
-
-mysqlSOURCES = @PACKAGE_NAME@_mysql.c
-mysqlTARGET = @PACKAGE_NAME@_mysql@APXS_EXTENSION@
-mysqlLDADD = @MYSQL_LDFLAGS@ @MYSQL_LIBS@
-mysqlCFLAGS = @MYSQL_CFLAGS@
-mysqlNAME = log_sql_mysql
-
-ifeq (@WANT_MYSQL_MOD@,1)
-TARGETS += $(mysqlTARGET)
-endif
-
-pgsqlSOURCES = @PACKAGE_NAME@_pgsql.c
-pgsqlTARGET = @PACKAGE_NAME@_pgsql@APXS_EXTENSION@
-pgsqlLDADD = @PGSQL_LDFLAGS@ @PGSQL_LIBS@
-pgsqlCFLAGS = @PGSQL_CFLAGS@
-pgsqlNAME = log_sql_pgsql
-
-ifeq (@WANT_PGSQL_MOD@,1)
-TARGETS += $(pgsqlTARGET)
-endif
-
-dbiSOURCES = @PACKAGE_NAME@_dbi.c
-dbiTARGET = @PACKAGE_NAME@_dbi@APXS_EXTENSION@
-dbiLDADD = @DBI_LDFLAGS@ @DBI_LIBS@
-dbiCFLAGS = @DBI_CFLAGS@
-dbiNAME = log_sql_dbi
-
-ifeq (@WANT_DBI_MOD@,1)
-TARGETS += $(dbiTARGET)
-endif
-
-dbdSOURCES = @PACKAGE_NAME@_dbd.c
-dbdTARGET = @PACKAGE_NAME@_dbd@APXS_EXTENSION@
-dbdLDADD = 
-dbdCFLAGS = 
-dbdNAME = log_sql_dbd
-
-ifeq (@WANT_DBD_MOD@,1)
-TARGETS += $(dbdTARGET)
-endif
-
 #Don't modify anything below here
 
-PROVIDERS_SUBDIRS = @subdirs@
-
+top_srcdir = @top_srcdir@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
-
-OBJ = $(coreSOURCES:.c=.o) $(logioSOURCES:.c=.o) $(sslSOURCES:.c=.o) $(mysqlSOURCES:.c=.o) \
-	$(dbiSOURCES:.c=.o) $(pgsqlSOURCES:.c=.o) $(dbdSOURCES:.c=.o)
-
-LO = $(coreSOURCES:.c=.lo) $(logioSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSOURCES:.c=.lo) \
-	$(dbiSOURCES:.c=.lo) $(pgsqlSOURCES:.c=.lo) $(dbdSOURCES:.c=.lo)
-
-SLO = $(coreSOURCES:.c=.slo) $(logioSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
-	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo) $(dbdSOURCES:.c=.slo)
 
 STD_DIST = install-sh \
 	config.sub \
@@ -111,16 +20,15 @@ STD_DIST = install-sh \
 	configure.ac \
 	configure \
 	stamp-h.in \
-	config.h.in
+	include/config.h.in
 
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
-    $(sslSOURCES) $(logioSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES) $(dbdSOURCES)
+DISTFILES = $(STD_DIST) $(EXTRA_DIST)
 
-all: $(TARGETS) all-subdirs
+all: all-subdirs
 
 all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 	@otarget=`echo $@|sed s/-subdirs//`; \
-	list=' $(PROVIDERS_SUBDIRS) $(SUBDIRS)'; \
+	list=' $(SUBDIRS)'; \
 	for i in $$list; do \
 		if test -d "$$i"; then \
 			target="$$otarget"; \
@@ -134,57 +42,9 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 	done;
 
 TODO: TODO.in
-	@./gen_todo.pl
+	@./m4/scripts/gen_todo.pl
 
-$(coreTARGET): $(coreSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(coreTARGET) $(coreCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(coreLDADD) $(coreSOURCES)
-
-$(logioTARGET): $(logioSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(logioTARGET) $(logioCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(logioLDADD) $(logioSOURCES)
-
-$(sslTARGET): $(sslSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(sslTARGET) $(sslCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(sslLDADD) $(sslSOURCES)
-
-$(mysqlTARGET): $(mysqlSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(mysqlTARGET) $(mysqlCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(mysqlLDADD) $(mysqlSOURCES)
-
-$(pgsqlTARGET): $(pgsqlSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(pgsqlTARGET) $(pgsqlCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(pgsqlLDADD) $(pgsqlSOURCES)
-
-$(dbiTARGET): $(dbiSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(dbiTARGET) $(dbiCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(dbiLDADD) $(dbiSOURCES)
-
-$(dbdTARGET): $(dbdSOURCES) $(HEADERS)
-	@@APXS_BIN@ -c -o $(dbdTARGET) $(dbdCFLAGS) $(CFLAGS) \
-		@DEFS@ @AP_DEFS@ $(dbdLDADD) $(dbdSOURCES)
-
-
-install: $(TARGETS) install-subdirs
-	@@APXS_BIN@ -n $(coreNAME) -i $(coreTARGET); \
-	if test @WANT_MYSQL_MOD@ -eq 1; then \
-	    @APXS_BIN@ -n $(mysqlNAME) -i $(mysqlTARGET); \
-    fi; \
-	if test @WANT_PGSQL_MOD@ -eq 1; then \
-	    @APXS_BIN@ -n $(pgsqlNAME) -i $(pgsqlTARGET); \
-    fi; \
-	if test @WANT_DBI_MOD@ -eq 1; then \
-	    @APXS_BIN@ -n $(dbiNAME) -i $(dbiTARGET); \
-    fi; \
-	if test @WANT_DBD_MOD@ -eq 1; then \
-	    @APXS_BIN@ -n $(dbdNAME) -i $(dbdTARGET); \
-    fi; \
-	if test @WANT_SSL_MOD@ -eq 1; then \
-		@APXS_BIN@ -n $(sslNAME) -i $(sslTARGET); \
-	fi; \
-	if test @WANT_LOGIO_MOD@ -eq 1; then \
-	    @APXS_BIN@ -n $(logioNAME) -i $(logioTARGET); \
-    fi; \
+install: install-subdirs
 	echo "*************************************************************************"; \
 	echo "*** The mod_log_sql modules have been installed."; \
 	echo "*** Please edit your Apache configuration files and"; \
@@ -201,17 +61,11 @@ install: $(TARGETS) install-subdirs
 	echo "*************************************************************************";
 
 activate: activate-subdirs
-	@@APXS_BIN@ -n $(coreNAME) -i -a $(coreTARGET); \
-	if test @WANT_SSL_MOD@ -eq 1; then \
-		@APXS_BIN@ -n $(sslNAME) -i -a $(sslTARGET); \
-	fi
 
 clean: clean-subdirs
-	$(RM) $(OBJ) $(SLO) $(LO) $(TARGETS)
-	$(RM) -r .libs
 
 distclean: clean distclean-subdirs
-	$(RM) config.status config.log config.h config.h.in \
+	$(RM) config.status config.log include/config.h include/config.h.in \
 	configure stamp-h stamp-h.in Makefile aclocal.m4
 	$(RM) -r autom4te-2.53.cache
 
@@ -219,7 +73,7 @@ DESTDIR = @PACKAGE_NAME@-@PACKAGE_VERSION@
 DESTTGZ = $(DESTDIR).tar.gz
 dist:
 	@rm -rf $(DESTDIR); \
-	list=' $(PROVIDERS_SUBDIRS) $(SUBDIRS)'; \
+	list=' $(SUBDIRS)'; \
 	for i in $$list; do \
 		if test -d "$$i"; then \
 			target=local-dist; \
@@ -240,8 +94,8 @@ dist:
 	rm -rf $(DESTDIR); \
 
 local-dist: $(DISTFILES)
-	@mkdir -p $(DESTDIR); \
-	cp -dp --parents $(DISTFILES) $(DESTDIR);
+	mkdir -p $(DESTDIR)
+	cp -dp --parents $(DISTFILES) $(DESTDIR)
 
 .PHONY: include all-subdirs activate-subdirs install-subdirs \
 	clean-subdirs distclean-subdirs dist

@@ -1,9 +1,9 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 1.102)
+AC_INIT([mod_log_sql],[1.102])
 OOO_CONFIG_NICE(config.nice)
-AC_PREREQ(2.53)
-AC_CONFIG_HEADERS(config.h)
-AC_CONFIG_SRCDIR(mod_log_sql.c)
+AC_PREREQ(2.59)
+AC_CONFIG_HEADERS(include/config.h)
+AC_CONFIG_SRCDIR(src/mod_log_sql.c)
 
 OOO_MAINTAIN_MODE
 
@@ -18,7 +18,7 @@ CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
         :,
         AC_MSG_ERROR([*** The correct version Apache was not found!])
         AC_MSG_ERROR([*** You need either Apache 1.3 version $APACHE13_VERSION or greater])
-        AC_MSG_ERROR([*** or Apache 2.0/2.1 version $APACHE20_VERSION or greater!])
+        AC_MSG_ERROR([*** or Apache 2.0/2.2 version $APACHE20_VERSION or greater!])
         )
 
 if test $AP_VERSION = "2.0"; then
@@ -29,11 +29,9 @@ fi
 
 AC_SUBST(WANT_LOGIO_MOD)
 
-if test $AP_VERSION = "2.0"; then
-	WANT_DBD_MOD=1
-else
-	WANT_DBD_MOD=0	
-fi
+CHECK_APU_HEADERS([apr_dbd.h],
+	WANT_DBD_MOD=1,
+	WANT_DBD_MOD=0)
 
 AC_SUBST(WANT_DBD_MOD)
 
@@ -84,9 +82,11 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
 dnl Write config.status and the Makefile
 
-AC_OUTPUT(Makefile
+AC_CONFIG_FILES([Makefile
+src/Makefile
 docs/Makefile
-contrib/Makefile)
+contrib/Makefile])
+AC_OUTPUT
 
 
 AC_MSG_RESULT([------------------------------------])
