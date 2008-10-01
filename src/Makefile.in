@@ -163,3 +163,6 @@ clean:
 local-dist: $(DISTFILES)
 	mkdir -p $(DESTDIR)
 	cp -dp --parents $(DISTFILES) $(DESTDIR)
+
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status

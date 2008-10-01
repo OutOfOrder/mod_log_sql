@@ -11,6 +11,7 @@
 <extensions>
 <extension id="org.eclipse.cdt.core.domsourceindexer" point="org.eclipse.cdt.core.CIndexer"/>
 <extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 <extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 <extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 <extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
@@ -25,16 +26,15 @@
 <storageModule moduleId="cdtBuildSystem" version="4.0.0">
 <configuration artifactExtension="" artifactName="mod_log_sql" buildProperties="" description="" errorParsers="" id="converted.config.350824298" name="Linux GCC" parent="org.eclipse.cdt.build.core.prefbase.cfg">
 <folderInfo id="converted.config.350824298." name="/" resourcePath="">
-<toolChain id="cdt.managedbuild.toolchain.gnu.base.1351398655" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.base">
-<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.target.gnu.platform.base.2070600171" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
-<builder appendEnvironment="true" arguments="${project_name} make" buildPath="${workspace_loc:/mod_log_sql/Linux GCC}" command="${HOME}/bin/sshmake" environment="" id="cdt.managedbuild.target.gnu.builder.base.1704124595" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" stopOnErr="false" superClass="cdt.managedbuild.target.gnu.builder.base"/>
-<tool id="cdt.managedbuild.tool.gnu.archiver.base.1647937860" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
-<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.1017302318" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base"/>
+<toolChain id="cdt.managedbuild.toolchain.gnu.base.1351398655" name="Linux GCC" resourceTypeBasedDiscovery="true" superClass="cdt.managedbuild.toolchain.gnu.base">
+<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="cdt.managedbuild.target.gnu.platform.base.2070600171" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
+<builder appendEnvironment="true" arguments="${project_name} make" autoBuildTarget="all" buildPath="${workspace_loc:/mod_log_sql/Linux GCC}" cleanBuildTarget="clean" command="${HOME}/bin/sshmake" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" environment="" id="cdt.managedbuild.target.gnu.builder.base.1704124595" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" stopOnErr="false" superClass="cdt.managedbuild.target.gnu.builder.base"/>
 <tool id="cdt.managedbuild.tool.gnu.c.compiler.base.264929639" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">
 <option id="gnu.c.compiler.option.include.paths.277599024" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-<listOptionValue builtIn="false" value="&quot;${workspace_loc:/includes/2.2/apr-0}&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${workspace_loc:/includes/2.2/apr-1}&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/includes/2.2/httpd}&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/Includes/mysql}&quot;"/>
+<listOptionValue builtIn="false" value="/usr/include"/>
 </option>
 <option id="gnu.c.compiler.option.preprocessor.def.symbols.1267853547" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 <listOptionValue builtIn="false" value="WITH_APACHE20=1"/>
@@ -60,6 +60,11 @@
 <option id="gnu.c.compiler.option.misc.ansi.1838461503" name="Support ANSI programs (-ansi)" superClass="gnu.c.compiler.option.misc.ansi"/>
 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.616458355" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 </tool>
+<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.1761639329" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base"/>
+<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.1017302318" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base"/>
+<tool id="com.redhat.eclipse.cdt.autotools.tool.autogen.131560145" name="autogen.sh" superClass="com.redhat.eclipse.cdt.autotools.tool.autogen"/>
+<tool id="com.redhat.eclipse.cdt.autotools.tool.configure.1351107831" name="configure" superClass="com.redhat.eclipse.cdt.autotools.tool.configure"/>
+<tool id="cdt.managedbuild.tool.gnu.archiver.base.1647937860" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
 <tool id="cdt.managedbuild.tool.gnu.c.linker.base.78392638" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base">
 <option id="gnu.c.link.option.nostart.1696010990" name="Do not use standard start files (-nostartfiles)" superClass="gnu.c.link.option.nostart"/>
 <option id="gnu.c.link.option.nodeflibs.149057311" name="Do not use default libraries (-nodefaultlibs)" superClass="gnu.c.link.option.nodeflibs"/>
@@ -80,9 +85,8 @@
 <additionalInput kind="additionalinput" paths="$(LIBS)"/>
 </inputType>
 </tool>
-<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.1761639329" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base"/>
 <tool id="cdt.managedbuild.tool.gnu.assembler.base.467752860" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.base">
-<option id="gnu.both.asm.option.include.paths.73704182" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath"/>
+<option id="gnu.both.asm.option.include.paths.73704182" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths"/>
 <inputType id="cdt.managedbuild.tool.gnu.assembler.input.1742318494" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 </tool>
 </toolChain>
@@ -99,6 +103,7 @@
 <pathentry kind="mac" name="HAVE_CONFIG_H" path="" value="1"/>
 </storageModule>
 <storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+
 
 <storageModule moduleId="scannerConfiguration">
 <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile"/>

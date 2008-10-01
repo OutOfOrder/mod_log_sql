@@ -85,6 +85,7 @@ dnl Write config.status and the Makefile
 AC_CONFIG_FILES([Makefile
 src/Makefile
 docs/Makefile
+utility/Makefile
 contrib/Makefile])
 AC_OUTPUT
 

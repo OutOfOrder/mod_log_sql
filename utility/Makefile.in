@@ -1,0 +1,38 @@
+# @configure_input@
+
+top_srcdir = @top_srcdir@
+srcdir = @abs_srcdir@
+builddir = @abs_builddir@
+
+CFLAGS = -g -Wall -fno-strict-aliasing @APR_CFLAGS@ @APR_INCLUDES@ @APU_INCLUDES@
+CPPFLAGS = @APR_CPPFLAGS@
+LDFLAGS = @APR_LDFLAGS@ @APU_LDFLAGS@
+
+ifeq (@OOO_MAINTAIN@,1)
+CFLAGS += -Werror
+endif
+
+STD_DIST = Makefile.in
+
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
+
+SOURCES = shell.c config.c logparse.c
+HEADERS = shell.h config.h logparse.h
+OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
+
+TARGETS = mod_log_sql
+
+all: $(TARGETS)
+
+mod_log_sql: $(OBJECTS) $(HEADERS)
+	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
+
+clean:
+	$(RM) $(OBJECTS) $(TARGETS)
+
+local-dist: $(DISTFILES)
+	mkdir -p $(DESTDIR)
+	cp -dp --parents $(DISTFILES) $(DESTDIR)
+
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status

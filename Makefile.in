@@ -1,7 +1,7 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = docs contrib src
+SUBDIRS = docs contrib src parser utility
 
 EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG \
 	build-apache13.bat build-apache2.bat \
