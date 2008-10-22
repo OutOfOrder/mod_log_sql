@@ -4,9 +4,11 @@ top_srcdir = @top_srcdir@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-CFLAGS = -g -Wall -fno-strict-aliasing @APR_CFLAGS@ @APR_INCLUDES@ @APU_INCLUDES@
+#@APR_CFLAGS@
+CFLAGS = -g3 -Wall -fno-strict-aliasing \
+	 @APR_INCLUDES@ @APU_INCLUDES@ @PCRE_CFLAGS@
 CPPFLAGS = @APR_CPPFLAGS@
-LDFLAGS = @APR_LDFLAGS@ @APU_LDFLAGS@
+LDFLAGS = @APR_LDFLAGS@ @APU_LDFLAGS@ @PCRE_LIBS@
 
 ifeq (@OOO_MAINTAIN@,1)
 CFLAGS += -Werror
@@ -16,10 +18,10 @@ STD_DIST = Makefile.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
 
-SOURCES = shell.c config.c logparse.c
-HEADERS = shell.h config.h logparse.h
-OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
-
+SOURCES = shell.c config.c logparse.c ap_pcre.c util.c
+HEADERS = shell.h config.h logparse.h ap_pcre.h util.h
+OBJECTS = $(SOURCES:.c=.o)
+DEPS = $(SOURCES:.c=.d)
 TARGETS = mod_log_sql
 
 all: $(TARGETS)
@@ -27,8 +29,15 @@ all: $(TARGETS)
 mod_log_sql: $(OBJECTS) $(HEADERS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
+%.o: %.c %.d
+	gcc -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+%.d: %.c
+	gcc -MM $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+-include $(DEPS)
+
 clean:
-	$(RM) $(OBJECTS) $(TARGETS)
+	$(RM) $(OBJECTS) $(TARGETS) $(DEPS)
 
 local-dist: $(DISTFILES)
 	mkdir -p $(DESTDIR)

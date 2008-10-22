@@ -54,7 +54,7 @@ void show_help(const char *prog, const apr_getopt_option_t *opts, FILE *output)
 
 int main(int argc, const char *const argv[])
 {
-    apr_pool_t *pool;
+    apr_pool_t *pool, *ptemp;
     apr_getopt_t *opts;
     int opt;
     const char *opt_arg;
@@ -69,12 +69,13 @@ int main(int argc, const char *const argv[])
         fprintf(stderr, "Failed to create memory pool!\n");
         exit(1);
     }
+    apr_pool_create(&ptemp, NULL);
 
     /** Iterate over command line arguments
      * shoving args in a apr_table for processing later*/
-    args = apr_table_make(pool, 5);
+    args = apr_table_make(ptemp, 5);
     apr_table_setn(args, "config", "mod_log_sql.conf");
-    apr_getopt_init(&opts, pool, argc, argv);
+    apr_getopt_init(&opts, ptemp, argc, argv);
     while ((rv = apr_getopt_long(opts, _opt_config, &opt, &opt_arg)) == APR_SUCCESS) {
         switch (opt) {
         case 'c':
@@ -122,17 +123,21 @@ int main(int argc, const char *const argv[])
     }
 
     // Process configuration file
+    parser_init(pool);
     config_init(pool);
     base = config_create(pool);
     rv = config_read(base, apr_table_get(args,"Config"), args);
+    apr_pool_destroy(ptemp);
+
     if (APR_STATUS_IS_ENOENT(rv)) {
         fprintf(stderr,"Could not load configuration file: %s\n",apr_table_get(args,"config"));
     } else if (rv) {
         exit(1);
     }
     config_dump(base);
-    // Apply overrides from command line
-    find_log_files(base);
+
+    // Find files and parse
+    parser_find_logs(base);
     if (!apr_is_empty_array(base->input_files)) {
         char **filelist;
         int f, l;

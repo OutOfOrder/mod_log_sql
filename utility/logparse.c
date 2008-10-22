@@ -3,7 +3,35 @@
 #include "apr_file_io.h"
 #include "apr_strings.h"
 
-void find_log_files(config_t *cfg)
+#include "util.h"
+
+apr_hash_t *g_parser_funcs;
+
+static apr_status_t parser_func_regexmatch(config_t *cfg, const char *data,
+        int argc, const char **argv)
+{
+    return APR_SUCCESS;
+}
+parser_func_t parser_get_func(const char *name)
+{
+    return apr_hash_get(g_parser_funcs, name, APR_HASH_KEY_STRING);
+}
+
+static void parser_add_func(apr_pool_t *p, const char *const name,
+           parser_func_t func)
+{
+    if (!g_parser_funcs) {
+        g_parser_funcs = apr_hash_make(p);
+    }
+    apr_hash_set(g_parser_funcs, lowerstr(p, name), APR_HASH_KEY_STRING, func);
+}
+
+void parser_init(apr_pool_t *p)
+{
+    parser_add_func(p, "regexmatch", parser_func_regexmatch);
+}
+
+void parser_find_logs(config_t *cfg)
 {
     apr_pool_t *tp;
     apr_dir_t *dir;
@@ -39,7 +67,7 @@ void find_log_files(config_t *cfg)
  *                   found during parsing of the arg_str.
  *    keepquotes:    Keep the quotes instead of stripping them
  */
-apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
+static apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
         apr_pool_t *token_context, int keepquotes)
 {
     const char *cp;
@@ -157,7 +185,7 @@ apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
 
 apr_status_t parse_logfile(config_t *cfg, const char *filename)
 {
-    apr_pool_t *tp, *argp;
+    apr_pool_t *tp, *targp;
     apr_file_t *file;
     apr_status_t rv;
     char buff[2048];
@@ -166,7 +194,7 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     int line;
 
     apr_pool_create(&tp, cfg->pool);
-    apr_pool_create(&argp, tp);
+    apr_pool_create(&targp, tp);
 
     rv = apr_file_open(&file, filename, APR_FOPEN_READ | APR_BUFFERED,
             APR_OS_DEFAULT, tp);
@@ -180,16 +208,16 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
         rv = apr_file_gets(buff, 1024, file);
         if (rv == APR_SUCCESS) {
             line++;
-            char *ptr;
             // chomp off newline
-            for (ptr = buff + strlen(buff); *ptr != '\r' && *ptr != '\n'; ptr--)
-                ;
-            *ptr = '\0';
-            apr_pool_clear(argp);
-            tokenize_logline(buff, &targv, argp, 1);
+            line_chomp(buff);
+
+            apr_pool_clear(targp);
+            tokenize_logline(buff, &targv, targp, 1);
             targc = 0;
             while (targv[targc]) targc++;
-            if (targc != 9) {
+            /** @todo Run Line Filters here */
+            rv = parse_processline(targp, cfg, targv, targc);
+            if (rv != APR_SUCCESS) {
                 int i;
                 printf("Line %d(%d): %s\n",line, targc, buff);
                 for (i = 0; targv[i]; i++) {
@@ -201,5 +229,48 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     printf("Total Lines: %d\n", line);
     apr_file_close(file);
     apr_pool_destroy(tp);
+    return APR_SUCCESS;
+}
+
+apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, int argc)
+{
+    config_logformat_t *fmt;
+    config_logformat_field_t *ifields;
+    config_output_field_t *ofields;
+    apr_table_t *datain;
+    apr_table_t *dataout;
+    int i;
+
+    fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
+    if (!fmt) return APR_EINVAL;
+    if (fmt->fields->nelts != argc) return APR_EINVAL;
+
+    datain = apr_table_make(ptemp, fmt->fields->nelts);
+    dataout = apr_table_make(ptemp, cfg->output_fields->nelts);
+
+    ifields = (config_logformat_field_t *)fmt->fields->elts;
+    for (i=0; i<fmt->fields->nelts; i++) {
+        apr_table_setn(datain,ifields[i].name,argv[i]);
+    }
+    /** @todo Run Pre Filters here */
+
+    // Convert input fields to output fields
+    ofields = (config_output_field_t *)cfg->output_fields->elts;
+    for (i=0; i<cfg->output_fields->nelts; i++) {
+        const char *t;
+        if (!ofields[i].func) {
+            t = apr_table_get(datain, ofields[i].source);
+            if (!t) {
+                return APR_EINVAL;
+            }
+            apr_table_setn(dataout,ofields[i].field, t);
+            printf("S: %s = %s\n",ofields[i].source, t);
+        } else {
+            printf("S: %s, F: %p\n",ofields[i].source, ofields[i].func);
+        }
+    }
+
+    /** @todo Run Post Filters here */
+
     return APR_SUCCESS;
 }
