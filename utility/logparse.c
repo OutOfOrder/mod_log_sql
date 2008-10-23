@@ -2,16 +2,70 @@
 #include "apr_file_info.h"
 #include "apr_file_io.h"
 #include "apr_strings.h"
+#include "apr_time.h"
+
+#include "time.h"
+#include "stdlib.h"
 
 #include "util.h"
+#include "ap_pcre.h"
+#include "database.h"
+
 
 apr_hash_t *g_parser_funcs;
 
-static apr_status_t parser_func_regexmatch(config_t *cfg, const char *data,
-        int argc, const char **argv)
+static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
+        config_output_field_t *field, const char *value, char **ret)
 {
+    struct {
+        ap_regex_t *rx;
+        const char *substr;
+    } *data;
+    ap_regmatch_t regm[AP_MAX_REG_MATCH];
+    // Check if a regular expression configured
+    if (!field->args[0]) return APR_EINVAL;
+    if (!field->data) {
+        // pre compile the regex
+        data = apr_palloc(cfg->pool, sizeof(ap_regex_t)+sizeof(const char *));
+        data->rx = ap_pregcomp(cfg->pool, field->args[0],
+                AP_REG_EXTENDED|AP_REG_ICASE);
+        if (field->args[1]) {
+            data->substr = field->args[1];
+        } else {
+            data->substr = "$1";
+        }
+        if (!data->rx) return APR_EINVAL;
+        field->data = data;
+    } else data = field->data;
+
+    if (!ap_regexec(data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
+        *ret = ap_pregsub(p, data->substr, value, AP_MAX_REG_MATCH, regm);
+    }
+    //printf("We matched %s against %s to %s\n",value, field->args[0], *ret);
     return APR_SUCCESS;
 }
+
+static apr_status_t parser_func_totimestamp(apr_pool_t *p, config_t *cfg,
+        config_output_field_t *field, const char *value, char **ret)
+{
+    time_t time;
+    struct tm ts;
+
+
+    strptime(value, "%d/%b/%Y:%H:%M:%S %z", &ts);
+    time = mktime(&ts);
+
+    *ret = apr_itoa(p, time);
+    return APR_SUCCESS;
+}
+
+static apr_status_t parser_func_machineid(apr_pool_t *p, config_t *cfg,
+        config_output_field_t *field, const char *value, char **ret)
+{
+    *ret = apr_pstrdup(p,cfg->machineid);
+    return APR_SUCCESS;
+}
+
 parser_func_t parser_get_func(const char *name)
 {
     return apr_hash_get(g_parser_funcs, name, APR_HASH_KEY_STRING);
@@ -29,6 +83,8 @@ static void parser_add_func(apr_pool_t *p, const char *const name,
 void parser_init(apr_pool_t *p)
 {
     parser_add_func(p, "regexmatch", parser_func_regexmatch);
+    parser_add_func(p, "totimestamp", parser_func_totimestamp);
+    parser_add_func(p, "machineid", parser_func_machineid);
 }
 
 void parser_find_logs(config_t *cfg)
@@ -212,7 +268,7 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
             line_chomp(buff);
 
             apr_pool_clear(targp);
-            tokenize_logline(buff, &targv, targp, 1);
+            tokenize_logline(buff, &targv, targp, 0);
             targc = 0;
             while (targv[targc]) targc++;
             /** @todo Run Line Filters here */
@@ -239,6 +295,7 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, in
     config_output_field_t *ofields;
     apr_table_t *datain;
     apr_table_t *dataout;
+    apr_status_t rv;
     int i;
 
     fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
@@ -257,20 +314,30 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, in
     // Convert input fields to output fields
     ofields = (config_output_field_t *)cfg->output_fields->elts;
     for (i=0; i<cfg->output_fields->nelts; i++) {
-        const char *t;
+        const char *val;
+        val = apr_table_get(datain, ofields[i].source);
+        // If we can't find the source field just continue
+        if (!val && !(ofields[i].source[0]=='\0' && ofields[i].func)) {
+            apr_table_setn(dataout, ofields[i].field, ofields[i].def);
+            continue;
+        }
         if (!ofields[i].func) {
-            t = apr_table_get(datain, ofields[i].source);
-            if (!t) {
-                return APR_EINVAL;
-            }
-            apr_table_setn(dataout,ofields[i].field, t);
-            printf("S: %s = %s\n",ofields[i].source, t);
+            apr_table_setn(dataout,ofields[i].field, val);
+            //printf("S: %s = %s\n",ofields[i].field, val);
         } else {
-            printf("S: %s, F: %p\n",ofields[i].source, ofields[i].func);
+            char *ret = NULL;
+            rv = ((parser_func_t)ofields[i].func)(ptemp, cfg, &ofields[i], val,
+                    &ret);
+            if (rv) return rv;
+            apr_table_setn(dataout, ofields[i].field, ret);
+            //printf("S: %s = %s\n",ofields[i].field, ret);
         }
     }
 
     /** @todo Run Post Filters here */
 
+    // Process DB Query
+    rv = database_insert(cfg, ptemp, dataout);
+    if (rv) return rv;
     return APR_SUCCESS;
 }

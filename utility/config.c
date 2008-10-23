@@ -3,6 +3,7 @@
 #include "apr_file_io.h"
 #include "apr_strings.h"
 #include "apr_hash.h"
+#include "apr_uri.h"
 
 #include "shell.h"
 #include "config.h"
@@ -65,18 +66,6 @@ static apr_status_t config_set_loglevel(config_t *cfg, config_opt_t *opt,
     return APR_SUCCESS;
 }
 
-static apr_status_t config_set_dbconnect(config_t *cfg, config_opt_t *opt,
-        int argc, const char **argv)
-{
-    return APR_SUCCESS;
-}
-
-static apr_status_t config_set_dbparam(config_t *cfg, config_opt_t *opt,
-        int argc, const char **argv)
-{
-    return APR_SUCCESS;
-}
-
 static apr_status_t config_set_inputfile(config_t *cfg, config_opt_t *opt,
         int argc, const char **argv)
 {
@@ -123,12 +112,12 @@ static apr_status_t config_set_output_field(config_t *cfg, config_opt_t *opt,
     config_output_field_t *field;
     char *type, *size, *temp;
 
-    if (argc < 4)
+    if (argc < 5)
         return APR_EINVAL;
     field = (config_output_field_t *)apr_array_push(cfg->output_fields);
     field->field = apr_pstrdup(cfg->pool, argv[1]);
-    field->source = apr_pstrdup(cfg->pool, argv[3]);
-
+    field->source = apr_pstrdup(cfg->pool, argv[4]);
+    field->def = apr_pstrdup(cfg->pool, argv[3]);
     type = size = apr_pstrdup(cfg->pool, argv[2]);
     while (*size!='\0' && *size!='(')
         size++;
@@ -156,13 +145,13 @@ static apr_status_t config_set_output_field(config_t *cfg, config_opt_t *opt,
     }
 
     // Has a function
-    if (argc > 4) {
+    if (argc > 5) {
         int i;
-        field->fname = apr_pstrdup(cfg->pool, argv[4]);
+        field->fname = apr_pstrdup(cfg->pool, argv[5]);
         field->func = parser_get_func(field->fname);
-        field->args = apr_pcalloc(cfg->pool, sizeof(char *) * (argc-4+1));
-        for (i=5; i<=argc; i++) {
-            field->args[i-5] = apr_pstrdup(cfg->pool, argv[i]);
+        field->args = apr_pcalloc(cfg->pool, sizeof(char *) * (argc-5+1));
+        for (i=6; i<=argc; i++) {
+            field->args[i-6] = apr_pstrdup(cfg->pool, argv[i]);
         }
     }
 
@@ -208,6 +197,9 @@ void config_dump(config_t *cfg)
 
     printf("InputDir: %s\n", cfg->input_dir);
 
+    printf("DB Driver: %s\n", cfg->dbdriver);
+    printf("DB Params: %s\n", cfg->dbparams);
+
     printf("Table: %s\n", cfg->table);
     printf("Transactions: %d\n", cfg->transactions);
     printf("MachineID: %s\n", cfg->machineid);
@@ -231,7 +223,9 @@ void config_dump(config_t *cfg)
     printf("Output Fields:\n");
     fields = (config_output_field_t *)cfg->output_fields->elts;
     for (i=0; i<cfg->output_fields->nelts; i++) {
-        printf(">> %s %s(%d): %s", fields[i].field, logsql_field_datatyeName(fields[i].datatype), fields[i].size, fields[i].source);
+        printf(">> %s %s(%d) DEFAULT '%s': %s", fields[i].field,
+                logsql_field_datatyeName(fields[i].datatype),
+                fields[i].size, fields[i].def, fields[i].source);
         if (fields[i].func) {
             printf(" :: %s(", fields[i].fname);
             if (fields[i].args) {
@@ -280,11 +274,10 @@ void config_init(apr_pool_t *p)
     config_add_option(p, "InputFile", "Parse only this file",
             config_set_inputfile, NULL);
 
-    config_add_option(p, "DBConnect",
-            "DB Connection information  type://user:pass@hostname/database",
-            config_set_dbconnect, NULL);
-    config_add_option(p, "DBParam", "DB Connection Parameter",
-            config_set_dbparam, NULL);
+    config_add_option(p, "DBDDriver", "DBD Driver to use",
+            config_set_string, (void *)APR_OFFSETOF(config_t, dbdriver));
+    config_add_option(p, "DBDParams", "DBD Connection Parameters",
+            config_set_string, (void *)APR_OFFSETOF(config_t, dbparams));
     config_add_option(p, "Table", "Table to import the log to",
             config_set_string, (void *)APR_OFFSETOF(config_t, table));
     config_add_option(p, "UseTransactions", "Enable Transactions?",
@@ -330,7 +323,6 @@ config_t *config_create(apr_pool_t *p)
     cfg->summary = 1;
     cfg->transactions = 1;
     cfg->input_files = apr_array_make(cfg->pool, 10, sizeof(char *));
-    cfg->dbconfig = apr_table_make(cfg->pool, 5);
     cfg->log_formats = apr_hash_make(cfg->pool);
     cfg->output_fields = apr_array_make(cfg->pool, 10,
             sizeof(config_output_field_t));

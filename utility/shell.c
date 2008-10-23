@@ -9,6 +9,7 @@
 #include "shell.h"
 #include "config.h"
 #include "logparse.h"
+#include "database.h"
 
 const apr_getopt_option_t _opt_config[]   = {
     {"machineid",   'm',    1,  "Machine ID for the log file"},
@@ -122,9 +123,11 @@ int main(int argc, const char *const argv[])
         exit(1);
     }
 
-    // Process configuration file
+    // Initialize sub systems
     parser_init(pool);
     config_init(pool);
+    database_init(pool);
+    // Process configuration file
     base = config_create(pool);
     rv = config_read(base, apr_table_get(args,"Config"), args);
     apr_pool_destroy(ptemp);
@@ -138,6 +141,10 @@ int main(int argc, const char *const argv[])
 
     // Find files and parse
     parser_find_logs(base);
+    if ((rv = database_connect(base))) {
+        printf("Error Connecting to Database: %d\n",rv);
+        exit(1);
+    }
     if (!apr_is_empty_array(base->input_files)) {
         char **filelist;
         int f, l;
@@ -149,5 +156,6 @@ int main(int argc, const char *const argv[])
     } else {
         printf("No input files\n");
     }
+    database_disconnect(base);
     return 0;
 }

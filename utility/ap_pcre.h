@@ -73,6 +73,8 @@ extern "C" {
 #define AP_REG_EXTENDED (0)  /** unused */
 #define AP_REG_NOSUB    (0)  /** unused */
 
+#define AP_MAX_REG_MATCH 10
+
 /* Error values: */
 enum {
   AP_REG_ASSERT = 1,  /** internal error ? */

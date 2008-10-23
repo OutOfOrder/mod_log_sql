@@ -4,7 +4,6 @@
 #include "apr_tables.h"
 #include "apr_hash.h"
 #include "apr_file_io.h"
-
 #include "ap_pcre.h"
 
 typedef enum {
@@ -14,6 +13,7 @@ typedef enum {
     LOGLEVEL_DEBUG = 3,
 } loglevel_e;
 
+typedef struct config_dbd_t config_dbd_t;
 typedef struct config_t config_t;
 struct config_t {
     /** the structures pool (to ease function arguments) */
@@ -32,7 +32,10 @@ struct config_t {
     apr_array_header_t *input_files;
 
     /** db connection configuration */
-    apr_table_t *dbconfig;
+    const char *dbdriver;
+    const char *dbparams;
+    config_dbd_t *dbconn;
+
     /** Logging table */
     const char *table;
     /** Use transactons */
@@ -111,10 +114,12 @@ struct config_output_field_t {
     const char *field;
     logsql_field_datatype datatype;
     apr_size_t size;
+    const char *def;
     const char *source;
     const char *fname;
     void *func;
     const char **args;
+    void *data;
 };
 
 #define CHECK_YESNO(c) ((!strcasecmp(c,"on") || !strcasecmp(c,"yes")) ? 1 : 0)

@@ -18,8 +18,8 @@ STD_DIST = Makefile.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(SOURCES) $(HEADERS)
 
-SOURCES = shell.c config.c logparse.c ap_pcre.c util.c
-HEADERS = shell.h config.h logparse.h ap_pcre.h util.h
+SOURCES = shell.c config.c logparse.c ap_pcre.c util.c database.c
+HEADERS = shell.h config.h logparse.h ap_pcre.h util.h database.h
 OBJECTS = $(SOURCES:.c=.o)
 DEPS = $(SOURCES:.c=.d)
 TARGETS = mod_log_sql
