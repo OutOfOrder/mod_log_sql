@@ -19,7 +19,7 @@ apr_status_t database_connect(config_t *cfg)
 {
     apr_status_t rv;
     if (!cfg->dbconn) {
-        cfg->dbconn = apr_palloc(cfg->pool, sizeof(config_dbd_t));
+        cfg->dbconn = apr_pcalloc(cfg->pool, sizeof(config_dbd_t));
     }
     rv = apr_dbd_get_driver(cfg->pool, cfg->dbdriver, &(cfg->dbconn->driver));
     if (rv)

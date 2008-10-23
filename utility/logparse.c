@@ -40,6 +40,8 @@ static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
 
     if (!ap_regexec(data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
         *ret = ap_pregsub(p, data->substr, value, AP_MAX_REG_MATCH, regm);
+    } else {
+        *ret = field->def;
     }
     //printf("We matched %s against %s to %s\n",value, field->args[0], *ret);
     return APR_SUCCESS;
@@ -51,6 +53,7 @@ static apr_status_t parser_func_totimestamp(apr_pool_t *p, config_t *cfg,
     time_t time;
     struct tm ts;
 
+    //memset(&ts,0,sizeof(struct tm));
 
     strptime(value, "%d/%b/%Y:%H:%M:%S %z", &ts);
     time = mktime(&ts);
