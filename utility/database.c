@@ -3,6 +3,8 @@
 #include "apr_dbd.h"
 #include "apr_strings.h"
 
+#include "util.h"
+
 struct config_dbd_t {
     const apr_dbd_driver_t *driver;
     apr_dbd_t *dbd;
@@ -18,17 +20,26 @@ void database_init(apr_pool_t *p)
 apr_status_t database_connect(config_t *cfg)
 {
     apr_status_t rv;
+    if (!cfg->dbdriver || !cfg->dbparams)
+        return APR_EINVAL;
     if (!cfg->dbconn) {
         cfg->dbconn = apr_pcalloc(cfg->pool, sizeof(config_dbd_t));
     }
     rv = apr_dbd_get_driver(cfg->pool, cfg->dbdriver, &(cfg->dbconn->driver));
-    if (rv)
+    if (rv) {
+        logging_log(cfg, LOGLEVEL_ERROR,
+                "Could not load database driver %s. Error %d", cfg->dbdriver,
+                rv);
         return rv;
+    }
 
     rv = apr_dbd_open(cfg->dbconn->driver, cfg->pool, cfg->dbparams,
             &(cfg->dbconn->dbd));
-    if (rv)
+    if (rv) {
+        logging_log(cfg, LOGLEVEL_ERROR,
+                "Could not connect to database. Error %d", rv);
         return rv;
+    }
 
     return APR_SUCCESS;
 }
@@ -38,6 +49,56 @@ apr_status_t database_disconnect(config_t *cfg)
     return apr_dbd_close(cfg->dbconn->driver, cfg->dbconn->dbd);
 }
 
+static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
+{
+    apr_status_t rv;
+    char *sql;
+    int i, f;
+    struct iovec *vec;
+    apr_dbd_prepared_t *stmt;
+    int nfs = cfg->output_fields->nelts;
+    config_output_field_t *ofields;
+
+    ofields = (config_output_field_t *)cfg->output_fields->elts;
+
+    vec = apr_palloc(p, (nfs*2 + 5) * sizeof(struct iovec));
+    sql = apr_palloc(p, (nfs*3));
+
+    vec[0].iov_base = "INSERT INTO ";
+    vec[0].iov_len = 12;
+    vec[1].iov_base = (void *)cfg->table;
+    vec[1].iov_len = strlen(cfg->table);
+    vec[2].iov_base = " (";
+    vec[2].iov_len = 2;
+    for (i=3, f=0; f<nfs; f++, i+=2) {
+        vec[i].iov_base = (void *)ofields[f].field;
+        vec[i].iov_len = strlen(vec[i].iov_base);
+        vec[i+1].iov_base = ",";
+        vec[i+1].iov_len = 1;
+        memcpy(&sql[f*3], "%s,", 3);
+    }
+    sql[nfs*3-1] = '\0';
+    vec[i-1].iov_base = ") VALUES (";
+    vec[i-1].iov_len = 10;
+    vec[i].iov_base = sql;
+    vec[i].iov_len = nfs*3-1;
+    vec[i+1].iov_base = ")";
+    vec[i+1].iov_len = 1;
+
+    sql = apr_pstrcatv(p, vec, i+2, NULL);
+
+    printf("SQL: %s\n", sql);
+
+    rv = apr_dbd_prepare(cfg->dbconn->driver, cfg->pool, cfg->dbconn->dbd, sql,
+            "INSERT", &stmt);
+
+    if (rv) {
+        printf("DB Error: %s\n", apr_dbd_error(cfg->dbconn->driver,
+                cfg->dbconn->dbd, rv));
+        return NULL;
+    }
+    return stmt;
+}
 apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
 {
     apr_status_t rv;
@@ -47,41 +108,8 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     nfs = cfg->output_fields->nelts;
     // Prepare statement
     if (!cfg->dbconn->stmt) {
-        char *sql;
-        int i;
-        struct iovec *vec;
-        vec = apr_palloc(p, (nfs*2 + 5) * sizeof(struct iovec));
-        sql = apr_palloc(p, (nfs*3));
-        vec[0].iov_base = "INSERT INTO ";
-        vec[0].iov_len = 12;
-        vec[1].iov_base = (void *)cfg->table;
-        vec[1].iov_len = strlen(cfg->table);
-        vec[2].iov_base = " (";
-        vec[2].iov_len = 2;
-        for (i=3, f=0; f<nfs; f++, i+=2) {
-            vec[i].iov_base = (void *)ofields[f].field;
-            vec[i].iov_len = strlen(vec[i].iov_base);
-            vec[i+1].iov_base = ",";
-            vec[i+1].iov_len = 1;
-            memcpy(&sql[f*3], "%s,", 3);
-        }
-        sql[nfs*3-1] = '\0';
-        vec[i-1].iov_base = ") VALUES (";
-        vec[i-1].iov_len = 10;
-        vec[i].iov_base = sql;
-        vec[i].iov_len = nfs*3-1;
-        vec[i+1].iov_base = ")";
-        vec[i+1].iov_len = 1;
-        sql = apr_pstrcatv(p, vec, i+2, NULL);
-        printf("SQL: %s\n", sql);
+        cfg->dbconn->stmt = database_prepare_insert(cfg, p);
         cfg->dbconn->args = apr_palloc(cfg->pool, nfs * sizeof(char *));
-        rv = apr_dbd_prepare(cfg->dbconn->driver, cfg->pool, cfg->dbconn->dbd,
-                sql, "INSERT", &(cfg->dbconn->stmt));
-        if (rv) {
-            printf("DB Error: %s\n", apr_dbd_error(cfg->dbconn->driver,
-                    cfg->dbconn->dbd, rv));
-            return rv;
-        }
     }
     for (f=0; f<nfs; f++) {
         cfg->dbconn->args[f] = apr_table_get(data, ofields[f].field);
@@ -95,3 +123,5 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     }
     return APR_SUCCESS;
 }
+
+/** @todo implement transactions */

@@ -4,7 +4,7 @@
 #include "config.h"
 
 typedef apr_status_t (*parser_func_t)(apr_pool_t *p, config_t *cfg,
-        config_output_field_t *field, const char *value, char **ret);
+        config_output_field_t *field, const char *value, const char **ret);
 
 parser_func_t parser_get_func(const char *name);
 

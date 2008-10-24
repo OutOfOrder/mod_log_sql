@@ -15,7 +15,7 @@
 apr_hash_t *g_parser_funcs;
 
 static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
-        config_output_field_t *field, const char *value, char **ret)
+        config_output_field_t *field, const char *value, const char **ret)
 {
     struct {
         ap_regex_t *rx;
@@ -48,7 +48,7 @@ static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
 }
 
 static apr_status_t parser_func_totimestamp(apr_pool_t *p, config_t *cfg,
-        config_output_field_t *field, const char *value, char **ret)
+        config_output_field_t *field, const char *value, const char **ret)
 {
     time_t time;
     struct tm ts;
@@ -63,11 +63,17 @@ static apr_status_t parser_func_totimestamp(apr_pool_t *p, config_t *cfg,
 }
 
 static apr_status_t parser_func_machineid(apr_pool_t *p, config_t *cfg,
-        config_output_field_t *field, const char *value, char **ret)
+        config_output_field_t *field, const char *value, const char **ret)
 {
-    *ret = apr_pstrdup(p,cfg->machineid);
+    if (cfg->machineid) {
+        *ret = apr_pstrdup(p,cfg->machineid);
+    } else {
+        *ret = field->def;
+    }
     return APR_SUCCESS;
 }
+
+/** @todo Implement Query arg ripping function */
 
 parser_func_t parser_get_func(const char *name)
 {
@@ -258,6 +264,7 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     rv = apr_file_open(&file, filename, APR_FOPEN_READ | APR_BUFFERED,
             APR_OS_DEFAULT, tp);
     if (rv != APR_SUCCESS) {
+        logging_log(cfg, LOGLEVEL_ERROR, "Could not open %s",filename);
         printf("Could not open %s\n", filename);
         return rv;
     }
@@ -298,7 +305,7 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, in
     config_output_field_t *ofields;
     apr_table_t *datain;
     apr_table_t *dataout;
-    apr_status_t rv;
+    apr_status_t rv = APR_SUCCESS;
     int i;
 
     fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
@@ -326,21 +333,20 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, in
         }
         if (!ofields[i].func) {
             apr_table_setn(dataout,ofields[i].field, val);
-            //printf("S: %s = %s\n",ofields[i].field, val);
         } else {
-            char *ret = NULL;
+            const char *ret = NULL;
             rv = ((parser_func_t)ofields[i].func)(ptemp, cfg, &ofields[i], val,
                     &ret);
             if (rv) return rv;
             apr_table_setn(dataout, ofields[i].field, ret);
-            //printf("S: %s = %s\n",ofields[i].field, ret);
         }
     }
 
     /** @todo Run Post Filters here */
 
     // Process DB Query
-    rv = database_insert(cfg, ptemp, dataout);
-    if (rv) return rv;
-    return APR_SUCCESS;
+    if (!cfg->dryrun) {
+        rv = database_insert(cfg, ptemp, dataout);
+    }
+    return rv;
 }

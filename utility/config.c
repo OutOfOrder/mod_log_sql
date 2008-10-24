@@ -23,19 +23,6 @@ static apr_status_t config_set_string(config_t *cfg, config_opt_t *opt,
     return APR_SUCCESS;
 }
 
-static apr_status_t config_set_int(config_t *cfg, config_opt_t *opt, int argc,
-        const char **argv) __attribute__ ((__unused__));
-static apr_status_t config_set_int(config_t *cfg, config_opt_t *opt, int argc,
-        const char **argv)
-{
-    int offset = (int)(long)opt->data;
-    int *data = (int *)((void *)cfg + offset);
-    if (argc != 2)
-        return APR_EINVAL;
-    *data = apr_atoi64(argv[1]);
-    return APR_SUCCESS;
-}
-
 static apr_status_t config_set_flag(config_t *cfg, config_opt_t *opt, int argc,
         const char **argv)
 {
@@ -327,6 +314,24 @@ config_t *config_create(apr_pool_t *p)
     cfg->output_fields = apr_array_make(cfg->pool, 10,
             sizeof(config_output_field_t));
     return cfg;
+}
+
+apr_status_t config_check(config_t *cfg)
+{
+    apr_status_t ret = APR_SUCCESS;
+    if (!cfg->dbdriver || !cfg->dbparams) {
+        printf("Database configuration is missing\n");
+        ret = APR_EINVAL;
+    }
+    if (!cfg->table) {
+        printf("No Log Table defined\n");
+        ret = APR_EINVAL;
+    }
+    if (apr_is_empty_array(cfg->output_fields)) {
+        printf("No Output Fields Defined\n");
+        ret = APR_EINVAL;
+    }
+    return ret;
 }
 
 static int config_merge(void *rec, const char *key, const char *value)

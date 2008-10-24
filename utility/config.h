@@ -25,6 +25,7 @@ struct config_t {
     loglevel_e loglevel;
     /** error_log */
     apr_file_t *errorlog_fp;
+    apr_pool_t *errorlog_p;
 
     /** input directory of log files */
     const char *input_dir;
@@ -133,6 +134,11 @@ void config_init(apr_pool_t *p);
  * Dump the configuration to stdout
  */
 void config_dump(config_t *cfg);
+
+/**
+ * Checks the configuration to ensure all the required settings are set
+ */
+apr_status_t config_check(config_t *cfg);
 
 /**
  * Creates the default configuration
