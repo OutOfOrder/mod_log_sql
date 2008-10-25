@@ -14,6 +14,28 @@
 apr_hash_t *g_parser_funcs;
 void **g_parser_linedata;
 
+static apr_status_t parser_func_wrap(apr_pool_t *p, config_t *cfg,
+        config_output_field_t *field, const char *value, const char **ret)
+{
+    if (field->args[0] && field->args[1]) {
+        struct iovec vec[3];
+        apr_size_t len;
+
+        vec[0].iov_base = (void *)field->args[0];
+        vec[0].iov_len = strlen(field->args[0]);
+        vec[1].iov_base = (void *)value;
+        vec[1].iov_len = strlen(value);
+        vec[2].iov_base = (void *)field->args[1];
+        vec[2].iov_len = strlen(field->args[1]);
+
+        *ret = apr_pstrcatv(p, vec, 3, &len);
+    } else {
+        logging_log(cfg, LOGLEVEL_NOISE, "wrap requires before and after strings");
+        return APR_EINVAL;
+    }
+    return APR_SUCCESS;
+}
+
 static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
         config_output_field_t *field, const char *value, const char **ret)
 {
@@ -29,22 +51,22 @@ static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
         // pre compile the regex
         _data = apr_palloc(cfg->pool, sizeof(ap_regex_t)+sizeof(const char *));
         _data->rx = ap_pregcomp(cfg->pool, field->args[0],
-        AP_REG_EXTENDED|AP_REG_ICASE);
+                AP_REG_EXTENDED|AP_REG_ICASE);
         if (field->args[1]) {
             _data->substr = field->args[1];
         } else {
             _data->substr = "$1";
         }
-        if (!_data->rx)
+        if (!_data->rx) {
+            logging_log(cfg, LOGLEVEL_NOISE, "Failed to compile regular expression");
             return APR_EINVAL;
+        }
         field->data = _data;
     } else
         _data = field->data;
 
     if (!ap_regexec(_data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
         *ret = ap_pregsub(p, _data->substr, value, AP_MAX_REG_MATCH, regm);
-    } else {
-        *ret = field->def;
     }
     logging_log(cfg, LOGLEVEL_DEBUG, "REGEX: matched %s against %s to %s", value,
             field->args[0], *ret);
@@ -71,20 +93,19 @@ static apr_status_t parser_func_machineid(apr_pool_t *p, config_t *cfg,
 {
     if (cfg->machineid) {
         *ret = apr_pstrdup(p, cfg->machineid);
-    } else {
-        *ret = field->def;
     }
     return APR_SUCCESS;
 }
 
-/** @todo Implement Query arg ripping function */
 static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
         config_output_field_t *field, const char *value, const char **ret)
 {
     apr_table_t *query = parser_get_linedata(field->func);
 
-    if (!field->args[0])
+    if (!field->args[0]) {
+        logging_log(cfg, LOGLEVEL_NOISE, "queryarg requires name of query arg");
         return APR_EINVAL;
+    }
 
     if (!query) {
         char *query_beg;
@@ -127,7 +148,6 @@ static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
         parser_set_linedata(field->func,query);
     }
     *ret = apr_table_get(query, field->args[0]);
-    if (*ret == NULL) *ret = field->def;
     return APR_SUCCESS;
 }
 
@@ -158,6 +178,7 @@ void parser_init(apr_pool_t *p)
     parser_add_func(p, "totimestamp", parser_func_totimestamp, ++i);
     parser_add_func(p, "machineid", parser_func_machineid, ++i);
     parser_add_func(p, "queryarg", parser_func_queryarg, ++i);
+    parser_add_func(p, "wrap", parser_func_wrap, ++i);
     g_parser_linedata = apr_pcalloc(p, sizeof(void *) * (i+1));
     g_parser_linedata[0] = (void *)i;
 }
@@ -417,7 +438,7 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
                     &ofields[i], val, &ret);
             if (rv)
                 return rv;
-            apr_table_setn(dataout, ofields[i].field, ret);
+            apr_table_setn(dataout, ofields[i].field, ret ? ret : ofields[i].def);
         }
     }
 
