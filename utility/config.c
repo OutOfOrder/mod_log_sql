@@ -41,12 +41,10 @@ static apr_status_t config_set_loglevel(config_t *cfg, config_opt_t *opt,
         return APR_EINVAL;
     if (!strcasecmp(argv[1], "error")) {
         cfg->loglevel = LOGLEVEL_ERROR;
-    } else if (!strcasecmp(argv[1], "warn")) {
-        cfg->loglevel = LOGLEVEL_WARN;
+    } else if (!strcasecmp(argv[1], "notice")) {
+        cfg->loglevel = LOGLEVEL_NOTICE;
     } else if (!strcasecmp(argv[1], "debug")) {
         cfg->loglevel = LOGLEVEL_DEBUG;
-    } else if (!strcasecmp(argv[1], "quiet")) {
-        cfg->loglevel = LOGLEVEL_QUIET;
     } else {
         cfg->loglevel = LOGLEVEL_ERROR;
     }
@@ -293,6 +291,8 @@ void config_init(apr_pool_t *p)
 
     config_add_option(p, "DryRun", "Don't perform any actual database changes",
             config_set_flag, (void *)APR_OFFSETOF(config_t, dryrun));
+    config_add_option(p, "Dump", "Dump Configuration and quit",
+            config_set_flag, (void *)APR_OFFSETOF(config_t, dump));
     config_add_option(p, "Config", "Dummy to handle config directive",
             config_set_dummy, NULL);
     config_add_option(p, "Summary", "Show the summary before exit?",
@@ -306,7 +306,7 @@ config_t *config_create(apr_pool_t *p)
     apr_pool_create(&sp, p);
     cfg = apr_pcalloc(sp, sizeof(config_t));
     cfg->pool = sp;
-    cfg->loglevel = LOGLEVEL_WARN;
+    cfg->loglevel = LOGLEVEL_ERROR;
     cfg->summary = 1;
     cfg->transactions = 1;
     cfg->input_files = apr_array_make(cfg->pool, 10, sizeof(char *));
@@ -320,15 +320,15 @@ apr_status_t config_check(config_t *cfg)
 {
     apr_status_t ret = APR_SUCCESS;
     if (!cfg->dbdriver || !cfg->dbparams) {
-        printf("Database configuration is missing\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "Database configuration is missing\n");
         ret = APR_EINVAL;
     }
     if (!cfg->table) {
-        printf("No Log Table defined\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "No Log Table defined\n");
         ret = APR_EINVAL;
     }
     if (apr_is_empty_array(cfg->output_fields)) {
-        printf("No Output Fields Defined\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "No Output Fields Defined\n");
         ret = APR_EINVAL;
     }
     return ret;
@@ -345,7 +345,7 @@ static int config_merge(void *rec, const char *key, const char *value)
             value };
         opt->func(cfg, opt, 2, args);
     } else {
-        printf("Unhandled: %s\n", key);
+        logging_log(cfg, LOGLEVEL_NOISE, "Unhandled: %s\n", key);
     }
     return 1;
 }
@@ -400,12 +400,13 @@ apr_status_t config_read(config_t *cfg, const char *filename,
             if (opt) {
                 rv = opt->func(cfg, opt, targc, (const char **)targv);
                 if (APR_STATUS_IS_EINVAL(rv)) {
-                    printf("Config Error: Invalid Arguments for %s\n\t%s\n",
+                    logging_log(cfg, LOGLEVEL_NOISE,
+                            "Config Error: Invalid Arguments for %s\n\t%s\n",
                             opt->name, opt->help);
                     ret = rv;
                 }
             } else {
-                printf("Unhandled: %s\n", targv[0]);
+                logging_log(cfg, LOGLEVEL_NOISE, "Unhandled: %s\n", targv[0]);
             }
         }
     } while (rv == APR_SUCCESS);

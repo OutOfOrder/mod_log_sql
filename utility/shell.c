@@ -17,9 +17,10 @@ const apr_getopt_option_t _opt_config[]   = {
     {"transaction", 't',    1,  "Use a Transaction (yes,no)"},
     {"logformat",   'r',    1,  "Use this logformat to parse files"},
     {"file",        'f',    1,  "Parse this single log file (input dir is NOT scanned)"},
-    {"inputdir",    'd',    1,  "Input Directory to look for log files"},
+    {"inputdir",    'i',    1,  "Input Directory to look for log files"},
     {"config",      'c',    1,  "Configuration file to use (default mod_log_sql.conf)"},
     {"dryrun",      'n',    0,  "Perform a dry run (do not actually alter the databse)"},
+    {"dump",        'd',    0,  "Dump the configuration after parsing and quit"},
     {"loglevel",    'l',    1,  "Log Level (deubg, warn, error)"},
     {"summary",     's',    1,  "Summary (yes,no)"},
     {"help",        'h',    0,  "Show Help"},
@@ -62,7 +63,7 @@ int main(int argc, const char *const argv[])
     const char *opt_arg;
     apr_status_t rv;
     apr_table_t *args;
-    config_t *base;
+    config_t *cfg;
 
     apr_app_initialize(&argc, &argv, NULL);
     atexit(apr_terminate);
@@ -84,7 +85,7 @@ int main(int argc, const char *const argv[])
             apr_table_setn(args,"config",opt_arg);
             break;
         case 'd':
-            apr_table_setn(args,"inputdirectory",opt_arg);
+            apr_table_setn(args,"dump","yes");
             break;
         case 'f':
             apr_table_setn(args,"inputfile",opt_arg);
@@ -92,6 +93,9 @@ int main(int argc, const char *const argv[])
         case 'h':
             show_help(argv[0], _opt_config, stdout);
             exit(1);
+            break;
+        case 'i':
+            apr_table_setn(args,"inputdirectory",opt_arg);
             break;
         case 'l':
             apr_table_setn(args,"loglevel",opt_arg);
@@ -128,45 +132,49 @@ int main(int argc, const char *const argv[])
     parser_init(pool);
     config_init(pool);
     database_init(pool);
-    logging_init(pool);
     // Process configuration file
-    base = config_create(pool);
-    rv = config_read(base, apr_table_get(args,"Config"), args);
+    cfg = config_create(pool);
+    rv = config_read(cfg, apr_table_get(args,"Config"), args);
     apr_pool_destroy(ptemp);
 
+    // Initialize Log system AFTER we parse the configuration
+    logging_init(cfg);
+
     if (APR_STATUS_IS_ENOENT(rv)) {
-        fprintf(stderr,"Could not load configuration file: %s\n",apr_table_get(args,"config"));
+        logging_log(cfg,LOGLEVEL_NOISE,"Could not load configuration file: %s",apr_table_get(args,"config"));
     } else if (rv) {
         exit(1);
     }
-    config_dump(base);
+    if (cfg->dump) {
+        config_dump(cfg);
+        exit(0);
+    }
 
-    if (config_check(base)) {
-        printf("Please correct the configuration\n");
+    if (config_check(cfg)) {
+        logging_log(cfg,LOGLEVEL_NOISE, "Please correct the configuration");
         exit(1);
     }
 
     // Find files and parse
-    parser_find_logs(base);
-    if (!base->dryrun) {
-        if ((rv = database_connect(base))) {
-            printf("Error Connecting to Database: %d\n",rv);
+    parser_find_logs(cfg);
+    if (!cfg->dryrun) {
+        if ((rv = database_connect(cfg))) {
+            logging_log(cfg,LOGLEVEL_NOISE, "Error Connecting to Database");
             exit(1);
         }
     }
-    if (!apr_is_empty_array(base->input_files)) {
+    if (!apr_is_empty_array(cfg->input_files)) {
         char **filelist;
         int f, l;
-        filelist = (char **)base->input_files->elts;
-        for (f=0, l=base->input_files->nelts; f < l; f++) {
-            printf("Scanning %s\n",filelist[f]);
-            parse_logfile(base, filelist[f]);
+        filelist = (char **)cfg->input_files->elts;
+        for (f=0, l=cfg->input_files->nelts; f < l; f++) {
+            parse_logfile(cfg, filelist[f]);
         }
     } else {
-        printf("No input files\n");
+        logging_log(cfg,LOGLEVEL_NOISE,"No log files found to parse");
     }
-    if (!base->dryrun) {
-        database_disconnect(base);
+    if (!cfg->dryrun) {
+        database_disconnect(cfg);
     }
     /** @todo summary goes here */
     return 0;

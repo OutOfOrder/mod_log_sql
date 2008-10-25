@@ -33,13 +33,29 @@ void line_chomp(char *str)
 
 void logging_init(config_t *cfg)
 {
+    apr_status_t rv;
+    apr_pool_create(&cfg->errorlog_p, cfg->pool);
+    apr_file_open_stderr(&cfg->errorlog_fperr, cfg->pool);
     if (cfg->errorlog) {
-        apr_file_open(&cfg->errorlog_fp, cfg->errorlog,
-                APR_FOPEN_CREATE | APR_FOPEN_WRITE | APR_BUFFERED,
+        rv = apr_file_open(&cfg->errorlog_fp, cfg->errorlog,
+                APR_FOPEN_CREATE | APR_FOPEN_WRITE | APR_FOPEN_APPEND,
                 APR_OS_DEFAULT,
                 cfg->pool);
-        apr_pool_create(&cfg->errorlog_p, cfg->pool);
+        if (rv) {
+            printf("Error opening %s\n",cfg->errorlog);
+            cfg->loglevel = LOGLEVEL_NONE;
+        }
+        logging_log(cfg, LOGLEVEL_ERROR, "Log file Opened");
+    } else {
+        cfg->loglevel = LOGLEVEL_NONE;
+        logging_log(cfg, LOGLEVEL_NOISE, "No Log file specified, disabled logging");
     }
+}
+
+const char *logging_strerror(apr_status_t rv)
+{
+    char buff[256];
+    return apr_strerror(rv, buff, 256);
 }
 
 /**
@@ -51,7 +67,7 @@ void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
     struct iovec vec[2];
     apr_size_t blen;
 
-    if (!cfg->errorlog_fp || cfg->loglevel < level) return;
+    if (cfg->loglevel < level) return;
 
     va_start(ap, fmt);
     apr_pool_clear(cfg->errorlog_p);
@@ -61,7 +77,12 @@ void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
     vec[1].iov_base = "\n";
     vec[1].iov_len = 1;
 
-    apr_file_writev(cfg->errorlog_fp,vec,2,&blen);
+    if (level == LOGLEVEL_NOISE) {
+        apr_file_writev(cfg->errorlog_fperr,vec,2,&blen);
+    }
+    if (cfg->loglevel > LOGLEVEL_NONE) {
+        apr_file_writev(cfg->errorlog_fp,vec,2,&blen);
+    }
 
     va_end(ap);
 }

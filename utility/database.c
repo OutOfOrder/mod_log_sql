@@ -4,6 +4,7 @@
 #include "apr_strings.h"
 
 #include "util.h"
+#include "mysql/mysql.h"
 
 struct config_dbd_t {
     const apr_dbd_driver_t *driver;
@@ -27,9 +28,10 @@ apr_status_t database_connect(config_t *cfg)
     }
     rv = apr_dbd_get_driver(cfg->pool, cfg->dbdriver, &(cfg->dbconn->driver));
     if (rv) {
+
         logging_log(cfg, LOGLEVEL_ERROR,
-                "Could not load database driver %s. Error %d", cfg->dbdriver,
-                rv);
+                "Could not load database driver %s. Error %s", cfg->dbdriver,
+                logging_strerror(rv));
         return rv;
     }
 
@@ -37,7 +39,7 @@ apr_status_t database_connect(config_t *cfg)
             &(cfg->dbconn->dbd));
     if (rv) {
         logging_log(cfg, LOGLEVEL_ERROR,
-                "Could not connect to database. Error %d", rv);
+                "Could not connect to database. Error %s", logging_strerror(rv));
         return rv;
     }
 
@@ -55,7 +57,7 @@ static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
     char *sql;
     int i, f;
     struct iovec *vec;
-    apr_dbd_prepared_t *stmt;
+    apr_dbd_prepared_t *stmt = NULL;
     int nfs = cfg->output_fields->nelts;
     config_output_field_t *ofields;
 
@@ -87,14 +89,14 @@ static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
 
     sql = apr_pstrcatv(p, vec, i+2, NULL);
 
-    printf("SQL: %s\n", sql);
+    logging_log(cfg, LOGLEVEL_DEBUG, "Generated SQL: %s", sql);
 
     rv = apr_dbd_prepare(cfg->dbconn->driver, cfg->pool, cfg->dbconn->dbd, sql,
             "INSERT", &stmt);
 
     if (rv) {
-        printf("DB Error: %s\n", apr_dbd_error(cfg->dbconn->driver,
-                cfg->dbconn->dbd, rv));
+        logging_log(cfg, LOGLEVEL_ERROR, "Unable to Prepare SQL insert: %s",
+                apr_dbd_error(cfg->dbconn->driver, cfg->dbconn->dbd, rv));
         return NULL;
     }
     return stmt;
@@ -109,6 +111,10 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     // Prepare statement
     if (!cfg->dbconn->stmt) {
         cfg->dbconn->stmt = database_prepare_insert(cfg, p);
+        if (!cfg->dbconn->stmt) {
+            logging_log(cfg, LOGLEVEL_NOISE, "Unable to prepare SQL statement");
+            return APR_EINVAL;
+        }
         cfg->dbconn->args = apr_palloc(cfg->pool, nfs * sizeof(char *));
     }
     for (f=0; f<nfs; f++) {
@@ -117,8 +123,8 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     rv = apr_dbd_pquery(cfg->dbconn->driver, p, cfg->dbconn->dbd, &f,
             cfg->dbconn->stmt, nfs, cfg->dbconn->args);
     if (rv) {
-        printf("DB Error: %s\n", apr_dbd_error(cfg->dbconn->driver,
-                cfg->dbconn->dbd, rv));
+        logging_log(cfg, LOGLEVEL_ERROR, "Unable to Insert SQL: %s",
+                apr_dbd_error(cfg->dbconn->driver, cfg->dbconn->dbd, rv));
         return rv;
     }
     return APR_SUCCESS;

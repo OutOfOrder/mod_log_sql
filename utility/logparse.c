@@ -11,7 +11,6 @@
 #include "ap_pcre.h"
 #include "database.h"
 
-
 apr_hash_t *g_parser_funcs;
 
 static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
@@ -20,23 +19,26 @@ static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
     struct {
         ap_regex_t *rx;
         const char *substr;
-    } *data;
+    }*data;
     ap_regmatch_t regm[AP_MAX_REG_MATCH];
     // Check if a regular expression configured
-    if (!field->args[0]) return APR_EINVAL;
+    if (!field->args[0])
+        return APR_EINVAL;
     if (!field->data) {
         // pre compile the regex
         data = apr_palloc(cfg->pool, sizeof(ap_regex_t)+sizeof(const char *));
         data->rx = ap_pregcomp(cfg->pool, field->args[0],
-                AP_REG_EXTENDED|AP_REG_ICASE);
+        AP_REG_EXTENDED|AP_REG_ICASE);
         if (field->args[1]) {
             data->substr = field->args[1];
         } else {
             data->substr = "$1";
         }
-        if (!data->rx) return APR_EINVAL;
+        if (!data->rx)
+            return APR_EINVAL;
         field->data = data;
-    } else data = field->data;
+    } else
+        data = field->data;
 
     if (!ap_regexec(data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
         *ret = ap_pregsub(p, data->substr, value, AP_MAX_REG_MATCH, regm);
@@ -66,7 +68,7 @@ static apr_status_t parser_func_machineid(apr_pool_t *p, config_t *cfg,
         config_output_field_t *field, const char *value, const char **ret)
 {
     if (cfg->machineid) {
-        *ret = apr_pstrdup(p,cfg->machineid);
+        *ret = apr_pstrdup(p, cfg->machineid);
     } else {
         *ret = field->def;
     }
@@ -81,7 +83,7 @@ parser_func_t parser_get_func(const char *name)
 }
 
 static void parser_add_func(apr_pool_t *p, const char *const name,
-           parser_func_t func)
+        parser_func_t func)
 {
     if (!g_parser_funcs) {
         g_parser_funcs = apr_hash_make(p);
@@ -103,6 +105,7 @@ void parser_find_logs(config_t *cfg)
     apr_finfo_t finfo;
     char **newp;
 
+    logging_log(cfg, LOGLEVEL_NOTICE, "Find Log files");
     if (!cfg->input_dir)
         return;
     apr_pool_create(&tp, cfg->pool);
@@ -113,7 +116,7 @@ void parser_find_logs(config_t *cfg)
                 continue;
             newp = (char **)apr_array_push(cfg->input_files);
             apr_filepath_merge(newp, cfg->input_dir, finfo.name,
-                    APR_FILEPATH_TRUENAME, cfg->pool);
+            APR_FILEPATH_TRUENAME, cfg->pool);
         }
         apr_dir_close(dir);
     }
@@ -261,11 +264,12 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     apr_pool_create(&tp, cfg->pool);
     apr_pool_create(&targp, tp);
 
+    logging_log(cfg, LOGLEVEL_NOTICE, "Begin Parsing Log File '%s'", filename);
+
     rv = apr_file_open(&file, filename, APR_FOPEN_READ | APR_BUFFERED,
-            APR_OS_DEFAULT, tp);
+    APR_OS_DEFAULT, tp);
     if (rv != APR_SUCCESS) {
-        logging_log(cfg, LOGLEVEL_ERROR, "Could not open %s",filename);
-        printf("Could not open %s\n", filename);
+        logging_log(cfg, LOGLEVEL_NOISE, "Could not open %s", filename);
         return rv;
     }
 
@@ -280,44 +284,52 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
             apr_pool_clear(targp);
             tokenize_logline(buff, &targv, targp, 0);
             targc = 0;
-            while (targv[targc]) targc++;
+            while (targv[targc])
+                targc++;
             /** @todo Run Line Filters here */
             rv = parse_processline(targp, cfg, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
-                printf("Line %d(%d): %s\n",line, targc, buff);
+                logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", line,
+                        targc, buff);
                 for (i = 0; targv[i]; i++) {
-                    printf("Arg (%d): '%s'\n", i, targv[i]);
+                    logging_log(cfg, LOGLEVEL_ERROR, "Arg (%d): '%s'", i,
+                            targv[i]);
                 }
             }
         }
     } while (rv == APR_SUCCESS);
-    printf("Total Lines: %d\n", line);
     apr_file_close(file);
     apr_pool_destroy(tp);
+    logging_log(cfg, LOGLEVEL_NOTICE,
+            "Finish Parsing Log File '%s'. Lines: %d", filename, line);
+
     return APR_SUCCESS;
 }
 
-apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, int argc)
+apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
+        int argc)
 {
     config_logformat_t *fmt;
     config_logformat_field_t *ifields;
     config_output_field_t *ofields;
     apr_table_t *datain;
     apr_table_t *dataout;
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t rv= APR_SUCCESS;
     int i;
 
     fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
-    if (!fmt) return APR_EINVAL;
-    if (fmt->fields->nelts != argc) return APR_EINVAL;
+    if (!fmt)
+        return APR_EINVAL;
+    if (fmt->fields->nelts != argc)
+        return APR_EINVAL;
 
     datain = apr_table_make(ptemp, fmt->fields->nelts);
     dataout = apr_table_make(ptemp, cfg->output_fields->nelts);
 
     ifields = (config_logformat_field_t *)fmt->fields->elts;
     for (i=0; i<fmt->fields->nelts; i++) {
-        apr_table_setn(datain,ifields[i].name,argv[i]);
+        apr_table_setn(datain, ifields[i].name, argv[i]);
     }
     /** @todo Run Pre Filters here */
 
@@ -332,12 +344,13 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv, in
             continue;
         }
         if (!ofields[i].func) {
-            apr_table_setn(dataout,ofields[i].field, val);
+            apr_table_setn(dataout, ofields[i].field, val);
         } else {
-            const char *ret = NULL;
+            const char *ret= NULL;
             rv = ((parser_func_t)ofields[i].func)(ptemp, cfg, &ofields[i], val,
                     &ret);
-            if (rv) return rv;
+            if (rv)
+                return rv;
             apr_table_setn(dataout, ofields[i].field, ret);
         }
     }

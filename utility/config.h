@@ -7,10 +7,11 @@
 #include "ap_pcre.h"
 
 typedef enum {
-    LOGLEVEL_QUIET = 0,
-    LOGLEVEL_ERROR = 1,
-    LOGLEVEL_WARN = 2,
-    LOGLEVEL_DEBUG = 3,
+    LOGLEVEL_NOISE = 0,
+    LOGLEVEL_NONE,
+    LOGLEVEL_ERROR,
+    LOGLEVEL_NOTICE,
+    LOGLEVEL_DEBUG,
 } loglevel_e;
 
 typedef struct config_dbd_t config_dbd_t;
@@ -25,6 +26,7 @@ struct config_t {
     loglevel_e loglevel;
     /** error_log */
     apr_file_t *errorlog_fp;
+    apr_file_t *errorlog_fperr;
     apr_pool_t *errorlog_p;
 
     /** input directory of log files */
@@ -59,6 +61,8 @@ struct config_t {
 
     /** Dry Run */
     int dryrun;
+    /** dump configuration only */
+    int dump;
 
     /* Show the summary */
     int summary;
