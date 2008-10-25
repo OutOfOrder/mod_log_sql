@@ -146,6 +146,7 @@ static void parser_add_func(apr_pool_t *p, const char *const name,
     s = apr_palloc(p, sizeof(parser_func_t));
     s->func = func;
     s->pos = id;
+    s->data = NULL;
     s->linedata = &g_parser_linedata;
     apr_hash_set(g_parser_funcs, lowerstr(p, name), APR_HASH_KEY_STRING, s);
 }
