@@ -2,7 +2,7 @@ dnl Required initializer
 AC_INIT([mod_log_sql],[1.102])
 OOO_CONFIG_NICE(config.nice)
 AC_PREREQ(2.59)
-AC_CONFIG_HEADERS(include/config.h)
+AC_CONFIG_HEADERS(include/autoconfig.h)
 AC_CONFIG_SRCDIR(src/mod_log_sql.c)
 
 OOO_MAINTAIN_MODE

@@ -8,7 +8,7 @@
 
 
 #ifdef HAVE_CONFIG_H
-/* Undefine these to prevent conflicts between Apache ap_config_auto.h and 
+/* Undefine these to prevent conflicts between Apache ap_config_auto.h and
  * my config.h. Only really needed for Apache < 2.0.48, but it can't hurt.
  */
 #undef PACKAGE_BUGREPORT
@@ -17,7 +17,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
-#include "config.h"
+#include "autoconfig.h"
 #endif
 
 #include "mod_log_sql.h"
@@ -66,7 +66,7 @@ static void log_sql_dbd_close(logsql_dbconnection *db)
 /* Routine to escape the 'dangerous' characters that would otherwise
  * corrupt the INSERT string: ', \, and "
  */
-static const char *log_sql_dbd_escape(request_rec *r, const char *from_str, apr_pool_t *p, 
+static const char *log_sql_dbd_escape(request_rec *r, const char *from_str, apr_pool_t *p,
 								logsql_dbconnection *db)
 {
 	// Acquire a DBD connection from mod_dbd
@@ -90,7 +90,7 @@ static logsql_query_ret log_sql_dbd_query(request_rec *r,logsql_dbconnection *db
 	ap_dbd_t *dbd = log_sql_dbd_getconnection(r);
 	if (!dbd) return LOGSQL_QUERY_NOLINK;
 
-	// Run the query 
+	// Run the query
 	ret = apr_dbd_query(dbd->driver, dbd->handle, &affected, query);
 	if (ret == 0) {
 		return LOGSQL_QUERY_SUCCESS;

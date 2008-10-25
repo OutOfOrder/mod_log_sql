@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id:mod_log_sql_mysql.c 180 2008-09-21 15:54:12Z urkle@drip.ws $ */
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
@@ -18,7 +18,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
-#include "config.h"
+#include "autoconfig.h"
 #endif
 
 #include "mod_log_sql.h"

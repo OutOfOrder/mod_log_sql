@@ -16,7 +16,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
-#include "config.h"
+#include "autoconfig.h"
 #endif
 
 #include "mod_log_sql.h"
