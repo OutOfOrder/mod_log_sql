@@ -31,6 +31,99 @@ void line_chomp(char *str)
     }
 }
 
+/*
+ * *** Ripped from HTTPD util.c (why are so many PORTABLE things not in APR UTIL?)
+ */
+static char x2c(const char *what)
+{
+    register char digit;
+
+    digit = ((what[0] >= 'A') ? ((what[0] & 0xdf) - 'A') + 10
+             : (what[0] - '0'));
+    digit *= 16;
+    digit += (what[1] >= 'A' ? ((what[1] & 0xdf) - 'A') + 10
+              : (what[1] - '0'));
+    return (digit);
+}
+
+/*
+ * *** Ripped from HTTPD util.c (why are so many PORTABLE things not in APR UTIL?)
+ *
+ * Unescapes a URL, leaving reserved characters intact.
+ * Returns 0 on success, non-zero on error
+ * Failure is due to
+ *   bad % escape       returns HTTP_BAD_REQUEST
+ *
+ *   decoding %00 or a forbidden character returns HTTP_NOT_FOUND
+ */
+static int unescape_url(char *url, const char *forbid, const char *reserved)
+{
+    register int badesc, badpath;
+    char *x, *y;
+
+    badesc = 0;
+    badpath = 0;
+    /* Initial scan for first '%'. Don't bother writing values before
+     * seeing a '%' */
+    y = strchr(url, '%');
+    if (y == NULL) {
+        return APR_SUCCESS;
+    }
+    for (x = y; *y; ++x, ++y) {
+        if (*y != '%') {
+            *x = *y;
+        }
+        else {
+            if (!apr_isxdigit(*(y + 1)) || !apr_isxdigit(*(y + 2))) {
+                badesc = 1;
+                *x = '%';
+            }
+            else {
+                char decoded;
+                decoded = x2c(y + 1);
+                if ((decoded == '\0')
+                    || (forbid && strchr(forbid, decoded))) {
+                    badpath = 1;
+                    *x = decoded;
+                    y += 2;
+                }
+                else if (reserved && strchr(reserved, decoded)) {
+                    *x++ = *y++;
+                    *x++ = *y++;
+                    *x = *y;
+                }
+                else {
+                    *x = decoded;
+                    y += 2;
+                }
+            }
+        }
+    }
+    *x = '\0';
+    if (badesc) {
+        return APR_EINVAL;
+    }
+    else if (badpath) {
+        return APR_EINVAL;
+    }
+    else {
+        return APR_SUCCESS;
+    }
+}
+
+/*
+ * *** Ripped from HTTPD util.c (why are so many PORTABLE things not in APR UTIL?)
+ */
+int ap_unescape_url(char *url)
+{
+    /* Traditional */
+#ifdef CASE_BLIND_FILESYSTEM
+    return unescape_url(url, "/\\", NULL);
+#else
+    return unescape_url(url, "/", NULL);
+#endif
+}
+
 void logging_init(config_t *cfg)
 {
     apr_status_t rv;
@@ -58,9 +151,6 @@ const char *logging_strerror(apr_status_t rv)
     return apr_strerror(rv, buff, 256);
 }
 
-/**
- * @todo implement logging
- */
 void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
 {
     va_list ap;

@@ -3,10 +3,21 @@
 
 #include "config.h"
 
-typedef apr_status_t (*parser_func_t)(apr_pool_t *p, config_t *cfg,
+typedef apr_status_t (*parser_func_f)(apr_pool_t *p, config_t *cfg,
         config_output_field_t *field, const char *value, const char **ret);
 
-parser_func_t parser_get_func(const char *name);
+struct parser_func_t {
+    parser_func_f func;
+    int pos;
+    void *data;
+    void ***linedata;
+};
+
+#define parser_get_linedata(f) (*f->linedata)[f->pos]
+
+#define parser_set_linedata(f, v) (*f->linedata)[f->pos] = v
+
+parser_func_t *parser_get_func(const char *name);
 
 void parser_init(apr_pool_t *p);
 

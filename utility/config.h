@@ -115,6 +115,8 @@ typedef enum {
 
 typedef struct config_output_field_t config_output_field_t;
 
+typedef struct parser_func_t parser_func_t;
+
 struct config_output_field_t {
     const char *field;
     logsql_field_datatype datatype;
@@ -122,7 +124,7 @@ struct config_output_field_t {
     const char *def;
     const char *source;
     const char *fname;
-    void *func;
+    parser_func_t *func;
     const char **args;
     void *data;
 };

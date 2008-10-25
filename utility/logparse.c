@@ -12,6 +12,7 @@
 #include "database.h"
 
 apr_hash_t *g_parser_funcs;
+void **g_parser_linedata;
 
 static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
         config_output_field_t *field, const char *value, const char **ret)
@@ -19,33 +20,34 @@ static apr_status_t parser_func_regexmatch(apr_pool_t *p, config_t *cfg,
     struct {
         ap_regex_t *rx;
         const char *substr;
-    }*data;
+    }*_data;
     ap_regmatch_t regm[AP_MAX_REG_MATCH];
     // Check if a regular expression configured
     if (!field->args[0])
         return APR_EINVAL;
     if (!field->data) {
         // pre compile the regex
-        data = apr_palloc(cfg->pool, sizeof(ap_regex_t)+sizeof(const char *));
-        data->rx = ap_pregcomp(cfg->pool, field->args[0],
+        _data = apr_palloc(cfg->pool, sizeof(ap_regex_t)+sizeof(const char *));
+        _data->rx = ap_pregcomp(cfg->pool, field->args[0],
         AP_REG_EXTENDED|AP_REG_ICASE);
         if (field->args[1]) {
-            data->substr = field->args[1];
+            _data->substr = field->args[1];
         } else {
-            data->substr = "$1";
+            _data->substr = "$1";
         }
-        if (!data->rx)
+        if (!_data->rx)
             return APR_EINVAL;
-        field->data = data;
+        field->data = _data;
     } else
-        data = field->data;
+        _data = field->data;
 
-    if (!ap_regexec(data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
-        *ret = ap_pregsub(p, data->substr, value, AP_MAX_REG_MATCH, regm);
+    if (!ap_regexec(_data->rx, value, AP_MAX_REG_MATCH, regm, 0)) {
+        *ret = ap_pregsub(p, _data->substr, value, AP_MAX_REG_MATCH, regm);
     } else {
         *ret = field->def;
     }
-    //printf("We matched %s against %s to %s\n",value, field->args[0], *ret);
+    logging_log(cfg, LOGLEVEL_DEBUG, "REGEX: matched %s against %s to %s", value,
+            field->args[0], *ret);
     return APR_SUCCESS;
 }
 
@@ -76,26 +78,87 @@ static apr_status_t parser_func_machineid(apr_pool_t *p, config_t *cfg,
 }
 
 /** @todo Implement Query arg ripping function */
+static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
+        config_output_field_t *field, const char *value, const char **ret)
+{
+    apr_table_t *query = parser_get_linedata(field->func);
 
-parser_func_t parser_get_func(const char *name)
+    if (!field->args[0])
+        return APR_EINVAL;
+
+    if (!query) {
+        char *query_beg;
+
+        query = apr_table_make(p,3);
+
+        query_beg = strchr(value, '?');
+        // if we have a query string, rip it apart
+        if (query_beg) {
+            char *key;
+            char *value;
+            char *query_string;
+            char *strtok_state;
+            char *query_end = strrchr(++query_beg,' ');
+
+            query_string = apr_pstrndup(p, query_beg, query_end-query_beg);
+            logging_log(cfg, LOGLEVEL_DEBUG, "QUERY: Found String %pp, %pp, %s",
+                    query_beg, query_end, query_string);
+
+            key = apr_strtok(query_string, "&", &strtok_state);
+            while (key) {
+                value = strchr(key, '=');
+                if (value) {
+                    *value = '\0';      /* Split the string in two */
+                    value++;            /* Skip past the = */
+                }
+                else {
+                    value = "1";
+                }
+                ap_unescape_url(key);
+                ap_unescape_url(value);
+                apr_table_set(query, key, value);
+
+                logging_log(cfg, LOGLEVEL_DEBUG,
+                    "QUERY: Found arg: %s = %s", key, value);
+
+                key = apr_strtok(NULL, "&", &strtok_state);
+            }
+        }
+        parser_set_linedata(field->func,query);
+    }
+    *ret = apr_table_get(query, field->args[0]);
+    if (*ret == NULL) *ret = field->def;
+    return APR_SUCCESS;
+}
+
+parser_func_t *parser_get_func(const char *name)
 {
     return apr_hash_get(g_parser_funcs, name, APR_HASH_KEY_STRING);
 }
 
 static void parser_add_func(apr_pool_t *p, const char *const name,
-        parser_func_t func)
+        parser_func_f func, int id)
 {
+    parser_func_t *s;
     if (!g_parser_funcs) {
         g_parser_funcs = apr_hash_make(p);
     }
-    apr_hash_set(g_parser_funcs, lowerstr(p, name), APR_HASH_KEY_STRING, func);
+    s = apr_palloc(p, sizeof(parser_func_t));
+    s->func = func;
+    s->pos = id;
+    s->linedata = &g_parser_linedata;
+    apr_hash_set(g_parser_funcs, lowerstr(p, name), APR_HASH_KEY_STRING, s);
 }
 
 void parser_init(apr_pool_t *p)
 {
-    parser_add_func(p, "regexmatch", parser_func_regexmatch);
-    parser_add_func(p, "totimestamp", parser_func_totimestamp);
-    parser_add_func(p, "machineid", parser_func_machineid);
+    int i = 0;
+    parser_add_func(p, "regexmatch", parser_func_regexmatch, ++i);
+    parser_add_func(p, "totimestamp", parser_func_totimestamp, ++i);
+    parser_add_func(p, "machineid", parser_func_machineid, ++i);
+    parser_add_func(p, "queryarg", parser_func_queryarg, ++i);
+    g_parser_linedata = apr_pcalloc(p, sizeof(void *) * (i+1));
+    g_parser_linedata[0] = (void *)i;
 }
 
 void parser_find_logs(config_t *cfg)
@@ -333,8 +396,10 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
     }
     /** @todo Run Pre Filters here */
 
-    // Convert input fields to output fields
     ofields = (config_output_field_t *)cfg->output_fields->elts;
+    // clear out ofield function per-line data
+    memset(&g_parser_linedata[1],0,sizeof(void *)*(int)g_parser_linedata[0]);
+    // Convert input fields to output fields
     for (i=0; i<cfg->output_fields->nelts; i++) {
         const char *val;
         val = apr_table_get(datain, ofields[i].source);
@@ -347,8 +412,8 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
             apr_table_setn(dataout, ofields[i].field, val);
         } else {
             const char *ret= NULL;
-            rv = ((parser_func_t)ofields[i].func)(ptemp, cfg, &ofields[i], val,
-                    &ret);
+            rv = ((parser_func_t *)ofields[i].func)->func(ptemp, cfg,
+                    &ofields[i], val, &ret);
             if (rv)
                 return rv;
             apr_table_setn(dataout, ofields[i].field, ret);

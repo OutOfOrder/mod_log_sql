@@ -320,15 +320,19 @@ apr_status_t config_check(config_t *cfg)
 {
     apr_status_t ret = APR_SUCCESS;
     if (!cfg->dbdriver || !cfg->dbparams) {
-        logging_log(cfg, LOGLEVEL_NOISE, "Database configuration is missing\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: Database configuration is missing");
         ret = APR_EINVAL;
     }
     if (!cfg->table) {
-        logging_log(cfg, LOGLEVEL_NOISE, "No Log Table defined\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: No Log Table defined");
         ret = APR_EINVAL;
     }
     if (apr_is_empty_array(cfg->output_fields)) {
-        logging_log(cfg, LOGLEVEL_NOISE, "No Output Fields Defined\n");
+        logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: No Output Fields Defined");
+        ret = APR_EINVAL;
+    }
+    if (apr_hash_count(cfg->log_formats)==0) {
+        logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: No Input Log Formats Defined");
         ret = APR_EINVAL;
     }
     return ret;
