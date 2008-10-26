@@ -349,12 +349,12 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     apr_pool_create(&tp, cfg->pool);
     apr_pool_create(&targp, tp);
 
-    logging_log(cfg, LOGLEVEL_NOTICE, "Begin Parsing Log File '%s'", filename);
+    logging_log(cfg, LOGLEVEL_NOTICE, "PARSER: Begin Parsing Log File '%s'", filename);
 
     rv = apr_file_open(&file, filename, APR_FOPEN_READ | APR_BUFFERED,
     APR_OS_DEFAULT, tp);
     if (rv != APR_SUCCESS) {
-        logging_log(cfg, LOGLEVEL_NOISE, "Could not open %s", filename);
+        logging_log(cfg, LOGLEVEL_NOISE, "PARSER: Could not open %s", filename);
         return rv;
     }
 
@@ -362,17 +362,38 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     do {
         rv = apr_file_gets(buff, 1024, file);
         if (rv == APR_SUCCESS) {
+            int i,m, cont = 0;
+            config_filter_t *filters;
+
             line++;
             // chomp off newline
             line_chomp(buff);
+            // Run line filters
+            for (i=0, m=cfg->linefilters->nelts,
+                    filters = (config_filter_t *)cfg->linefilters->elts;
+                    i<m; i++) {
+                if (!filters[i].regex || ap_regexec(filters[i].regex, buff, 0, NULL,0)==0) {
+                    if (filters[i].negative) {
+                        logging_log(cfg, LOGLEVEL_DEBUG,
+                                "PARSER: LINEFILTER: Skipping Line %d due to Filter (%d)%s",
+                                line, i, filters[i].filter);
+                        cont = 1;
+                    } else {
+                        logging_log(cfg, LOGLEVEL_DEBUG,
+                                "PARSER: LINEFILTER: Force Parsing Line %d due to Filter (%d)%s",
+                                line, i, filters[i].filter);
+                    }
+                    break;
+                }
+            }
+            if (cont) continue;
 
             apr_pool_clear(targp);
             tokenize_logline(buff, &targv, targp, 0);
             targc = 0;
             while (targv[targc])
                 targc++;
-            /** @todo Run Line Filters here */
-            rv = parse_processline(targp, cfg, targv, targc);
+            rv = parse_processline(targp, cfg, line, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
                 logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", line,
@@ -387,21 +408,22 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     apr_file_close(file);
     apr_pool_destroy(tp);
     logging_log(cfg, LOGLEVEL_NOTICE,
-            "Finish Parsing Log File '%s'. Lines: %d", filename, line);
+            "PARSER: Finish Parsing Log File '%s'. Lines: %d", filename, line);
 
     return APR_SUCCESS;
 }
 
-apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
-        int argc)
+apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
+        char **argv, int argc)
 {
     config_logformat_t *fmt;
     config_logformat_field_t *ifields;
     config_output_field_t *ofields;
+    config_filter_t *filters;
     apr_table_t *datain;
     apr_table_t *dataout;
     apr_status_t rv= APR_SUCCESS;
-    int i;
+    int i,m;
 
     fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
     if (!fmt)
@@ -416,13 +438,31 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
     for (i=0; i<fmt->fields->nelts; i++) {
         apr_table_setn(datain, ifields[i].name, argv[i]);
     }
-    /** @todo Run Pre Filters here */
+    // Run Pre Filters
+    for (i=0, m=cfg->prefilters->nelts,
+            filters = (config_filter_t *)cfg->prefilters->elts;
+            i<m; i++) {
+        const char *temp = apr_table_get(datain, filters[i].field);
+        if (temp && (!filters[i].regex || ap_regexec(filters[i].regex, temp, 0, NULL,0)==0)) {
+            if (filters[i].negative) {
+                logging_log(cfg, LOGLEVEL_DEBUG,
+                        "PARSER: PREFILTER: Skipping Line %d due to Filter (%d)%s",
+                        line, i, filters[i].filter);
+                return APR_SUCCESS;
+            } else {
+                logging_log(cfg, LOGLEVEL_DEBUG,
+                        "PARSER: PREFILTER: Force Parsing Line %d due to Filter (%d)%s",
+                        line, i, filters[i].filter);
+            }
+            break;
+        }
+    }
 
     ofields = (config_output_field_t *)cfg->output_fields->elts;
     // clear out ofield function per-line data
     memset(&g_parser_linedata[1],0,sizeof(void *)*(int)g_parser_linedata[0]);
     // Convert input fields to output fields
-    for (i=0; i<cfg->output_fields->nelts; i++) {
+    for (i=0,m=cfg->output_fields->nelts; i<m; i++) {
         const char *val;
         val = apr_table_get(datain, ofields[i].source);
         // If we can't find the source field just continue
@@ -442,7 +482,25 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, char **argv,
         }
     }
 
-    /** @todo Run Post Filters here */
+    // Run Post filters
+    for (i=0, m=cfg->postfilters->nelts,
+            filters = (config_filter_t *)cfg->postfilters->elts;
+            i<m; i++) {
+        const char *temp = apr_table_get(dataout, filters[i].field);
+        if (temp && (!filters[i].regex || ap_regexec(filters[i].regex, temp, 0, NULL,0)==0)) {
+            if (filters[i].negative) {
+                logging_log(cfg, LOGLEVEL_DEBUG,
+                        "PARSER: POSTFILTER: Skipping Line %d due to Filter (%d)%s",
+                        line, i, filters[i].filter);
+                return APR_SUCCESS;
+            } else {
+                logging_log(cfg, LOGLEVEL_DEBUG,
+                        "PARSER: POSTFILTER: Force Parsing Line %d due to Filter (%d)%s",
+                        line, i, filters[i].filter);
+            }
+            break;
+        }
+    }
 
     // Process DB Query
     if (!cfg->dryrun) {

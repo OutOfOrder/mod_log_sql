@@ -6,7 +6,8 @@ builddir = @abs_builddir@
 
 #@APR_CFLAGS@
 CFLAGS = -g3 -Wall -fno-strict-aliasing \
-	 @APR_INCLUDES@ @APU_INCLUDES@ @PCRE_CFLAGS@
+	 @APR_INCLUDES@ @APU_INCLUDES@ @PCRE_CFLAGS@ \
+	 -I$(top_srcdir)/include
 CPPFLAGS = @APR_CPPFLAGS@
 LDFLAGS = @APR_LDFLAGS@ @APU_LDFLAGS@ @PCRE_LIBS@
 

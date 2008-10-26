@@ -124,11 +124,15 @@ int ap_unescape_url(char *url)
 #endif
 }
 
+void logging_preinit(config_t *cfg)
+{
+    apr_pool_create(&cfg->errorlog_p, cfg->pool);
+    apr_file_open_stderr(&cfg->errorlog_fperr, cfg->pool);
+}
+
 void logging_init(config_t *cfg)
 {
     apr_status_t rv;
-    apr_pool_create(&cfg->errorlog_p, cfg->pool);
-    apr_file_open_stderr(&cfg->errorlog_fperr, cfg->pool);
     if (cfg->errorlog) {
         rv = apr_file_open(&cfg->errorlog_fp, cfg->errorlog,
                 APR_FOPEN_CREATE | APR_FOPEN_WRITE | APR_FOPEN_APPEND,
@@ -170,7 +174,7 @@ void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
     if (level == LOGLEVEL_NOISE) {
         apr_file_writev(cfg->errorlog_fperr,vec,2,&blen);
     }
-    if (cfg->loglevel > LOGLEVEL_NONE) {
+    if (cfg->loglevel > LOGLEVEL_NONE && cfg->errorlog_fp) {
         apr_file_writev(cfg->errorlog_fp,vec,2,&blen);
     }
 

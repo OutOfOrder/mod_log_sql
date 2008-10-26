@@ -9,6 +9,7 @@
 #include "config.h"
 #include "util.h"
 #include "logparse.h"
+#include "autoconfig.h"
 
 apr_hash_t *g_config_opts;
 
@@ -148,9 +149,19 @@ static apr_status_t config_set_filter(config_t *cfg, config_opt_t *opt,
 {
     int argn = 1;
     config_filter_t *filter;
-    filter = apr_pcalloc(cfg->pool, sizeof(config_filter_t));
+    switch (opt->name[1]) {
+    case 'i': //line
+        filter = apr_array_push(cfg->linefilters);
+        break;
+    case 'r': //pre
+        filter = apr_array_push(cfg->prefilters);
+        break;
+    case 'o': //post
+        filter = apr_array_push(cfg->postfilters);
+        break;
+    }
 
-    if (opt->name[0]!='L') { // Pre or post 2-3 args
+    if (opt->name[0]=='P') { // Pre or post 2-3 args
         if (argc == 1)
             return APR_EINVAL;
         filter->field = apr_pstrdup(cfg->pool, argv[1]);
@@ -158,16 +169,20 @@ static apr_status_t config_set_filter(config_t *cfg, config_opt_t *opt,
     } // Otherwise Line based only 1-2 args (no field)
     if (argc <= argn)
         return APR_EINVAL;
-    if (argv[argn][0] == '+')
+    if (*argv[argn] == '+')
         argn++;
-    if (argv[argn][0] == '-') {
+    if (*argv[argn] == '-') {
         filter->negative = 1;
         argn++;
+    }
+    if (filter->negative && argc == argn) {
+        // if no filter for negative.. that's ok.. Assume ALL
+        return APR_SUCCESS;
     }
     if (argc <= argn)
         return APR_EINVAL;
     filter->filter = apr_pstrdup(cfg->pool, argv[argn]);
-    filter->regex = ap_pregcomp(cfg->pool, filter->filter, AP_REG_ICASE);
+    filter->regex = ap_pregcomp(cfg->pool, filter->filter, AP_REG_EXTENDED|AP_REG_ICASE);
     return APR_SUCCESS;
 }
 
@@ -176,6 +191,7 @@ void config_dump(config_t *cfg)
     apr_hash_index_t *hi;
     int i;
     config_output_field_t *fields;
+    config_filter_t *filters;
 
     printf("ErrorLog: %s\n", cfg->errorlog);
     printf("LogLevel: %d\n", cfg->loglevel);
@@ -223,6 +239,26 @@ void config_dump(config_t *cfg)
             printf(")");
         }
         printf("\n");
+    }
+    printf("Filters:\n>> Line:\n");
+    filters = cfg->linefilters->elts;
+    for (i=0; i<cfg->linefilters->nelts; i++) {
+        printf(">>>> %c \"%s\" (%pp)\n",filters[i].negative ? '-':'+',
+                filters[i].filter,  filters[i].regex);
+    }
+    printf(">> Pre:\n");
+    filters = cfg->prefilters->elts;
+    for (i=0; i<cfg->prefilters->nelts; i++) {
+        printf(">>>> %s %c \"%s\" (%pp)\n",
+                filters[i].field, filters[i].negative ? '-':'+',
+                filters[i].filter,  filters[i].regex);
+    }
+    printf(">> Post:\n");
+    filters = cfg->postfilters->elts;
+    for (i=0; i<cfg->postfilters->nelts; i++) {
+        printf(">>>> %s %c \"%s\" (%pp)\n",
+                filters[i].field, filters[i].negative ? '-':'+',
+                filters[i].filter,  filters[i].regex);
     }
 
     printf("DryRun: %d\n", cfg->dryrun);
@@ -309,10 +345,13 @@ config_t *config_create(apr_pool_t *p)
     cfg->loglevel = LOGLEVEL_ERROR;
     cfg->summary = 1;
     cfg->transactions = 1;
-    cfg->input_files = apr_array_make(cfg->pool, 10, sizeof(char *));
+    cfg->input_files = apr_array_make(cfg->pool, 2, sizeof(char *));
     cfg->log_formats = apr_hash_make(cfg->pool);
     cfg->output_fields = apr_array_make(cfg->pool, 10,
             sizeof(config_output_field_t));
+    cfg->linefilters = apr_array_make(cfg->pool, 2, sizeof(config_filter_t));
+    cfg->prefilters = apr_array_make(cfg->pool, 2, sizeof(config_filter_t));
+    cfg->postfilters = apr_array_make(cfg->pool, 2, sizeof(config_filter_t));
     return cfg;
 }
 
@@ -335,6 +374,12 @@ apr_status_t config_check(config_t *cfg)
         logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: No Input Log Formats Defined");
         ret = APR_EINVAL;
     }
+#if !defined(HAVE_APR_DBD_TRANSACTION_MODE_GET)
+    if (cfg->transactions) {
+        logging_log(cfg, LOGLEVEL_NOISE, "CONFIG: Disabling Transaction Support.  Requires apr-util 1.3.0 or higher");
+        cfg->transactions = 0;
+    }
+#endif
     return ret;
 }
 

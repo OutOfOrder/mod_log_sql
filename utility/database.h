@@ -13,4 +13,10 @@ apr_status_t database_disconnect(config_t *cfg);
 
 apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data);
 
+apr_status_t database_trans_start(config_t *cfg, apr_pool_t *p);
+
+apr_status_t database_trans_stop(config_t *cfg, apr_pool_t *p);
+
+apr_status_t database_trans_abort(config_t *cfg);
+
 #endif /*DATABASE_H_*/

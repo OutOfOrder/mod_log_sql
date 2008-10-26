@@ -14,6 +14,8 @@ void line_chomp(char *str);
 
 int ap_unescape_url(char *url);
 
+void logging_preinit(config_t *cfg);
+
 void logging_init(config_t *cfg);
 
 void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)

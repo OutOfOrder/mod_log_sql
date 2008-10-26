@@ -134,6 +134,8 @@ int main(int argc, const char *const argv[])
     database_init(pool);
     // Process configuration file
     cfg = config_create(pool);
+    // initialize STD out error log
+    logging_preinit(cfg);
     rv = config_read(cfg, apr_table_get(args,"Config"), args);
     apr_pool_destroy(ptemp);
 

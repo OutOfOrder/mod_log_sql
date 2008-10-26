@@ -4,7 +4,7 @@
 #include "apr_strings.h"
 
 #include "util.h"
-#include "mysql/mysql.h"
+#include "autoconfig.h"
 
 struct config_dbd_t {
     const apr_dbd_driver_t *driver;
@@ -30,7 +30,7 @@ apr_status_t database_connect(config_t *cfg)
     if (rv) {
 
         logging_log(cfg, LOGLEVEL_ERROR,
-                "Could not load database driver %s. Error %s", cfg->dbdriver,
+                "DB: Could not load database driver %s. Error %s", cfg->dbdriver,
                 logging_strerror(rv));
         return rv;
     }
@@ -39,7 +39,7 @@ apr_status_t database_connect(config_t *cfg)
             &(cfg->dbconn->dbd));
     if (rv) {
         logging_log(cfg, LOGLEVEL_ERROR,
-                "Could not connect to database. Error %s", logging_strerror(rv));
+                "DB: Could not connect to database. Error %s", logging_strerror(rv));
         return rv;
     }
 
@@ -89,13 +89,13 @@ static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
 
     sql = apr_pstrcatv(p, vec, i+2, NULL);
 
-    logging_log(cfg, LOGLEVEL_DEBUG, "Generated SQL: %s", sql);
+    logging_log(cfg, LOGLEVEL_DEBUG, "DB: Generated SQL: %s", sql);
 
     rv = apr_dbd_prepare(cfg->dbconn->driver, cfg->pool, cfg->dbconn->dbd, sql,
             "INSERT", &stmt);
 
     if (rv) {
-        logging_log(cfg, LOGLEVEL_ERROR, "Unable to Prepare SQL insert: %s",
+        logging_log(cfg, LOGLEVEL_NOISE, "DB: Unable to Prepare SQL insert: %s",
                 apr_dbd_error(cfg->dbconn->driver, cfg->dbconn->dbd, rv));
         return NULL;
     }
@@ -112,7 +112,6 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     if (!cfg->dbconn->stmt) {
         cfg->dbconn->stmt = database_prepare_insert(cfg, p);
         if (!cfg->dbconn->stmt) {
-            logging_log(cfg, LOGLEVEL_NOISE, "Unable to prepare SQL statement");
             return APR_EINVAL;
         }
         cfg->dbconn->args = apr_palloc(cfg->pool, nfs * sizeof(char *));
@@ -123,7 +122,7 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     rv = apr_dbd_pquery(cfg->dbconn->driver, p, cfg->dbconn->dbd, &f,
             cfg->dbconn->stmt, nfs, cfg->dbconn->args);
     if (rv) {
-        logging_log(cfg, LOGLEVEL_ERROR, "Unable to Insert SQL: %s",
+        logging_log(cfg, LOGLEVEL_ERROR, "DB: Unable to Insert SQL: %s",
                 apr_dbd_error(cfg->dbconn->driver, cfg->dbconn->dbd, rv));
         return rv;
     }
@@ -131,3 +130,26 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
 }
 
 /** @todo implement transactions */
+apr_status_t database_trans_start(config_t *cfg, apr_pool_t *p)
+{
+#if HAVE_APR_DBD_TRANSACTION_MODE_GET
+#else
+    return APR_SUCCESS;
+#endif
+}
+
+apr_status_t database_trans_stop(config_t *cfg, apr_pool_t *p)
+{
+#if HAVE_APR_DBD_TRANSACTION_MODE_GET
+#else
+    return APR_SUCCESS;
+#endif
+}
+
+apr_status_t database_trans_abort(config_t *cfg)
+{
+#if HAVE_APR_DBD_TRANSACTION_MODE_GET
+#else
+    return APR_SUCCESS;
+#endif
+}
