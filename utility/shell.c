@@ -21,7 +21,7 @@ const apr_getopt_option_t _opt_config[]   = {
     {"config",      'c',    1,  "Configuration file to use (default mod_log_sql.conf)"},
     {"dryrun",      'n',    0,  "Perform a dry run (do not actually alter the databse)"},
     {"dump",        'd',    0,  "Dump the configuration after parsing and quit"},
-    {"loglevel",    'l',    1,  "Log Level (deubg, warn, error)"},
+    {"loglevel",    'l',    1,  "Log Level (deubg, notice, error)"},
     {"summary",     's',    1,  "Summary (yes,no)"},
     {"help",        'h',    0,  "Show Help"},
     {NULL}
@@ -170,7 +170,12 @@ int main(int argc, const char *const argv[])
         int f, l;
         filelist = (char **)cfg->input_files->elts;
         for (f=0, l=cfg->input_files->nelts; f < l; f++) {
-            parse_logfile(cfg, filelist[f]);
+            rv = parse_logfile(cfg, filelist[f]);
+            if (rv) {
+                logging_log(cfg, LOGLEVEL_NOISE,
+                        "Error occured parsing log files. Aborting");
+                break;
+            }
         }
     } else {
         logging_log(cfg,LOGLEVEL_NOISE,"No log files found to parse");

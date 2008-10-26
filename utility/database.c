@@ -10,6 +10,7 @@ struct config_dbd_t {
     const apr_dbd_driver_t *driver;
     apr_dbd_t *dbd;
     apr_dbd_prepared_t *stmt;
+    apr_dbd_transaction_t *txn;
     const char **args;
 };
 
@@ -30,8 +31,8 @@ apr_status_t database_connect(config_t *cfg)
     if (rv) {
 
         logging_log(cfg, LOGLEVEL_ERROR,
-                "DB: Could not load database driver %s. Error %s", cfg->dbdriver,
-                logging_strerror(rv));
+                "DB: Could not load database driver %s. Error %s",
+                cfg->dbdriver, logging_strerror(rv));
         return rv;
     }
 
@@ -39,7 +40,8 @@ apr_status_t database_connect(config_t *cfg)
             &(cfg->dbconn->dbd));
     if (rv) {
         logging_log(cfg, LOGLEVEL_ERROR,
-                "DB: Could not connect to database. Error (%d)%s", rv, logging_strerror(rv));
+                "DB: Could not connect to database. Error (%d)%s", rv,
+                logging_strerror(rv));
         return rv;
     }
 
@@ -57,7 +59,7 @@ static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
     char *sql;
     int i, f;
     struct iovec *vec;
-    apr_dbd_prepared_t *stmt = NULL;
+    apr_dbd_prepared_t *stmt= NULL;
     int nfs = cfg->output_fields->nelts;
     config_output_field_t *ofields;
 
@@ -95,12 +97,14 @@ static apr_dbd_prepared_t *database_prepare_insert(config_t *cfg, apr_pool_t *p)
             "INSERT", &stmt);
 
     if (rv) {
-        logging_log(cfg, LOGLEVEL_NOISE, "DB: Unable to Prepare SQL insert: %s",
-                apr_dbd_error(cfg->dbconn->driver, cfg->dbconn->dbd, rv));
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "DB: Unable to Prepare SQL insert: %s", apr_dbd_error(
+                        cfg->dbconn->driver, cfg->dbconn->dbd, rv));
         return NULL;
     }
     return stmt;
 }
+
 apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
 {
     apr_status_t rv;
@@ -129,10 +133,25 @@ apr_status_t database_insert(config_t *cfg, apr_pool_t *p, apr_table_t *data)
     return APR_SUCCESS;
 }
 
-/** @todo implement transactions */
 apr_status_t database_trans_start(config_t *cfg, apr_pool_t *p)
 {
 #if HAVE_APR_DBD_TRANSACTION_MODE_GET
+    apr_status_t rv;
+    if (!cfg->transactions)
+        return APR_SUCCESS;
+    if (cfg->dbconn->txn) {
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "Transaction Already Started. Something is BROKE");
+        return APR_EINVAL;
+    }
+    logging_log(cfg, LOGLEVEL_DEBUG, "DB: Starting Transaction");
+    rv = apr_dbd_transaction_start(cfg->dbconn->driver, p, cfg->dbconn->dbd,
+            &cfg->dbconn->txn);
+    if (rv)
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "DB: Error Starting Transaction: (%d)%s", rv, apr_dbd_error(
+                        cfg->dbconn->driver, cfg->dbconn->dbd, rv));
+    return rv;
 #else
     return APR_SUCCESS;
 #endif
@@ -141,6 +160,23 @@ apr_status_t database_trans_start(config_t *cfg, apr_pool_t *p)
 apr_status_t database_trans_stop(config_t *cfg, apr_pool_t *p)
 {
 #if HAVE_APR_DBD_TRANSACTION_MODE_GET
+    apr_status_t rv;
+    if (!cfg->transactions)
+        return APR_SUCCESS;
+    if (!cfg->dbconn->txn) {
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "No Transaction Started. Something is BROKE");
+        return APR_EINVAL;
+    }
+    logging_log(cfg, LOGLEVEL_DEBUG, "DB: Stopping Transaction");
+    rv = apr_dbd_transaction_end(cfg->dbconn->driver, p, cfg->dbconn->txn);
+    if (rv)
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "DB: Error Stopping Transaction: (%d)%s", rv, apr_dbd_error(
+                        cfg->dbconn->driver, cfg->dbconn->dbd, rv));
+
+    cfg->dbconn->txn = NULL;
+    return rv;
 #else
     return APR_SUCCESS;
 #endif
@@ -149,6 +185,22 @@ apr_status_t database_trans_stop(config_t *cfg, apr_pool_t *p)
 apr_status_t database_trans_abort(config_t *cfg)
 {
 #if HAVE_APR_DBD_TRANSACTION_MODE_GET
+    apr_status_t rv;
+    if (!cfg->transactions)
+        return APR_SUCCESS;
+    if (!cfg->dbconn->txn) {
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "No Transaction Started. Something is BROKE");
+        return APR_EINVAL;
+    }
+    logging_log(cfg, LOGLEVEL_NOTICE, "DB: Aborting Transaction");
+    rv = apr_dbd_transaction_mode_set(cfg->dbconn->driver, cfg->dbconn->txn,
+            APR_DBD_TRANSACTION_ROLLBACK);
+    if (rv)
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "DB: Error Aborting Transaction: (%d)%s", rv, apr_dbd_error(
+                        cfg->dbconn->driver, cfg->dbconn->dbd, rv));
+    return rv;
 #else
     return APR_SUCCESS;
 #endif

@@ -359,6 +359,9 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     }
 
     line = 0;
+    // Start Transaction
+    database_trans_start(cfg,tp);
+
     do {
         rv = apr_file_gets(buff, 1024, file);
         if (rv == APR_SUCCESS) {
@@ -396,6 +399,7 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
             rv = parse_processline(targp, cfg, line, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
+                database_trans_abort(cfg);
                 logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", line,
                         targc, buff);
                 for (i = 0; targv[i]; i++) {
@@ -403,14 +407,20 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
                             targv[i]);
                 }
             }
+        } else {
+            rv = APR_SUCCESS;
+            break;
         }
     } while (rv == APR_SUCCESS);
     apr_file_close(file);
+    // Finish Transaction
+    database_trans_stop(cfg,tp);
+
     apr_pool_destroy(tp);
     logging_log(cfg, LOGLEVEL_NOTICE,
             "PARSER: Finish Parsing Log File '%s'. Lines: %d", filename, line);
 
-    return APR_SUCCESS;
+    return rv;
 }
 
 apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,

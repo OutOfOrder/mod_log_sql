@@ -2,14 +2,15 @@
 
 top_srcdir = @top_srcdir@
 srcdir = @abs_srcdir@
+top_builddir = @top_builddir@
 builddir = @abs_builddir@
 
-#@APR_CFLAGS@
+LIBTOOL=@LIBTOOL@
 CFLAGS = -g3 -Wall -fno-strict-aliasing \
 	 @APR_INCLUDES@ @APU_INCLUDES@ @PCRE_CFLAGS@ \
 	 -I$(top_srcdir)/include
 CPPFLAGS = @APR_CPPFLAGS@
-LDFLAGS = @APR_LDFLAGS@ @APU_LDFLAGS@ @PCRE_LIBS@
+LDFLAGS = @APR_LIBTOOL@ @APU_LIBTOOL@ @PCRE_LIBS@
 
 ifeq (@OOO_MAINTAIN@,1)
 CFLAGS += -Werror
@@ -28,7 +29,7 @@ TARGETS = mod_log_sql
 all: $(TARGETS)
 
 mod_log_sql: $(OBJECTS) $(HEADERS)
-	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
 %.o: %.c %.d
 	gcc -c $(CFLAGS) $(CPPFLAGS) $< -o $@
