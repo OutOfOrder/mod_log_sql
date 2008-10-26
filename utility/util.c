@@ -179,7 +179,7 @@ void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
     vec[3].iov_len = 1;
 
     if (level == LOGLEVEL_NOISE) {
-        apr_file_writev(cfg->errorlog_fperr,vec,4,&blen);
+        apr_file_writev(cfg->errorlog_fperr,&vec[2],2,&blen);
     }
     if (cfg->loglevel > LOGLEVEL_NONE && cfg->errorlog_fp) {
         apr_file_writev(cfg->errorlog_fp,vec,4,&blen);

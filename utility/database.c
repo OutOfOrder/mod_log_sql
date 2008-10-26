@@ -39,7 +39,7 @@ apr_status_t database_connect(config_t *cfg)
             &(cfg->dbconn->dbd));
     if (rv) {
         logging_log(cfg, LOGLEVEL_ERROR,
-                "DB: Could not connect to database. Error %s", logging_strerror(rv));
+                "DB: Could not connect to database. Error (%d)%s", rv, logging_strerror(rv));
         return rv;
     }
 
