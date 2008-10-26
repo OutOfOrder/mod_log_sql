@@ -36,6 +36,7 @@ CHECK_APU_HEADERS([apr_dbd.h],
 	WANT_DBD_MOD=0)
 
 AC_SUBST(WANT_DBD_MOD)
+CHECK_APU_FUNCS(apr_dbd_transaction_mode_get)
 
 CHECK_MYSQL(
         WANT_MYSQL_MOD=1,
