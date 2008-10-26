@@ -2,6 +2,7 @@
 #include "apr_strings.h"
 #include "apr_lib.h"
 #include "apr_file_io.h"
+#include "apr_time.h"
 
 #include "config.h"
 
@@ -158,7 +159,8 @@ const char *logging_strerror(apr_status_t rv)
 void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
 {
     va_list ap;
-    struct iovec vec[2];
+    char date[APR_RFC822_DATE_LEN];
+    struct iovec vec[4];
     apr_size_t blen;
 
     if (cfg->loglevel < level) return;
@@ -166,16 +168,21 @@ void logging_log(config_t *cfg, loglevel_e level, const char *fmt, ...)
     va_start(ap, fmt);
     apr_pool_clear(cfg->errorlog_p);
 
-    vec[0].iov_base = apr_pvsprintf(cfg->errorlog_p, fmt, ap);
-    vec[0].iov_len = strlen(vec[0].iov_base);
-    vec[1].iov_base = "\n";
-    vec[1].iov_len = 1;
+    apr_rfc822_date(date, apr_time_now());
+    vec[0].iov_base = date;
+    vec[0].iov_len = APR_RFC822_DATE_LEN-1;
+    vec[1].iov_base = "  ";
+    vec[1].iov_len = 2;
+    vec[2].iov_base = apr_pvsprintf(cfg->errorlog_p, fmt, ap);
+    vec[2].iov_len = strlen(vec[2].iov_base);
+    vec[3].iov_base = "\n";
+    vec[3].iov_len = 1;
 
     if (level == LOGLEVEL_NOISE) {
-        apr_file_writev(cfg->errorlog_fperr,vec,2,&blen);
+        apr_file_writev(cfg->errorlog_fperr,vec,4,&blen);
     }
     if (cfg->loglevel > LOGLEVEL_NONE && cfg->errorlog_fp) {
-        apr_file_writev(cfg->errorlog_fp,vec,2,&blen);
+        apr_file_writev(cfg->errorlog_fp,vec,4,&blen);
     }
 
     va_end(ap);
