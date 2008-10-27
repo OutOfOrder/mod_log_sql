@@ -181,8 +181,10 @@ int main(int argc, const char *const argv[])
         exit(1);
     }
 
-    // Find files and parse
-    parser_find_logs(cfg);
+    // Only Find files IF no filename was passed via the command line
+    if (apr_is_empty_array(cfg->input_files)) {
+        parser_find_logs(cfg);
+    }
     if (!cfg->dryrun) {
         if ((rv = database_connect(cfg))) {
             logging_log(cfg,LOGLEVEL_NOISE, "Error Connecting to Database");
