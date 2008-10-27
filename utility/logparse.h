@@ -23,9 +23,9 @@ void parser_init(apr_pool_t *p);
 
 void parser_find_logs(config_t *cfg);
 
-apr_status_t parse_logfile(config_t *cfg, const char *filename);
+apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat);
 
-apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
-        char **argv, int argc);
+apr_status_t parser_processline(apr_pool_t *ptemp, config_t *cfg,
+        config_filestat_t *line, char **argv, int argc);
 
 #endif /*LOGPARSE_H_*/

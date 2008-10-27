@@ -68,6 +68,15 @@ struct config_t {
     int summary;
 };
 
+typedef struct config_filestat_t config_filestat_t;
+struct config_filestat_t {
+    char *fname;
+    apr_size_t linesparsed;
+    apr_size_t lineskipped;
+    const char *result;
+    apr_time_t start;
+    apr_time_t stop;
+};
 
 typedef struct config_logformat_t config_logformat_t;
 struct config_logformat_t {

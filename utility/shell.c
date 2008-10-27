@@ -55,6 +55,30 @@ void show_help(const char *prog, const apr_getopt_option_t *opts, FILE *output)
     }
 }
 
+void print_summary(config_t *cfg) {
+    config_filestat_t *fstat;
+    int i,m;
+
+    fstat = (config_filestat_t *)cfg->input_files->elts;
+
+    printf("Execution Summary\n");
+    for (i=0, m=cfg->input_files->nelts; i<m; i++) {
+        printf(" File: %s\n"
+                "  Lines Parsed %d out of %d (Skipped %d)\n"
+                "  Status: %s\n"
+                "  Duration: %02"APR_TIME_T_FMT":%02"APR_TIME_T_FMT".%"APR_TIME_T_FMT" (minutes, seconds, and miliseconds)\n"
+                "\n",
+               fstat[i].fname,
+               fstat[i].linesparsed - fstat[i].lineskipped,
+               fstat[i].linesparsed, fstat[i].lineskipped,
+               fstat[i].result,
+               apr_time_sec(fstat[i].stop - fstat[i].start)/60,
+               apr_time_sec(fstat[i].stop - fstat[i].start),
+               apr_time_msec(fstat[i].stop - fstat[i].start)
+               );
+    }
+}
+
 int main(int argc, const char *const argv[])
 {
     apr_pool_t *pool, *ptemp;
@@ -166,11 +190,11 @@ int main(int argc, const char *const argv[])
         }
     }
     if (!apr_is_empty_array(cfg->input_files)) {
-        char **filelist;
+        config_filestat_t *filelist;
         int f, l;
-        filelist = (char **)cfg->input_files->elts;
+        filelist = (config_filestat_t *)cfg->input_files->elts;
         for (f=0, l=cfg->input_files->nelts; f < l; f++) {
-            rv = parse_logfile(cfg, filelist[f]);
+            rv = parser_parsefile(cfg, &filelist[f]);
             if (rv) {
                 logging_log(cfg, LOGLEVEL_NOISE,
                         "Error occured parsing log files. Aborting");
@@ -183,6 +207,9 @@ int main(int argc, const char *const argv[])
     if (!cfg->dryrun) {
         database_disconnect(cfg);
     }
-    /** @todo summary goes here */
+
+    if (cfg->summary) {
+        print_summary(cfg);
+    }
     return 0;
 }

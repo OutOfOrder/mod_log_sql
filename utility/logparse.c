@@ -188,7 +188,7 @@ void parser_find_logs(config_t *cfg)
     apr_pool_t *tp;
     apr_dir_t *dir;
     apr_finfo_t finfo;
-    char **newp;
+    config_filestat_t *newp;
 
     logging_log(cfg, LOGLEVEL_NOTICE, "Find Log files");
     if (!cfg->input_dir)
@@ -199,9 +199,10 @@ void parser_find_logs(config_t *cfg)
                 == APR_SUCCESS) {
             if (finfo.filetype == APR_DIR)
                 continue;
-            newp = (char **)apr_array_push(cfg->input_files);
-            apr_filepath_merge(newp, cfg->input_dir, finfo.name,
-            APR_FILEPATH_TRUENAME, cfg->pool);
+            newp = (config_filestat_t *)apr_array_push(cfg->input_files);
+            newp->result = "Not Parsed";
+            apr_filepath_merge(&(newp->fname), cfg->input_dir, finfo.name,
+                        APR_FILEPATH_TRUENAME, cfg->pool);
         }
         apr_dir_close(dir);
     }
@@ -336,7 +337,7 @@ static apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
     return APR_SUCCESS;
 }
 
-apr_status_t parse_logfile(config_t *cfg, const char *filename)
+apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
 {
     apr_pool_t *tp, *targp;
     apr_file_t *file;
@@ -344,23 +345,27 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     char buff[2048];
     char **targv;
     int targc;
-    int line;
 
     apr_pool_create(&tp, cfg->pool);
     apr_pool_create(&targp, tp);
 
-    logging_log(cfg, LOGLEVEL_NOTICE, "PARSER: Begin Parsing Log File '%s'", filename);
+    logging_log(cfg, LOGLEVEL_NOTICE, "PARSER: Begin Parsing Log File '%s'", fstat->fname);
 
-    rv = apr_file_open(&file, filename, APR_FOPEN_READ | APR_BUFFERED,
+    rv = apr_file_open(&file, fstat->fname, APR_FOPEN_READ | APR_BUFFERED,
     APR_OS_DEFAULT, tp);
     if (rv != APR_SUCCESS) {
-        logging_log(cfg, LOGLEVEL_NOISE, "PARSER: Could not open %s", filename);
+        logging_log(cfg, LOGLEVEL_NOISE, "PARSER: Could not open %s", fstat->fname);
         return rv;
     }
 
-    line = 0;
+    fstat->linesparsed = 0;
     // Start Transaction
-    database_trans_start(cfg,tp);
+    fstat->start = apr_time_now();
+    if (database_trans_start(cfg,tp)) {
+        fstat->result = "Database Transaction Error";
+        fstat->stop = apr_time_now();
+        return rv;
+    }
 
     do {
         rv = apr_file_gets(buff, 1024, file);
@@ -368,7 +373,7 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
             int i,m, cont = 0;
             config_filter_t *filters;
 
-            line++;
+            fstat->linesparsed++;
             // chomp off newline
             line_chomp(buff);
             // Run line filters
@@ -379,12 +384,13 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
                     if (filters[i].negative) {
                         logging_log(cfg, LOGLEVEL_DEBUG,
                                 "PARSER: LINEFILTER: Skipping Line %d due to Filter (%d)%s",
-                                line, i, filters[i].filter);
+                                fstat->linesparsed, i, filters[i].filter);
+                        fstat->lineskipped++;
                         cont = 1;
                     } else {
                         logging_log(cfg, LOGLEVEL_DEBUG,
                                 "PARSER: LINEFILTER: Force Parsing Line %d due to Filter (%d)%s",
-                                line, i, filters[i].filter);
+                                fstat->linesparsed, i, filters[i].filter);
                     }
                     break;
                 }
@@ -396,11 +402,11 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
             targc = 0;
             while (targv[targc])
                 targc++;
-            rv = parse_processline(targp, cfg, line, targv, targc);
+            rv = parser_processline(targp, cfg, fstat, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
                 database_trans_abort(cfg);
-                logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", line,
+                logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", fstat->linesparsed,
                         targc, buff);
                 for (i = 0; targv[i]; i++) {
                     logging_log(cfg, LOGLEVEL_ERROR, "Arg (%d): '%s'", i,
@@ -414,17 +420,25 @@ apr_status_t parse_logfile(config_t *cfg, const char *filename)
     } while (rv == APR_SUCCESS);
     apr_file_close(file);
     // Finish Transaction
-    database_trans_stop(cfg,tp);
+    if (database_trans_stop(cfg,tp)) {
+        fstat->result = apr_psprintf(cfg->pool,
+                "Input line %d, Database Transaction Error",
+                fstat->linesparsed);
+    }
 
     apr_pool_destroy(tp);
     logging_log(cfg, LOGLEVEL_NOTICE,
-            "PARSER: Finish Parsing Log File '%s'. Lines: %d", filename, line);
-
+            "PARSER: Finish Parsing Log File '%s'. Lines: (%d/%d)",
+            fstat->fname, fstat->linesparsed - fstat->lineskipped, fstat->linesparsed);
+    if (!rv) {
+        fstat->result = "File Parsed Succesfully";
+    }
+    fstat->stop = apr_time_now();
     return rv;
 }
 
-apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
-        char **argv, int argc)
+apr_status_t parser_processline(apr_pool_t *ptemp, config_t *cfg,
+        config_filestat_t *fstat, char **argv, int argc)
 {
     config_logformat_t *fmt;
     config_logformat_field_t *ifields;
@@ -436,10 +450,19 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
     int i,m;
 
     fmt = apr_hash_get(cfg->log_formats, cfg->logformat, APR_HASH_KEY_STRING);
-    if (!fmt)
+    if (!fmt) {
+        logging_log(cfg, LOGLEVEL_NOISE, "PARSER: No Input Log format");
         return APR_EINVAL;
-    if (fmt->fields->nelts != argc)
+    }
+    if (fmt->fields->nelts != argc) {
+        logging_log(cfg, LOGLEVEL_NOISE,
+                "PARSER: Input line field number differs from expected. Expected %d got %d.",
+                fmt->fields->nelts, argc);
+        fstat->result = apr_psprintf(cfg->pool,
+                "Input line %d is badly formatted (wrong number of fields)",
+                fstat->linesparsed);
         return APR_EINVAL;
+    }
 
     datain = apr_table_make(ptemp, fmt->fields->nelts);
     dataout = apr_table_make(ptemp, cfg->output_fields->nelts);
@@ -457,12 +480,13 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
             if (filters[i].negative) {
                 logging_log(cfg, LOGLEVEL_DEBUG,
                         "PARSER: PREFILTER: Skipping Line %d due to Filter (%d)%s",
-                        line, i, filters[i].filter);
+                        fstat->linesparsed, i, filters[i].filter);
+                fstat->lineskipped++;
                 return APR_SUCCESS;
             } else {
                 logging_log(cfg, LOGLEVEL_DEBUG,
                         "PARSER: PREFILTER: Force Parsing Line %d due to Filter (%d)%s",
-                        line, i, filters[i].filter);
+                        fstat->linesparsed, i, filters[i].filter);
             }
             break;
         }
@@ -486,8 +510,12 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
             const char *ret= NULL;
             rv = ((parser_func_t *)ofields[i].func)->func(ptemp, cfg,
                     &ofields[i], val, &ret);
-            if (rv)
+            if (rv) {
+                fstat->result = apr_psprintf(cfg->pool,
+                        "Input line %d, Parser function %s returned error (%d)%s",
+                        fstat->linesparsed, ofields[i].fname, rv, logging_strerror(rv));
                 return rv;
+            }
             apr_table_setn(dataout, ofields[i].field, ret ? ret : ofields[i].def);
         }
     }
@@ -501,12 +529,13 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
             if (filters[i].negative) {
                 logging_log(cfg, LOGLEVEL_DEBUG,
                         "PARSER: POSTFILTER: Skipping Line %d due to Filter (%d)%s",
-                        line, i, filters[i].filter);
+                        fstat->linesparsed, i, filters[i].filter);
+                fstat->lineskipped++;
                 return APR_SUCCESS;
             } else {
                 logging_log(cfg, LOGLEVEL_DEBUG,
                         "PARSER: POSTFILTER: Force Parsing Line %d due to Filter (%d)%s",
-                        line, i, filters[i].filter);
+                        fstat->linesparsed, i, filters[i].filter);
             }
             break;
         }
@@ -515,6 +544,11 @@ apr_status_t parse_processline(apr_pool_t *ptemp, config_t *cfg, int line,
     // Process DB Query
     if (!cfg->dryrun) {
         rv = database_insert(cfg, ptemp, dataout);
+        if (rv) {
+            fstat->result = apr_psprintf(cfg->pool,
+                    "Input line %d, Database Error",
+                    fstat->linesparsed);
+        }
     }
     return rv;
 }

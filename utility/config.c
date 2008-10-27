@@ -55,11 +55,12 @@ static apr_status_t config_set_loglevel(config_t *cfg, config_opt_t *opt,
 static apr_status_t config_set_inputfile(config_t *cfg, config_opt_t *opt,
         int argc, const char **argv)
 {
-    char **newp;
+    config_filestat_t *newp;
     if (argc != 2)
         return APR_EINVAL;
-    newp = (char **)apr_array_push(cfg->input_files);
-    *newp = apr_pstrdup(cfg->pool, argv[1]);
+    newp = (config_filestat_t *)apr_array_push(cfg->input_files);
+    newp->fname = apr_pstrdup(cfg->pool, argv[1]);
+    newp->result = "Not Parsed";
     return APR_SUCCESS;
 }
 
@@ -241,20 +242,20 @@ void config_dump(config_t *cfg)
         printf("\n");
     }
     printf("Filters:\n>> Line:\n");
-    filters = cfg->linefilters->elts;
+    filters = (config_filter_t *)cfg->linefilters->elts;
     for (i=0; i<cfg->linefilters->nelts; i++) {
         printf(">>>> %c \"%s\" (%pp)\n",filters[i].negative ? '-':'+',
                 filters[i].filter,  filters[i].regex);
     }
     printf(">> Pre:\n");
-    filters = cfg->prefilters->elts;
+    filters = (config_filter_t *)cfg->prefilters->elts;
     for (i=0; i<cfg->prefilters->nelts; i++) {
         printf(">>>> %s %c \"%s\" (%pp)\n",
                 filters[i].field, filters[i].negative ? '-':'+',
                 filters[i].filter,  filters[i].regex);
     }
     printf(">> Post:\n");
-    filters = cfg->postfilters->elts;
+    filters = (config_filter_t *)cfg->postfilters->elts;
     for (i=0; i<cfg->postfilters->nelts; i++) {
         printf(">>>> %s %c \"%s\" (%pp)\n",
                 filters[i].field, filters[i].negative ? '-':'+',
@@ -345,7 +346,7 @@ config_t *config_create(apr_pool_t *p)
     cfg->loglevel = LOGLEVEL_ERROR;
     cfg->summary = 1;
     cfg->transactions = 1;
-    cfg->input_files = apr_array_make(cfg->pool, 2, sizeof(char *));
+    cfg->input_files = apr_array_make(cfg->pool, 2, sizeof(config_filestat_t));
     cfg->log_formats = apr_hash_make(cfg->pool);
     cfg->output_fields = apr_array_make(cfg->pool, 10,
             sizeof(config_output_field_t));
