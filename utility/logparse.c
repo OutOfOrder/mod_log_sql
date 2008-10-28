@@ -361,7 +361,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     fstat->linesparsed = 0;
     // Start Transaction
     fstat->start = apr_time_now();
-    if (database_trans_start(cfg,tp)) {
+    if (!cfg->dryrun && database_trans_start(cfg,tp)) {
         fstat->result = "Database Transaction Error";
         fstat->stop = apr_time_now();
         return rv;
@@ -405,7 +405,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
             rv = parser_processline(targp, cfg, fstat, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
-                database_trans_abort(cfg);
+                if (!cfg->dryrun) database_trans_abort(cfg);
                 logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", fstat->linesparsed,
                         targc, buff);
                 for (i = 0; targv[i]; i++) {
@@ -420,7 +420,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     } while (rv == APR_SUCCESS);
     apr_file_close(file);
     // Finish Transaction
-    if (database_trans_stop(cfg,tp)) {
+    if (!cfg->dryrun && database_trans_stop(cfg,tp)) {
         fstat->result = apr_psprintf(cfg->pool,
                 "Input line %d, Database Transaction Error",
                 fstat->linesparsed);
