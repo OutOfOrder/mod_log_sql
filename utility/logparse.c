@@ -368,7 +368,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     }
 
     do {
-        rv = apr_file_gets(buff, 1024, file);
+        rv = apr_file_gets(buff, 2048, file);
         if (rv == APR_SUCCESS) {
             int i,m, cont = 0;
             config_filter_t *filters;
