@@ -117,6 +117,7 @@ static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
         if (query_beg) {
             char *key;
             char *value;
+            const char *delim = "&";
             char *query_string;
             char *strtok_state;
             char *query_end = strrchr(++query_beg,' ');
@@ -124,8 +125,10 @@ static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
             query_string = apr_pstrndup(p, query_beg, query_end-query_beg);
             logging_log(cfg, LOGLEVEL_DEBUG, "QUERY: Found String %pp, %pp, %s",
                     query_beg, query_end, query_string);
-
-            key = apr_strtok(query_string, "&", &strtok_state);
+            if (field->args[1]) {
+                delim = field->args[1];
+            }
+            key = apr_strtok(query_string, delim, &strtok_state);
             while (key) {
                 value = strchr(key, '=');
                 if (value) {
@@ -142,7 +145,7 @@ static apr_status_t parser_func_queryarg(apr_pool_t *p, config_t *cfg,
                 logging_log(cfg, LOGLEVEL_DEBUG,
                     "QUERY: Found arg: %s = %s", key, value);
 
-                key = apr_strtok(NULL, "&", &strtok_state);
+                key = apr_strtok(NULL, delim, &strtok_state);
             }
         }
         parser_set_linedata(field->func,query);
