@@ -64,13 +64,13 @@ void print_summary(config_t *cfg) {
     printf("Execution Summary\n");
     for (i=0, m=cfg->input_files->nelts; i<m; i++) {
         printf(" File: %s\n"
-                "  Lines Parsed %d out of %d (Skipped %d)\n"
+                "  Lines Parsed %d out of %d (Skipped %d, Bad %d)\n"
                 "  Status: %s\n"
                 "  Duration: %02"APR_TIME_T_FMT":%02"APR_TIME_T_FMT".%"APR_TIME_T_FMT" (minutes, seconds, and miliseconds)\n"
                 "\n",
                fstat[i].fname,
-               fstat[i].linesparsed - fstat[i].lineskipped,
-               fstat[i].linesparsed, fstat[i].lineskipped,
+               fstat[i].linesparsed - fstat[i].lineskipped - fstat[i].linesbad,
+               fstat[i].linesparsed, fstat[i].lineskipped, fstat[i].linesbad,
                fstat[i].result,
                apr_time_sec(fstat[i].stop - fstat[i].start)/60,
                apr_time_sec(fstat[i].stop - fstat[i].start),

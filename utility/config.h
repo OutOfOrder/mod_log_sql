@@ -29,6 +29,12 @@ struct config_t {
     apr_file_t *errorlog_fperr;
     apr_pool_t *errorlog_p;
 
+    const char *badlinefile;
+    apr_file_t *badline_fp;
+    int badline_count;
+    int badlinemax;
+
+
     /** input directory of log files */
     const char *input_dir;
     /** list of files to scan */
@@ -73,6 +79,7 @@ struct config_filestat_t {
     char *fname;
     apr_size_t linesparsed;
     apr_size_t lineskipped;
+    apr_size_t linesbad;
     const char *result;
     apr_time_t start;
     apr_time_t stop;

@@ -24,6 +24,17 @@ static apr_status_t config_set_string(config_t *cfg, config_opt_t *opt,
     return APR_SUCCESS;
 }
 
+static apr_status_t config_set_int(config_t *cfg, config_opt_t *opt, int argc,
+        const char **argv)
+{
+    int offset = (int)(long)opt->data;
+    int *data = (int *)((void *)cfg + offset);
+    if (argc != 2)
+        return APR_EINVAL;
+    *data = apr_atoi64(argv[1]);
+    return APR_SUCCESS;
+}
+
 static apr_status_t config_set_flag(config_t *cfg, config_opt_t *opt, int argc,
         const char **argv)
 {
@@ -197,6 +208,9 @@ void config_dump(config_t *cfg)
     printf("ErrorLog: %s\n", cfg->errorlog);
     printf("LogLevel: %d\n", cfg->loglevel);
 
+    printf("BadLineFile: %s\n", cfg->badlinefile);
+    printf("BadLineMax: %d\n", cfg->badlinemax);
+
     printf("InputDir: %s\n", cfg->input_dir);
 
     printf("DB Driver: %s\n", cfg->dbdriver);
@@ -290,6 +304,13 @@ void config_init(apr_pool_t *p)
     config_add_option(p, "LogLevel",
             "Set Log Level (error, warn, debug, quiet)", config_set_loglevel,
             NULL);
+
+    config_add_option(p, "BadLineFile", "File to log bad log lines", config_set_string,
+            (void *)APR_OFFSETOF(config_t, badlinefile));
+    config_add_option(p, "BadLineMax",
+            "Max number of bad lines before aborting", config_set_int,
+            (void *)APR_OFFSETOF(config_t, badlinemax));
+
 
     config_add_option(p, "InputDirectory", "Directory to scan for log files",
             config_set_string, (void *)APR_OFFSETOF(config_t, input_dir));

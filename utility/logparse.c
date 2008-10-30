@@ -212,6 +212,56 @@ void parser_find_logs(config_t *cfg)
     apr_pool_destroy(tp);
 }
 
+apr_status_t parser_logbadline(config_t *cfg, const char *filename,
+        const char *badline)
+{
+    apr_status_t rv = APR_SUCCESS;
+    apr_size_t len;
+    struct iovec vec[5];
+
+    if (cfg->badlinefile) {
+        if (!cfg->badline_fp) {
+            rv = apr_file_open(&cfg->badline_fp, cfg->badlinefile,
+                    APR_FOPEN_CREATE | APR_FOPEN_WRITE | APR_FOPEN_APPEND,
+                    APR_OS_DEFAULT, cfg->pool);
+            if (rv) {
+                logging_log(cfg, LOGLEVEL_NOISE,
+                        "Error opening badline file %s\n", cfg->badlinefile);
+                cfg->badlinefile = NULL;
+            } else {
+                char date[APR_RFC822_DATE_LEN];
+                vec[0].iov_base = "Starting BadLines for \"";
+                vec[0].iov_len = sizeof("Starting BadLines for \"")-1;
+                vec[1].iov_base = (void *)filename;
+                vec[1].iov_len = strlen(filename);
+                vec[2].iov_base = "\" on ";
+                vec[2].iov_len = sizeof("\" on ")-1;
+                apr_rfc822_date(date, apr_time_now());
+                vec[3].iov_base = date;
+                vec[3].iov_len = APR_RFC822_DATE_LEN-1;
+                vec[4].iov_base = "\n";
+                vec[4].iov_len = 1;
+                apr_file_writev(cfg->badline_fp, vec,5, &len);
+            }
+        }
+        if (!rv) {
+            if ((++cfg->badline_count) > cfg->badlinemax) {
+                logging_log(cfg, LOGLEVEL_NOISE,
+                        "Found more than %d bad lines (found %d)",
+                        cfg->badlinemax, cfg->badline_count);
+                rv = APR_EINVAL;
+            } else {
+                vec[0].iov_base = (void *)badline;
+                vec[0].iov_len = strlen(badline);
+                vec[1].iov_base = "\n";
+                vec[1].iov_len = 1;
+                apr_file_writev(cfg->badline_fp, vec,2, &len);
+            }
+        }
+    }
+    return rv;
+}
+
 /*
  * Modified version of apr_tokenize_to_argv to add [] as quoting characters
  *
@@ -406,12 +456,17 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
             rv = parser_processline(targp, cfg, fstat, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
-                if (!cfg->dryrun) database_trans_abort(cfg);
-                logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", fstat->linesparsed,
-                        targc, buff);
-                for (i = 0; targv[i]; i++) {
-                    logging_log(cfg, LOGLEVEL_ERROR, "Arg (%d): '%s'", i,
-                            targv[i]);
+
+                fstat->linesbad++;
+                rv = parser_logbadline(cfg, fstat->fname, buff);
+                if (rv) {
+                    if (!cfg->dryrun) database_trans_abort(cfg);
+                    logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", fstat->linesparsed,
+                            targc, buff);
+                    for (i = 0; targv[i]; i++) {
+                        logging_log(cfg, LOGLEVEL_ERROR, "Arg (%d): '%s'", i,
+                                targv[i]);
+                    }
                 }
             }
         } else {
