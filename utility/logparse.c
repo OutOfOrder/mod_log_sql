@@ -228,7 +228,10 @@ apr_status_t parser_logbadline(config_t *cfg, const char *filename,
                 logging_log(cfg, LOGLEVEL_NOISE,
                         "Error opening badline file %s\n", cfg->badlinefile);
                 cfg->badlinefile = NULL;
-            } else {
+            }
+        }
+        if (!rv) {
+            if (filename != cfg->badlastfile){
                 char date[APR_RFC822_DATE_LEN];
                 vec[0].iov_base = "Starting BadLines for \"";
                 vec[0].iov_len = sizeof("Starting BadLines for \"")-1;
@@ -242,9 +245,9 @@ apr_status_t parser_logbadline(config_t *cfg, const char *filename,
                 vec[4].iov_base = "\n";
                 vec[4].iov_len = 1;
                 apr_file_writev(cfg->badline_fp, vec,5, &len);
+                cfg->badlastfile = filename;
             }
-        }
-        if (!rv) {
+
             if ((++cfg->badline_count) > cfg->badlinemax) {
                 logging_log(cfg, LOGLEVEL_NOISE,
                         "Found more than %d bad lines (found %d)",

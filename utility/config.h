@@ -30,6 +30,7 @@ struct config_t {
     apr_pool_t *errorlog_p;
 
     const char *badlinefile;
+    const char *badlastfile;
     apr_file_t *badline_fp;
     int badline_count;
     int badlinemax;
