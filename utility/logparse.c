@@ -222,10 +222,9 @@ void parser_find_logs(config_t *cfg)
  *                   This value will be allocated from the contexts
  *                   pool and filled in with copies of the tokens
  *                   found during parsing of the arg_str.
- *    keepquotes:    Keep the quotes instead of stripping them
  */
-static apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
-        apr_pool_t *token_context, int keepquotes)
+apr_status_t parser_tokenize_line(const char *arg_str, char ***argv_out,
+        apr_pool_t *token_context)
 {
     const char *cp;
     const char *ct;
@@ -259,8 +258,7 @@ static apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
      */
 #define DETERMINE_NEXTSTRING(cp,isquoted) \
     for ( ; *cp != '\0'; cp++) { \
-        if (   (isquoted    && (*cp     == ' ' || *cp     == '\t')) \
-            || (*cp == '\\' && (*(cp+1) == ' ' || *(cp+1) == '\t' || \
+        if (   (*cp == '\\' && (*(cp+1) == ' ' || *(cp+1) == '\t' || \
                                 *(cp+1) == '"' || *(cp+1) == '\'' || \
                                 *(cp+1) == '[' || *(cp+1) == ']'))) { \
             cp++; \
@@ -324,7 +322,7 @@ static apr_status_t tokenize_logline(const char *arg_str, char ***argv_out,
         ct = cp;
         DETERMINE_NEXTSTRING(cp, isquoted);
         cp++;
-        if (isquoted && keepquotes) {
+        if (isquoted) {
             (*argv_out)[argnum] = apr_palloc(token_context, cp - ct + 2);
             apr_cpystrn((*argv_out)[argnum], ct -1, cp - ct + 2);
         } else {
@@ -401,7 +399,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
             if (cont) continue;
 
             apr_pool_clear(targp);
-            tokenize_logline(buff, &targv, targp, 0);
+            parser_tokenize_line(buff, &targv, targp);
             targc = 0;
             while (targv[targc])
                 targc++;

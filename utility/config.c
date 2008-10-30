@@ -442,7 +442,7 @@ apr_status_t config_read(config_t *cfg, const char *filename,
             if (*ptr == '\0')
                 continue;
             apr_pool_clear(targp);
-            apr_tokenize_to_argv(ptr, &targv, targp);
+            parser_tokenize_line(ptr, &targv, targp);
             targc = 0;
             while (targv[targc])
                 targc++;
