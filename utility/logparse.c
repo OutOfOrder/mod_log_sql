@@ -375,13 +375,8 @@ apr_status_t parser_tokenize_line(const char *arg_str, char ***argv_out,
         ct = cp;
         DETERMINE_NEXTSTRING(cp, isquoted);
         cp++;
-        if (isquoted) {
-            (*argv_out)[argnum] = apr_palloc(token_context, cp - ct + 2);
-            apr_cpystrn((*argv_out)[argnum], ct -1, cp - ct + 2);
-        } else {
-            (*argv_out)[argnum] = apr_palloc(token_context, cp - ct);
-            apr_cpystrn((*argv_out)[argnum], ct, cp - ct);
-        }
+        (*argv_out)[argnum] = apr_palloc(token_context, cp - ct);
+        apr_cpystrn((*argv_out)[argnum], ct, cp - ct);
         cleaned = dirty = (*argv_out)[argnum];
         REMOVE_ESCAPE_CHARS(cleaned, dirty, escaped)
         ;
