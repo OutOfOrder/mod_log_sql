@@ -200,15 +200,177 @@ void parser_find_logs(config_t *cfg)
     if (apr_dir_open(&dir, cfg->input_dir, tp)==APR_SUCCESS) {
         while (apr_dir_read(&finfo, APR_FINFO_NAME | APR_FINFO_TYPE, dir)
                 == APR_SUCCESS) {
+            char *temp;
             if (finfo.filetype == APR_DIR)
                 continue;
             newp = (config_filestat_t *)apr_array_push(cfg->input_files);
             newp->result = "Not Parsed";
-            apr_filepath_merge(&(newp->fname), cfg->input_dir, finfo.name,
+            apr_filepath_merge(&temp, cfg->input_dir, finfo.name,
                         APR_FILEPATH_TRUENAME, cfg->pool);
+            newp->fname = temp;
         }
         apr_dir_close(dir);
     }
+    apr_pool_destroy(tp);
+}
+
+#define BUFFER_SIZE (16 * 1024)
+
+void parser_split_logs(config_t *cfg)
+{
+    apr_pool_t *tp, *tfp;
+    apr_array_header_t *foundfiles;
+    config_filestat_t *filelist;
+    config_filestat_t *newfile;
+    apr_file_t *infile;
+    int f, l;
+    apr_status_t rv;
+    apr_finfo_t finfo;
+    char buff[BUFFER_SIZE];
+    int linecount;
+    int piecesize;
+
+    if (!cfg->split_enabled) return;
+    if (!cfg->split_dir) {
+        logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Missing Split Output directory");
+        return;
+    }
+    apr_pool_create(&tp, cfg->pool);
+    apr_pool_create(&tfp, tp);
+
+    if (APR_SUCCESS != apr_stat(&finfo, cfg->split_dir, APR_FINFO_MIN, tp)) {
+       logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Directory %s does not exist", cfg->split_dir);
+       return;
+    }
+    foundfiles = apr_array_copy(tp, cfg->input_files);
+    apr_array_clear(cfg->input_files);
+
+    filelist = (config_filestat_t *)foundfiles->elts;
+    for (f=0, l=foundfiles->nelts; f < l; f++) {
+        apr_pool_clear(tfp);
+        logging_log(cfg, LOGLEVEL_NOTICE, "SPLITTER: Begin Splitting Log File '%s'", filelist[f].fname);
+        rv = apr_file_open(&infile, filelist[f].fname, APR_FOPEN_READ, APR_OS_DEFAULT, tfp);
+
+        if (rv != APR_SUCCESS) {
+            logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Could not open %s", filelist[f].fname);
+            return;
+        }
+        linecount = 0;
+        while (apr_file_eof(infile) == APR_SUCCESS) {
+            apr_size_t read = BUFFER_SIZE;
+            char *p;
+            apr_file_read(infile, buff, &read);
+            p = buff;
+            while ((p = memchr(p, '\n', (buff + read) - p))) {
+                ++p;
+                ++linecount;
+            }
+        }
+        printf("Lines %'d\n",linecount);
+        // now we know how long it is.  Lets split up the file
+        piecesize = linecount / cfg->split_count;
+        if (piecesize < cfg->split_minimum)
+            piecesize = cfg->split_minimum;
+        if (piecesize > cfg->split_maximum && cfg->split_maximum > 0)
+            piecesize = cfg->split_maximum;
+        printf("Piece size %'d\n", piecesize);
+        if (piecesize > linecount) {
+            // File is smaller than piece size just add it back in as is
+            newfile = (config_filestat_t *)apr_array_push(cfg->input_files);
+            newfile->result = "Not Parsed";
+            newfile->fname = filelist[f].fname;
+        } else {
+            //split apart the files
+            int cur_line = 0;
+            int file_count = 1;
+            int out_lines = 0;
+            const char *basefile, *file;
+            apr_file_t *outfile;
+            char trail[2048];
+            apr_size_t trail_size = 0;
+            apr_size_t write;
+            apr_off_t off = 0;
+
+            apr_file_seek(infile, APR_SET, &off);
+
+            basefile = apr_pstrdup(tfp, basename(apr_pstrdup(tfp, filelist[f].fname)));
+
+            file = apr_psprintf(tfp, "%s/%s-%d", cfg->split_dir, basefile, file_count++);
+            printf("Out file %s\n", file);
+            logging_log(cfg, LOGLEVEL_NOTICE, "SPLITTER: Creating output file %s", file);
+            rv = apr_file_open(&outfile, file, APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_TRUNCATE, APR_OS_DEFAULT, tfp);
+            if (rv != APR_SUCCESS) {
+                logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Could not open %s (%d)", file, rv);
+                return;
+            }
+            newfile = (config_filestat_t *)apr_array_push(cfg->input_files);
+            newfile->result = "Not Parsed";
+            newfile->fname = apr_pstrdup(cfg->pool, file);
+
+            while (apr_file_eof(infile) == APR_SUCCESS) {
+                apr_size_t read = BUFFER_SIZE;
+                char *p, *pp, *buff_start;
+                apr_file_read(infile, buff, &read);
+                buff_start = p = pp = buff;
+                if (trail_size) {
+                    p = memchr(p, '\n', (buff + read) - p);
+                    if (p) {
+                        //printf("Trail Line: %p, %p, %d\n", pp, p, (p - pp) + trail_size);
+                        ++p;
+                        pp = p;
+                        ++cur_line;
+                        ++out_lines;
+                        // write out to file
+                        apr_file_write(outfile, trail, &trail_size);
+                        trail_size = 0;
+                    } else {
+                        if ((read + trail_size) > 2048) {
+                            logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Excessively long line %d in file %s", cur_line, filelist[f].fname);
+                            exit(1);
+                        } else {
+                            memcpy(trail+trail_size, buff, read);
+                            trail_size += read;
+                        }
+                    }
+                }
+                while ((p = memchr(p, '\n', (buff + read) - p))) {
+                    //printf("Line: %p, %p, %d\n", pp, p, (p - pp));
+                    if (out_lines == piecesize) {
+                        // Write out to file
+                        write = pp - buff_start;
+                        apr_file_write(outfile, buff_start, &write);
+                        buff_start = pp;
+                        out_lines = 0;
+                        // Open new file
+                        file = apr_psprintf(tfp, "%s/%s-%d", cfg->split_dir, basefile, file_count++);
+                        printf("Out file %s\n", file);
+                        logging_log(cfg, LOGLEVEL_NOTICE, "SPLITTER: Creating output file %s", file);
+                        rv = apr_file_open(&outfile, file, APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_TRUNCATE, APR_OS_DEFAULT, tfp);
+                        if (rv != APR_SUCCESS) {
+                            logging_log(cfg, LOGLEVEL_NOISE, "SPLITTER: Could not open %s (%d)", file, rv);
+                            return;
+                        }
+                        newfile = (config_filestat_t *)apr_array_push(cfg->input_files);
+                        newfile->result = "Not Parsed";
+                        newfile->fname = apr_pstrdup(cfg->pool, file);
+                    }
+                    ++p;
+                    pp = p;
+                    ++cur_line;
+                    ++out_lines;
+                }
+                // Write out to file
+                write = pp - buff_start;
+                apr_file_write(outfile, buff_start, &write);
+
+                trail_size = (buff+read) - pp;
+                if (trail_size) {
+                    memcpy(trail, pp, trail_size);
+                }
+            }
+        }
+    }
+    apr_pool_destroy(tfp);
     apr_pool_destroy(tp);
 }
 
@@ -392,6 +554,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     apr_file_t *file;
     apr_status_t rv;
     char buff[2048];
+    char readbuff[BUFFER_SIZE];
     char **targv;
     int targc;
 
@@ -400,8 +563,8 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
 
     logging_log(cfg, LOGLEVEL_NOTICE, "PARSER: Begin Parsing Log File '%s'", fstat->fname);
 
-    rv = apr_file_open(&file, fstat->fname, APR_FOPEN_READ | APR_BUFFERED,
-    APR_OS_DEFAULT, tp);
+    rv = apr_file_open(&file, fstat->fname, APR_FOPEN_READ, APR_OS_DEFAULT, tp);
+    apr_file_buffer_set(file, readbuff, BUFFER_SIZE);
     if (rv != APR_SUCCESS) {
         logging_log(cfg, LOGLEVEL_NOISE, "PARSER: Could not open %s", fstat->fname);
         return rv;

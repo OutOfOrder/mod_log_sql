@@ -61,10 +61,10 @@ void print_summary(config_t *cfg) {
 
     fstat = (config_filestat_t *)cfg->input_files->elts;
 
-    printf("Execution Summary\n");
+    printf("Execution Summary\nParsed %d files\n", cfg->input_files->nelts);
     for (i=0, m=cfg->input_files->nelts; i<m; i++) {
         printf(" File: %s\n"
-                "  Lines Parsed %d out of %d (Skipped %d, Bad %d)\n"
+                "  Lines Parsed %'d out of %'d (Skipped %'d, Bad %'d)\n"
                 "  Status: %s\n"
                 "  Duration: %02"APR_TIME_T_FMT":%02"APR_TIME_T_FMT".%"APR_TIME_T_FMT" (minutes, seconds, and miliseconds)\n"
                 "\n",
@@ -73,7 +73,7 @@ void print_summary(config_t *cfg) {
                fstat[i].linesparsed, fstat[i].lineskipped, fstat[i].linesbad,
                fstat[i].result,
                apr_time_sec(fstat[i].stop - fstat[i].start)/60,
-               apr_time_sec(fstat[i].stop - fstat[i].start),
+               apr_time_sec(fstat[i].stop - fstat[i].start) % 60,
                apr_time_msec(fstat[i].stop - fstat[i].start)
                );
     }
@@ -192,6 +192,7 @@ int main(int argc, const char *const argv[])
         }
     }
     if (!apr_is_empty_array(cfg->input_files)) {
+        parser_split_logs(cfg);
         config_filestat_t *filelist;
         int f, l;
         filelist = (config_filestat_t *)cfg->input_files->elts;

@@ -24,6 +24,18 @@ static apr_status_t config_set_string(config_t *cfg, config_opt_t *opt,
     return APR_SUCCESS;
 }
 
+static apr_status_t config_set_file(config_t *cfg, config_opt_t *opt,
+        int argc, const char **argv)
+{
+    int offset = (int)(long)opt->data;
+    char **data = (char **)((void *)cfg + offset);
+    if (argc != 2)
+        return APR_EINVAL;
+    apr_filepath_merge(data, NULL, argv[1],
+                APR_FILEPATH_TRUENAME, cfg->pool);
+    return APR_SUCCESS;
+}
+
 static apr_status_t config_set_int(config_t *cfg, config_opt_t *opt, int argc,
         const char **argv)
 {
@@ -70,7 +82,10 @@ static apr_status_t config_set_inputfile(config_t *cfg, config_opt_t *opt,
     if (argc != 2)
         return APR_EINVAL;
     newp = (config_filestat_t *)apr_array_push(cfg->input_files);
-    newp->fname = apr_pstrdup(cfg->pool, argv[1]);
+    char *temp;
+    apr_filepath_merge(&temp, NULL, argv[1],
+                APR_FILEPATH_TRUENAME, cfg->pool);
+    newp->fname = temp;
     newp->result = "Not Parsed";
     return APR_SUCCESS;
 }
@@ -213,6 +228,12 @@ void config_dump(config_t *cfg)
 
     printf("InputDir: %s\n", cfg->input_dir);
 
+    printf("Split input files: %d\n", cfg->split_enabled);
+    printf("Split output directory: %s\n", cfg->split_dir);
+    printf("Split file count: %d\n", cfg->split_count);
+    printf("Split min lines: %'d\n", cfg->split_minimum);
+    printf("Split max lines: %'d\n", cfg->split_maximum);
+
     printf("DB Driver: %s\n", cfg->dbdriver);
     printf("DB Params: %s\n", cfg->dbparams);
 
@@ -299,23 +320,41 @@ static void config_add_option(apr_pool_t *p, const char *const name,
 
 void config_init(apr_pool_t *p)
 {
-    config_add_option(p, "ErrorLog", "File to log errors", config_set_string,
+    config_add_option(p, "ErrorLog", "File to log errors", config_set_file,
             (void *)APR_OFFSETOF(config_t, errorlog));
-    config_add_option(p, "LogLevel",
-            "Set Log Level (error, warn, debug, quiet)", config_set_loglevel,
-            NULL);
+    config_add_option(p, "LogLevel", "Set Log Level (error, warn, debug, quiet)",
+            config_set_loglevel, NULL);
 
-    config_add_option(p, "BadLineFile", "File to log bad log lines", config_set_string,
+    config_add_option(p, "BadLineFile", "File to log bad log lines", config_set_file,
             (void *)APR_OFFSETOF(config_t, badlinefile));
-    config_add_option(p, "BadLineMax",
-            "Max number of bad lines before aborting", config_set_int,
-            (void *)APR_OFFSETOF(config_t, badlinemax));
+    config_add_option(p, "BadLineMax", "Max number of bad lines before aborting",
+            config_set_int, (void *)APR_OFFSETOF(config_t, badlinemax));
 
 
     config_add_option(p, "InputDirectory", "Directory to scan for log files",
-            config_set_string, (void *)APR_OFFSETOF(config_t, input_dir));
+            config_set_file, (void *)APR_OFFSETOF(config_t, input_dir));
     config_add_option(p, "InputFile", "Parse only this file",
             config_set_inputfile, NULL);
+
+    config_add_option(p, "SplitInput",
+            "Split the file into pieces, then process",
+            config_set_flag, (void *)APR_OFFSETOF(config_t, split_enabled));
+    config_add_option(p, "SplitCount",
+            "Split the file into N number of pieces",
+            config_set_int, (void *)APR_OFFSETOF(config_t, split_count));
+    config_add_option(p, "SplitMinLines",
+            "Each split piece will have a minumum of N lines",
+            config_set_int, (void *)APR_OFFSETOF(config_t, split_minimum));
+    config_add_option(p, "SplitMaxLines",
+            "Each split piece will have a maximum of N lines",
+            config_set_int, (void *)APR_OFFSETOF(config_t, split_maximum));
+    config_add_option(p, "SplitDirectory",
+            "Output directory to put intermediate split files",
+            config_set_file, (void *)APR_OFFSETOF(config_t, split_dir));
+
+    config_add_option(p, "ThreadCount",
+            "Numer of threads to use for processing the input files",
+            config_set_int, (void *)APR_OFFSETOF(config_t, thread_count));
 
     config_add_option(p, "DBDDriver", "DBD Driver to use",
             config_set_string, (void *)APR_OFFSETOF(config_t, dbdriver));
@@ -325,8 +364,8 @@ void config_init(apr_pool_t *p)
             config_set_string, (void *)APR_OFFSETOF(config_t, table));
     config_add_option(p, "UseTransactions", "Enable Transactions?",
             config_set_flag, (void *)APR_OFFSETOF(config_t, transactions));
-    config_add_option(p, "MachineID", "Machine ID to set", config_set_string,
-            (void *)APR_OFFSETOF(config_t, machineid));
+    config_add_option(p, "MachineID", "Machine ID to set",
+            config_set_string, (void *)APR_OFFSETOF(config_t, machineid));
 
     config_add_option(p, "LogFormatConfig", "Define input log formats",
             config_set_logformat, NULL);
@@ -367,6 +406,10 @@ config_t *config_create(apr_pool_t *p)
     cfg->loglevel = LOGLEVEL_ERROR;
     cfg->summary = 1;
     cfg->transactions = 1;
+    cfg->thread_count = 1; // default one thread (aka non-threaded)
+    cfg->split_count = 4;
+    cfg->split_minimum = 10000;
+    cfg->split_maximum = 50000;
     cfg->input_files = apr_array_make(cfg->pool, 2, sizeof(config_filestat_t));
     cfg->log_formats = apr_hash_make(cfg->pool);
     cfg->output_fields = apr_array_make(cfg->pool, 10,

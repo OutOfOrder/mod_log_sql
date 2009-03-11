@@ -41,6 +41,20 @@ struct config_t {
     /** list of files to scan */
     apr_array_header_t *input_files;
 
+    /** split the input file before processing */
+    int split_enabled;
+    /** the number of files to split each input file into */
+    int split_count;
+    /** the minimum number of lines for each piece */
+    int split_minimum;
+    /** the maximum number of lines for each piece */
+    int split_maximum;
+    /** directory to put ouput split files */
+    const char *split_dir;
+
+    /** the number of threads to run the import in */
+    int thread_count;
+
     /** db connection configuration */
     const char *dbdriver;
     const char *dbparams;
@@ -77,7 +91,7 @@ struct config_t {
 
 typedef struct config_filestat_t config_filestat_t;
 struct config_filestat_t {
-    char *fname;
+    const char *fname;
     apr_size_t linesparsed;
     apr_size_t lineskipped;
     apr_size_t linesbad;
