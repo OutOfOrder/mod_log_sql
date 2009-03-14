@@ -28,9 +28,10 @@ void parser_split_logs(config_t *cfg);
 apr_status_t parser_tokenize_line(const char *arg_str, char ***argv_out,
         apr_pool_t *token_context);
 
-apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat);
+apr_status_t parser_parsefile(config_t *cfg, config_dbd_t *dbconn,
+        config_filestat_t *fstat);
 
 apr_status_t parser_processline(apr_pool_t *ptemp, config_t *cfg,
-        config_filestat_t *line, char **argv, int argc);
+        config_dbd_t *dbconn, config_filestat_t *line, char **argv, int argc);
 
 #endif /*LOGPARSE_H_*/

@@ -58,7 +58,6 @@ struct config_t {
     /** db connection configuration */
     const char *dbdriver;
     const char *dbparams;
-    config_dbd_t *dbconn;
 
     /** Logging table */
     const char *table;

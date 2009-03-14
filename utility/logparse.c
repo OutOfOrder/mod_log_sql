@@ -266,14 +266,12 @@ void parser_split_logs(config_t *cfg)
                 ++linecount;
             }
         }
-        printf("Lines %'d\n",linecount);
         // now we know how long it is.  Lets split up the file
         piecesize = linecount / cfg->split_count;
         if (piecesize < cfg->split_minimum)
             piecesize = cfg->split_minimum;
         if (piecesize > cfg->split_maximum && cfg->split_maximum > 0)
             piecesize = cfg->split_maximum;
-        printf("Piece size %'d\n", piecesize);
         if (piecesize > linecount) {
             // File is smaller than piece size just add it back in as is
             newfile = (config_filestat_t *)apr_array_push(cfg->input_files);
@@ -296,7 +294,6 @@ void parser_split_logs(config_t *cfg)
             basefile = apr_pstrdup(tfp, basename(apr_pstrdup(tfp, filelist[f].fname)));
 
             file = apr_psprintf(tfp, "%s/%s-%d", cfg->split_dir, basefile, file_count++);
-            printf("Out file %s\n", file);
             logging_log(cfg, LOGLEVEL_NOTICE, "SPLITTER: Creating output file %s", file);
             rv = apr_file_open(&outfile, file, APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_TRUNCATE, APR_OS_DEFAULT, tfp);
             if (rv != APR_SUCCESS) {
@@ -343,7 +340,6 @@ void parser_split_logs(config_t *cfg)
                         out_lines = 0;
                         // Open new file
                         file = apr_psprintf(tfp, "%s/%s-%d", cfg->split_dir, basefile, file_count++);
-                        printf("Out file %s\n", file);
                         logging_log(cfg, LOGLEVEL_NOTICE, "SPLITTER: Creating output file %s", file);
                         rv = apr_file_open(&outfile, file, APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_TRUNCATE, APR_OS_DEFAULT, tfp);
                         if (rv != APR_SUCCESS) {
@@ -548,7 +544,8 @@ apr_status_t parser_tokenize_line(const char *arg_str, char ***argv_out,
     return APR_SUCCESS;
 }
 
-apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
+apr_status_t parser_parsefile(config_t *cfg, config_dbd_t *dbconn,
+        config_filestat_t *fstat)
 {
     apr_pool_t *tp, *targp;
     apr_file_t *file;
@@ -573,7 +570,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     fstat->linesparsed = 0;
     // Start Transaction
     fstat->start = apr_time_now();
-    if (!cfg->dryrun && database_trans_start(cfg,tp)) {
+    if (!cfg->dryrun && database_trans_start(cfg, dbconn, tp)) {
         fstat->result = "Database Transaction Error";
         fstat->stop = apr_time_now();
         return rv;
@@ -614,14 +611,14 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
             targc = 0;
             while (targv[targc])
                 targc++;
-            rv = parser_processline(targp, cfg, fstat, targv, targc);
+            rv = parser_processline(targp, cfg, dbconn, fstat, targv, targc);
             if (rv != APR_SUCCESS) {
                 int i;
 
                 fstat->linesbad++;
                 rv = parser_logbadline(cfg, fstat->fname, buff);
                 if (rv) {
-                    if (!cfg->dryrun) database_trans_abort(cfg);
+                    if (!cfg->dryrun) database_trans_abort(cfg, dbconn);
                     logging_log(cfg, LOGLEVEL_ERROR, "Line %d(%d): %s", fstat->linesparsed,
                             targc, buff);
                     for (i = 0; targv[i]; i++) {
@@ -637,7 +634,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
     } while (rv == APR_SUCCESS);
     apr_file_close(file);
     // Finish Transaction
-    if (!cfg->dryrun && database_trans_stop(cfg,tp)) {
+    if (!cfg->dryrun && database_trans_stop(cfg, dbconn, tp)) {
         fstat->result = apr_psprintf(cfg->pool,
                 "Input line %d, Database Transaction Error",
                 fstat->linesparsed);
@@ -655,7 +652,7 @@ apr_status_t parser_parsefile(config_t *cfg, config_filestat_t *fstat)
 }
 
 apr_status_t parser_processline(apr_pool_t *ptemp, config_t *cfg,
-        config_filestat_t *fstat, char **argv, int argc)
+        config_dbd_t *dbconn, config_filestat_t *fstat, char **argv, int argc)
 {
     config_logformat_t *fmt;
     config_logformat_field_t *ifields;
@@ -760,7 +757,7 @@ apr_status_t parser_processline(apr_pool_t *ptemp, config_t *cfg,
 
     // Process DB Query
     if (!cfg->dryrun) {
-        rv = database_insert(cfg, ptemp, dataout);
+        rv = database_insert(cfg, dbconn, ptemp, dataout);
         if (rv) {
             fstat->result = apr_psprintf(cfg->pool,
                     "Input line %d, Database Error",
