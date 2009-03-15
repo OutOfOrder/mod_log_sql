@@ -281,7 +281,7 @@ void * APR_THREAD_FUNC run_filethread(apr_thread_t *thd, void *data)
     if (!cfg->dryrun) {
         if ((rv = database_connect(cfg, &dbconn))) {
             logging_log(cfg,LOGLEVEL_NOISE, "Error Connecting to Database");
-            exit(1);
+            return NULL;
         }
     }
 
