@@ -223,7 +223,7 @@ int main(int argc, const char *const argv[])
     if (!apr_is_empty_array(cfg->input_files)) {
         parser_split_logs(cfg);
 #if APR_HAS_THREADS
-        if (cfg->thread_count > 1) {
+        if (cfg->thread_count > 0) {
             run_multithreaded(cfg);
         } else {
 #endif

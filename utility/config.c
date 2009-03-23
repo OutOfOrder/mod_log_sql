@@ -406,7 +406,7 @@ config_t *config_create(apr_pool_t *p)
     cfg->loglevel = LOGLEVEL_ERROR;
     cfg->summary = 1;
     cfg->transactions = 1;
-    cfg->thread_count = 1; // default one thread (aka non-threaded)
+    cfg->thread_count = 0; // default zero thread (aka non-threaded)
     cfg->split_count = 4;
     cfg->split_minimum = 10000;
     cfg->split_maximum = 50000;
