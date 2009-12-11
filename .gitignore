@@ -1,0 +1,14 @@
+/aclocal.m4
+/autom4te.cache
+/config.h*
+/config.nice
+/config.status
+/config.log
+.libs
+Makefile
+/configure
+/stamp-h*
+*.o
+*.lo
+*.slo
+*.la
