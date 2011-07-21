@@ -1,0 +1,2014 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2002-1 (1.68)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>3 Configuration</TITLE>
+<META NAME="description" CONTENT="3 Configuration">
+<META NAME="keywords" CONTENT="documentation">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="documentation.css">
+
+<LINK REL="next" HREF="node5.html">
+<LINK REL="previous" HREF="node3.html">
+<LINK REL="up" HREF="documentation.html">
+<LINK REL="next" HREF="node5.html">
+</HEAD>
+
+<BODY >
+<!--Navigation Panel-->
+<A NAME="tex2html172"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html168"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html162"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html170"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html173"
+  HREF="node5.html">4 FAQ</A>
+<B> Up:</B> <A NAME="tex2html169"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html163"
+  HREF="node3.html">2 Installation</A>
+ &nbsp; <B>  <A NAME="tex2html171"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL>
+<LI><A NAME="tex2html174"
+  HREF="node4.html#SECTION00041000000000000000">3.1 Preparing MySQL for logging</A>
+<LI><A NAME="tex2html175"
+  HREF="node4.html#SECTION00042000000000000000">3.2 A very basic logging setup in Apache</A>
+<LI><A NAME="tex2html176"
+  HREF="node4.html#SECTION00043000000000000000">3.3 Testing the basic setup</A>
+<LI><A NAME="tex2html177"
+  HREF="node4.html#SECTION00044000000000000000">3.4 How to tune logging with run-time directives</A>
+<UL>
+<LI><A NAME="tex2html178"
+  HREF="node4.html#SECTION00044100000000000000">3.4.1 Instructing the module what to log</A>
+<LI><A NAME="tex2html179"
+  HREF="node4.html#SECTION00044200000000000000">3.4.2 Instructing the module what NOT to log using filtering
+directives</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html180"
+  HREF="node4.html#SECTION00045000000000000000">3.5 Advanced logging scenarios</A>
+<UL>
+<LI><A NAME="tex2html181"
+  HREF="node4.html#SECTION00045100000000000000">3.5.1 Using the module in an ISP environment</A>
+<LI><A NAME="tex2html182"
+  HREF="node4.html#SECTION00045200000000000000">3.5.2 Logging many-to-one data in separate tables</A>
+<LI><A NAME="tex2html183"
+  HREF="node4.html#SECTION00045300000000000000">3.5.3 Using the same database for production and test</A>
+<LI><A NAME="tex2html184"
+  HREF="node4.html#SECTION00045400000000000000">3.5.4 Optimizing for a busy database</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html185"
+  HREF="node4.html#SECTION00046000000000000000">3.6 Configuration directive reference</A>
+<UL>
+<LI><A NAME="tex2html186"
+  HREF="node4.html#SECTION00046100000000000000">3.6.1 LogSQLCookieLogTable</A>
+<LI><A NAME="tex2html187"
+  HREF="node4.html#SECTION00046200000000000000">3.6.2 LogSQLCreateTables</A>
+<LI><A NAME="tex2html188"
+  HREF="node4.html#SECTION00046300000000000000">3.6.3 LogSQLDatabase </A>
+<LI><A NAME="tex2html189"
+  HREF="node4.html#SECTION00046400000000000000">3.6.4 LogSQLForcePreserve</A>
+<LI><A NAME="tex2html190"
+  HREF="node4.html#SECTION00046500000000000000">3.6.5 LogSQLHeadersInLogTable</A>
+<LI><A NAME="tex2html191"
+  HREF="node4.html#SECTION00046600000000000000">3.6.6 LogSQLHeadersOutLogTable</A>
+<LI><A NAME="tex2html192"
+  HREF="node4.html#SECTION00046700000000000000">3.6.7 LogSQLLoginInfo </A>
+<LI><A NAME="tex2html193"
+  HREF="node4.html#SECTION00046800000000000000">3.6.8 LogSQLMachineID</A>
+<LI><A NAME="tex2html194"
+  HREF="node4.html#SECTION00046900000000000000">3.6.9 LogSQLMassVirtualHosting</A>
+<LI><A NAME="tex2html195"
+  HREF="node4.html#SECTION000461000000000000000">3.6.10 LogSQLNotesLogTable</A>
+<LI><A NAME="tex2html196"
+  HREF="node4.html#SECTION000461100000000000000">3.6.11 LogSQLPreserveFile</A>
+<LI><A NAME="tex2html197"
+  HREF="node4.html#SECTION000461200000000000000">3.6.12 LogSQLRemhostIgnore</A>
+<LI><A NAME="tex2html198"
+  HREF="node4.html#SECTION000461300000000000000">3.6.13 LogSQLRequestAccept</A>
+<LI><A NAME="tex2html199"
+  HREF="node4.html#SECTION000461400000000000000">3.6.14 LogSQLRequestIgnore</A>
+<LI><A NAME="tex2html200"
+  HREF="node4.html#SECTION000461500000000000000">3.6.15 LogSQLSocketFile </A>
+<LI><A NAME="tex2html201"
+  HREF="node4.html#SECTION000461600000000000000">3.6.16 LogSQLTCPPort</A>
+<LI><A NAME="tex2html202"
+  HREF="node4.html#SECTION000461700000000000000">3.6.17 LogSQLTransferLogFormat </A>
+<LI><A NAME="tex2html203"
+  HREF="node4.html#SECTION000461800000000000000">3.6.18 LogSQLTransferLogTable</A>
+<LI><A NAME="tex2html204"
+  HREF="node4.html#SECTION000461900000000000000">3.6.19 LogSQLWhichCookie</A>
+<LI><A NAME="tex2html205"
+  HREF="node4.html#SECTION000462000000000000000">3.6.20 LogSQLWhichCookies</A>
+<LI><A NAME="tex2html206"
+  HREF="node4.html#SECTION000462100000000000000">3.6.21 LogSQLWhichHeadersIn</A>
+<LI><A NAME="tex2html207"
+  HREF="node4.html#SECTION000462200000000000000">3.6.22 LogSQLWhichHeadersOut</A>
+<LI><A NAME="tex2html208"
+  HREF="node4.html#SECTION000462300000000000000">3.6.23 LogSQLWhichNotes</A>
+</UL></UL>
+<!--End of Table of Child-Links-->
+<HR>
+
+<H1><A NAME="SECTION00040000000000000000"></A><A NAME="sec:Configuration"></A>
+<BR>
+3 Configuration
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00041000000000000000"></A><A NAME="sub:PrepDb"></A>
+<BR>
+3.1 Preparing MySQL for logging
+</H2>
+
+<P>
+You have to prepare the database to receive data from mod_log_sql,
+and set up run-time directives in httpd.conf to control how and what
+mod_log_sql logs.
+
+<P>
+This section will discuss how to get started with a basic config.
+Full documentation of all available run-time directives is available
+in section <A HREF="node4.html#sec:ConfRef">3.6</A>.
+
+<P>
+
+<OL>
+<LI>mod_log_sql can make its own tables on-the-fly, or you can pre-make
+the tables by hand. The advantage of letting the module make the tables
+is ease-of-use, but for raw performance you will want to pre-make
+the tables in order to save some overhead. In this basic setup we'll
+just let the module create tables for us.
+</LI>
+<LI>We still need to have a logging database created and ready, so run
+the MySQL command line client and create a database:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;mysql&nbsp;-uadmin&nbsp;-pmypassword&nbsp;
+
+<P>
+Enter&nbsp;password:
+
+<P>
+mysql&gt;&nbsp;create&nbsp;database&nbsp;apachelogs;
+</DD>
+</DL>
+</LI>
+<LI><A NAME="part:CrTbl"></A>If you want to hand-create the tables, run the
+enclosed 'create-tables' SQL script as follows:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;source&nbsp;create_tables.sql
+</DD>
+</DL>
+</LI>
+<LI>Create a specific MySQL userid that httpd will use to authenticate
+and enter data. This userid need not be an actual Unix user. It is
+a userid internal to MySQL with specific privileges. In the following
+example command, &#34;apachelogs&#34; is the database, &#34;loguser&#34;
+is the userid to create, &#34;my.apachemachine.com&#34;
+is the name of the Apache machine, and &#34;l0gger&#34;
+is the password to assign. Choose values that are different from these
+examples.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;grant&nbsp;insert,create&nbsp;on&nbsp;apachelogs.*&nbsp;to&nbsp;loguser@my.apachemachine.com
+
+<P>
+identified&nbsp;by&nbsp;'l0gger';
+</DD>
+</DL>
+</LI>
+<LI>You may be especially security-paranoid and want &#34;loguser&#34;
+to <I>not</I> have &#34;create&#34; capability within the
+&#34;apachelogs&#34; database. You can disable that privilege,
+but the cost is that you will not be able to use the module's on-the-fly
+table creation feature. If that cost is acceptable, hand-create the
+tables as described in step <A HREF="node4.html#part:CrTbl">3</A> and use the following
+GRANT statement instead of the one above:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;grant&nbsp;insert&nbsp;on&nbsp;apachelogs.*&nbsp;to&nbsp;loguser@my.apachemachine.com
+
+<P>
+identified&nbsp;by&nbsp;'l0gger';
+</DD>
+</DL>
+</LI>
+<LI><A NAME="step:EnaLog"></A>Enable full logging of your MySQL daemon (at least
+temporarily for debugging purposes) if you don't do this already.
+Edit /etc/my.cnf and add the following line to your [mysqld] section:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>log=/var/log/mysql-messages
+</DD>
+</DL>Then restart MySQL.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;/etc/rc.d/init.d/mysql&nbsp;restart
+</DD>
+</DL>
+</LI>
+</OL>
+
+<P>
+
+<H2><A NAME="SECTION00042000000000000000">
+3.2 A very basic logging setup in Apache</A>
+</H2>
+
+<P>
+
+<OL>
+<LI>Tell the module what database to use and the appropriate authentication
+information.
+
+<P>
+So, edit httpd.conf and insert the following lines somewhere after
+any LoadModule / AddModule statements. <I>Make sure these statements
+are ``global,'' i.e. not inside any VirtualHost stanza</I>. You will
+also note that you are embedding a password in the file. Therefore
+you are advised to ``chmod 660 httpd.conf'' to prevent unauthorized
+regular users from viewing your database user and password.
+
+<P>
+<B>Example</B>: Use the MySQL database called &#34;apachelogs&#34;
+running on &#34;dbmachine.foo.com&#34;. Use username &#34;loguser&#34;
+and password &#34;l0gg3r&#34; to authenticate to the database.
+Permit the module create tables for us.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLLoginInfo&nbsp;dbmachine.foo.com&nbsp;loguser&nbsp;l0gg3r&nbsp;
+
+<P>
+LogSQLDatabase&nbsp;apachelogs
+
+<P>
+LogSQLCreateTables&nbsp;on
+</DD>
+</DL>If your database resides on localhost instead of another host, specify
+the MySQL server's socket file as follows:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLSocketFile&nbsp;/your/path/to/mysql.sock
+</DD>
+</DL>If your database is listening on a port other than 3306, specify the
+correct TCP port as follows:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLTCPPort&nbsp;1234
+</DD>
+</DL>
+</LI>
+<LI>The actual logging is set up on a virtual-host-by-host basis. So,
+skip down to the virtual host you want to set up. Instruct this virtual
+host to log entries to the table ``access_log'' by inserting
+a L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL> directive. (The L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>
+directive is the minimum required to log - other directives that
+you'll learn about later simply tune the module's behavior.)
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>&lt;VirtualHost&nbsp;1.2.3.4&gt;
+
+<P>
+&nbsp;[snip]
+
+<P>
+&nbsp;LogSQLTransferLogTable&nbsp;access_log
+
+<P>
+&nbsp;[snip]
+
+<P>
+&lt;/VirtualHost&gt;
+</DD>
+</DL>
+</LI>
+<LI>Restart apache.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;/etc/rc.d/init.d/httpd&nbsp;stop
+
+<P>
+#&nbsp;/etc/rc.d/init.d/httpd&nbsp;start
+</DD>
+</DL>
+</LI>
+</OL>
+
+<P>
+
+<H2><A NAME="SECTION00043000000000000000">
+3.3 Testing the basic setup</A>
+</H2>
+
+<P>
+
+<OL>
+<LI>Visit your web site in a browser to trigger some hits, then confirm
+that the entries are being successfully logged:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;mysql&nbsp;-hdbmachine.foo.com&nbsp;-umysqladmin&nbsp;-p&nbsp;-e&nbsp;&#34;select&nbsp;*&nbsp;from&nbsp;access_log&#34;&nbsp;apachelogs&nbsp;
+
+<P>
+Enter&nbsp;password:
+</DD>
+</DL>Several lines of output should follow, corresponding to your hits
+on the site. You now have basic functionality. Don't disable your
+regular Apache logs until you feel comfortable that the database is
+behaving as you'd like and that things are going well. If you do not
+see any entries in the access_log, please consult section <A HREF="node5.html#faq:NothingLogged">4.2.2</A>
+of the FAQ on how to debug and fix the situation.
+
+<P>
+</LI>
+<LI>You can now activate the advanced features of mod_log_sql, which
+are described in the next section.
+</LI>
+</OL>
+
+<P>
+
+<H2><A NAME="SECTION00044000000000000000">
+3.4 How to tune logging with run-time directives</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00044100000000000000">
+3.4.1 Instructing the module what to log</A>
+</H3>
+
+<P>
+The most basic directive for the module is L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>,
+which tells the module which information to send to the database;
+logging to the database will not take place without it. Place a L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+directive in the VirtualHost stanza of each virtual host that you
+want to activate.
+
+<P>
+After L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL> you supply a string of characters
+that tell the module what information to log. In the configuration
+directive reference (section <A HREF="node4.html#sub:Frmat">3.6.17</A>) there is a table which
+clearly defines all the possible things to log. Let's say you want
+to log only the ``request time,'' the ``remote host,'' and
+the ``request''; you'd use:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLTransferLogFormat&nbsp;hUS
+</DD>
+</DL>But a more appropriate string to use is
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLTransferLogFormat&nbsp;AbHhmRSsTUuv
+</DD>
+</DL>which logs all the information required to be compatible with the
+Combined Log Format (CLF).
+
+<P>
+If you don't choose to log everything that is available, that's fine.
+Fields in the unused columns in your table will simply contain NULL.
+
+<P>
+Some of the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL> characters require a
+little extra configuration:
+
+<P>
+
+<UL>
+<LI>If you specify 'c' to indicate that you want to log the cookie value,
+you must also tell the module which cookie you mean by using L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL>
+- after all, there could be many cookies associated with a given
+request. Fail to specify L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL>, and no cookie
+information at all will be logged. 
+</LI>
+<LI>If you specify 'M' to indicate that you want to log the machine ID,
+you must also tell the module this machine's identity using the L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID
+directive. Fail to specify L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID, and a simple
+'-' character will be logged in the machine_id column.
+</LI>
+</UL>
+
+<P>
+
+<H3><A NAME="SECTION00044200000000000000"></A><A NAME="sub:Ignore"></A>
+<BR>
+3.4.2 Instructing the module what NOT to log using filtering
+directives
+</H3>
+
+<P>
+One ``accept'' and two ``ignore'' directives allow you to
+fine-tune what the module should not log. These are very handy for
+keeping your database as uncluttered as possible and keeping your
+statistics free of unneeded numbers. Think of each one as a gatekeeper.
+
+<P>
+<I>It is important to remember that each of these three directives
+is purely optional. mod_log_sql's default is to log everything. </I>
+
+<P>
+When a request comes in, the contents of L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>A<SMALL>CCEPT</SMALL>
+are evaluated first. This optional, ``blanket'' directive lets
+you specify that only certain things are to be accepted for logging,
+and everything else discarded. Because it is evaluated before L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>
+and L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL> it can halt logging before those
+two filtering directives ``get their chance.'' 
+
+<P>
+Once a request makes it past L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>A<SMALL>CCEPT</SMALL>, it still
+can be excluded based on L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL> and L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>.
+A good way to use L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL> is to prevent the module
+from logging the traffic that your internal hosts generate. L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>
+is great for preventing things like requests for ``favicon.ico''
+from cluttering up your database, as well as excluding the various
+requests that worms make, etc.
+
+<P>
+You can specify a series of strings after each directive. Do not use
+any type of globbing or regular-expression syntax - each string is
+considered a match <I>if it is a substring of the larger request
+or remote-host; the comarison is case-sensitive.</I> This means that
+``L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL> micro'' will ignore requests from
+``microsoft.com,'' ``microworld.net,'' ``mymicroscope.org,''
+etc. ``L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL> gif'' will instruct the module
+to ignore requests for ``leftbar.gif,'' ``bluedot.gif'' and
+even ``giftwrap.jpg'' - but ``RED.GIF'' and ``Tree.Gif''
+would still get logged because of case sensitivity.
+
+<P>
+A summary of the decision flow:
+
+<P>
+
+<OL>
+<LI>If L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>A<SMALL>CCEPT</SMALL> exists and a request does not match
+anything in that list, it is discarded.
+</LI>
+<LI>If a request matches anything in the L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>
+list, it is discarded.
+</LI>
+<LI>If a reqiest matches anything in the L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL>
+list, it is discarded.
+</LI>
+<LI>Otherwise the request is logged.
+</LI>
+</OL>
+This means that you can have a series of directives similar to the
+following:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLRequestAccept&nbsp;*.html&nbsp;*.gif&nbsp;*.jpg
+
+<P>
+LogSQLRequestIgnore&nbsp;statistics.html&nbsp;bluedot.jpg
+</DD>
+</DL>So the first line instructs the module to <B>only</B> log files
+with html, gif and jpg suffixes; requests for ``formail.cgi''
+and ``shopping-cart.pl'' will never be considered for logging.
+(``LeftArrow.JPG'' will also never be considered for logging -
+remember, the comparison is <B>case sensitive</B>.) The second line
+prunes the list further - you never want to log requests for those
+two objects.
+
+<P>
+Tip: if you want to match all the hosts in your domain such as ``host1.corp.foo.com''
+and ``server.dmz.foo.com'', simply specify:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLRemhostIgnore&nbsp;foo.com
+</DD>
+</DL>Tip: a great way to catch the vast majority of worm-attack requests
+and prevent them from being logged is to specify:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLRequestIgnore&nbsp;root.exe&nbsp;cmd.exe&nbsp;default.ida
+</DD>
+</DL>Tip: to prevent the logging of requests for common graphic types,
+make sure to put a '.' before the suffix to avoid matches that you
+didn't intend:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogSQLRequestIgnore&nbsp;.gif&nbsp;.jpg
+</DD>
+</DL>
+<P>
+
+<H2><A NAME="SECTION00045000000000000000">
+3.5 Advanced logging scenarios</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00045100000000000000">
+3.5.1 Using the module in an ISP environment</A>
+</H3>
+
+<P>
+mod_log_sql has three basic tiers of operation:
+
+<P>
+
+<OL>
+<LI>The administrator creates all necessary tables by hand and configures
+each Apache VirtualHost by hand. (L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES </SMALL>O<SMALL>FF</SMALL>)
+</LI>
+<LI>The module is permitted to create necessary tables on-the-fly, but
+the administrator configures each Apache VirtualHost by hand. (L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES
+</SMALL>O<SMALL>N</SMALL>)
+</LI>
+<LI>The module is permitted to create all necessary tables and to make
+intelligent, on-the-fly configuration of each VirtualHost. (L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING
+</SMALL>O<SMALL>N</SMALL>)
+</LI>
+</OL>
+Many users are happy to use the module in its most minimal form: they
+hand-create any necessary tables (using ``create_tables.sql''),
+and they configure each VirtualHost by hand to suit their needs. However,
+some administrators need extra features due to a large and growing
+number of VirtualHosts. The L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL> directive
+activates module capabilities that make it far easier to manage an
+ISP environment, or any situation characterized by a large and varying
+number of virtual servers:
+
+<P>
+
+<UL>
+<LI>the on-the-fly table creation feature is activated automatically
+</LI>
+<LI>the transfer log table name is dynamically set from the virtual host's
+name (example: a virtual host ``www.grubbybaby.com'' gets logged
+to table ``access_www_grubbybaby_com'') 
+</LI>
+</UL>
+There are numerous benefits. The admin will not need to create new
+tables for every new VirtualHost. (Although the admin will still need
+to drop the tables of virtual hosts that are removed.) The admin will
+not need to set L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL> for each virtual host
+- it will be configured automatically based on the host's name. Because
+each virtual host will log to its own segregated table, data about
+one virtual server will segregate from others; an admin can grant
+users access to the tables they need, and they will be unable to view
+data about another user's virtual host.
+
+<P>
+In an ISP scenario the admin is likely to have a cluster of many front-end
+webservers logging to a back-end database. mod_log_sql has a feature
+that permits analysis of how well the web servers are loadbalancing:
+the L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID directive. The administrator uses this
+directive to assign a unique identifier to each machine in the web
+cluster, e.g. ``L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID web01,'' ``L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID
+web02,'' etc. Used in conjunction with the 'M' character in L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>,
+each entry in the SQL log will include the machine ID of the machine
+that created the entry. This permits the administrator to count the
+entries made by each particular machine and thereby analyze the front-end
+loadbalancing algorithm.
+
+<P>
+
+<H3><A NAME="SECTION00045200000000000000"></A><A NAME="secMulTable"></A>
+<BR>
+3.5.2 Logging many-to-one data in separate tables
+</H3>
+
+<P>
+A given HTTP request can have a one-to-many relationship with certain
+kinds of data. For example, a single HTTP request can have 4 cookies,
+3 headers and 5 ``mod_gzip'' notes associated with it. mod_log_sql
+is capable of logging these relationships due to the elegance of SQL
+relational data.
+
+<P>
+You already have a single table containing access requests. One of
+the columns in that table is 'id' which is intended to contain the
+unique request ID supplied by the standard Apache module mod_unique_id
+- all you need to do is compile in that module and employ the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+character 'I'. Thereafter, each request gets a unique ID that can
+be thought of as a primary key within the database, useful for joining
+multiple tables. So let's envision several new tables: a notes table,
+a cookies table, and a table for inbound and outbound headers. 
+
+<P>
+<BR><P></P>
+<DIV ALIGN="CENTER">
+
+<P>
+
+<P>
+<DIV ALIGN="CENTER">
+<A NAME="958"></A>
+<TABLE CELLPADDING=3 BORDER="1">
+<CAPTION><STRONG>Table 1:</STRONG>
+access_log</CAPTION>
+<TR><TD ALIGN="LEFT">id</TD>
+<TD ALIGN="LEFT">remote_host</TD>
+<TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">time_stamp</TD>
+<TD ALIGN="LEFT">status</TD>
+<TD ALIGN="LEFT">bytes_sent</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">zerberus.aiacs.net</TD>
+<TD ALIGN="LEFT">/mod_log_sql/index.html</TD>
+<TD ALIGN="LEFT">1022493617</TD>
+<TD ALIGN="LEFT">200</TD>
+<TD ALIGN="LEFT">2215</TD>
+</TR>
+</TABLE>
+</DIV>
+</DIV>
+<BR>
+<BR><P></P>
+<DIV ALIGN="CENTER">
+
+<P>
+
+<P>
+<DIV ALIGN="CENTER">
+<A NAME="959"></A>
+<TABLE CELLPADDING=3 BORDER="1">
+<CAPTION><STRONG>Table 2:</STRONG>
+notes_log</CAPTION>
+<TR><TD ALIGN="LEFT">id</TD>
+<TD ALIGN="LEFT">item</TD>
+<TD ALIGN="LEFT">val</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">mod_gzip_result</TD>
+<TD ALIGN="LEFT">OK</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">mod_gzip_compression_ratio</TD>
+<TD ALIGN="LEFT">69</TD>
+</TR>
+</TABLE>
+</DIV>
+</DIV>
+<BR>
+
+<P>
+<BR><P></P>
+<DIV ALIGN="CENTER">
+
+<P>
+
+<P>
+<DIV ALIGN="CENTER">
+<A NAME="960"></A>
+<TABLE CELLPADDING=3 BORDER="1">
+<CAPTION><STRONG>Table 3:</STRONG>
+headers_log</CAPTION>
+<TR><TD ALIGN="LEFT">id</TD>
+<TD ALIGN="LEFT">item</TD>
+<TD ALIGN="LEFT">val</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">Content-Type</TD>
+<TD ALIGN="LEFT">text/html</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">Accept-Encoding</TD>
+<TD ALIGN="LEFT">gzip, deflate</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">Expires</TD>
+<TD ALIGN="LEFT">Tue, 28 May 2002 10:00:18 GMT</TD>
+</TR>
+<TR><TD ALIGN="LEFT">PPIDskBRH30AAGPtAsg</TD>
+<TD ALIGN="LEFT">Cache-Control</TD>
+<TD ALIGN="LEFT">max-age=86400</TD>
+</TR>
+</TABLE>
+</DIV>
+</DIV>
+<BR>
+
+<P>
+We have a certain request, and its unique ID is ``PPIDskBRH30AAGPtAsg''.
+Within each separate table will be multiple entries with that request
+ID: several cookie entries, several header entries, etc. As you can
+see in tables <A HREF="#tblAcc">1</A>, <A HREF="#tblNotes">2</A> and <A HREF="#tblHdr">3</A>, you
+have a one-to-many relationship for request PPIDskBRH30AAGPtAsg: that
+one access has two associated notes and four associated headers. You
+can extract this data easily using the power of SQL's ``select''
+statement and table joins. To see the notes associated with a particular
+request:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>select&nbsp;a.remote_host,&nbsp;a.request_uri,&nbsp;n.item,&nbsp;n.val&nbsp;from&nbsp;access_log&nbsp;a,&nbsp;notes_log&nbsp;n
+
+<P>
+where&nbsp;a.id=n.id&nbsp;and&nbsp;a.id='PPIDskBRH30AAGPtAsg';
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">remote_host</TD>
+<TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">item</TD>
+<TD ALIGN="LEFT">val</TD>
+</TR>
+<TR><TD ALIGN="LEFT">zerberus.aiacs.net</TD>
+<TD ALIGN="LEFT">/mod_log_sql/index.html</TD>
+<TD ALIGN="LEFT">mod_gzip_result</TD>
+<TD ALIGN="LEFT">OK</TD>
+</TR>
+<TR><TD ALIGN="LEFT">zerberus.aiacs.net</TD>
+<TD ALIGN="LEFT">/mod_log_sql/index.html</TD>
+<TD ALIGN="LEFT">mod_gzip_compression_ratio</TD>
+<TD ALIGN="LEFT">69</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><P>
+</DD>
+</DL>Naturally you can craft similar statements for the outboud headers,
+inbound headers and cookies, all of which can live in separate tables.
+Your statements are limited in power only by your skill with SQL.
+
+<P>
+In order to use this capability of mod_log_sql, you must do several
+things:
+
+<P>
+
+<UL>
+<LI>Compile mod_unique_id into Apache (statically or as a DSO). mod_log_sql
+employs the unique request ID that mod_unique_id provides in order
+to key between the separate tables. You can still log the data without
+mod_unqiue_id, but it will be completely uncorrelated and you will
+have no way to discern any meaning.
+</LI>
+<LI>Create the appropriate tables. This will be done for you if you permit
+mod_log_sql to create its own tables using L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES
+</SMALL>O<SMALL>N</SMALL>, or if you use the enclosed ``create_tables.sql'' script.
+</LI>
+<LI>Create a SQL index on the ``id'' column. Without this index, table
+joins will be deathly slow. I recommend you consult the MySQL documentation
+on the proper way to create a column index if you are not familiar
+with this operation.
+</LI>
+<LI>Within each appropriate VirtualHost stanza, use the L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>*
+and L<SMALL>OG</SMALL>SQL*L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL> directives to tell the module what
+and where to log the data. In the following example, I have overridden
+the name for the notes table whereas I have left the other table names
+at their defaults. I have then specified the cookies, headers and
+notes that interest me. (And as you can see, these directives do not
+require me to add any characters to L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE.)</SMALL>
+</LI>
+</UL>
+
+<DL COMPACT>
+<DT>
+<DD>&lt;VirtualHost&nbsp;216.231.36.128&gt;
+
+<P>
+&nbsp;&nbsp;(snip)
+
+<P>
+&nbsp;&nbsp;LogSQLNotesLogTable&nbsp;notestable
+
+<P>
+&nbsp;&nbsp;LogSQLWhichCookies&nbsp;bluecookie&nbsp;redcookie&nbsp;greencookie&nbsp;
+
+<P>
+&nbsp;&nbsp;LogSQLWhichNotes&nbsp;mod_gzip_result&nbsp;mod_gzip_compression_ratio
+
+<P>
+&nbsp;&nbsp;LogSQLWhichHeadersOut&nbsp;Expires&nbsp;Content-Type&nbsp;Cache-Control&nbsp;
+
+<P>
+&nbsp;&nbsp;LogSQLWhichHeadersIn&nbsp;UserAgent&nbsp;Accept-Encoding&nbsp;Host
+
+<P>
+&nbsp;&nbsp;(snip)
+
+<P>
+&lt;/VirtualHost&gt;
+</DD>
+</DL>
+<P>
+
+<H3><A NAME="SECTION00045300000000000000">
+3.5.3 Using the same database for production and test</A>
+</H3>
+
+<P>
+Although suboptimal, it is not uncommon to use the same backend database
+for the ``production'' webservers as well as the ``test''
+webservers (budgetary constraints, rackspace limits, etc.). Furthermore,
+an administrator in this situation may be unable to use L<SMALL>OG</SMALL>SQLR<SMALL>EMHOST</SMALL>I<SMALL>GNORE</SMALL>
+to exclude requests from the test servers - perhaps the generated
+entries are genuinely useful for analytical or QA purposes, but their
+value after analysis is minimal.
+
+<P>
+It is wasteful and potentially confusing to permit this internal test
+data to clutter the database, and a solution to the problem is the
+proper use of the L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID directive. Assume a scenario
+where the production webservers have IDs like ``web01,'' ``web02,''
+and so on - and the test webservers have IDs like ``test01,''
+``test02,'' etc. Because entries in the log database are distinguished
+by their source machine, an administrator may purge unneeded test
+data from the access log as follows:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>delete&nbsp;from&nbsp;access_log&nbsp;where&nbsp;machine_id&nbsp;like&nbsp;'test%';
+</DD>
+</DL>
+<P>
+
+<H3><A NAME="SECTION00045400000000000000"></A><A NAME="sub:DelayedIns"></A>
+<BR>
+3.5.4 Optimizing for a busy database
+</H3>
+
+<P>
+A busy MySQL database will have SELECT statements running concurrently
+with INSERT and UPDATE statements. A long-running SELECT can in certain
+circumstances block INSERTs and therefore block mod_log_sql. A workaround
+is to compile mod_log_sql for ``delayed inserts,'' which are
+described as follows in the MySQL documentation:
+
+<P>
+<BLOCKQUOTE>
+The DELAYED option for the INSERT statement is a MySQL-specific option
+that is very useful if you have clients that can't wait for the INSERT
+to complete. This is a common problem when you use MySQL for logging
+and you also periodically run SELECT and UPDATE statements that take
+a long time to complete. DELAYED was introduced in MySQL Version 3.22.15.
+It is a MySQL extension to ANSI SQL92.
+</BLOCKQUOTE>
+<P>
+<BLOCKQUOTE>INSERT DELAYED only works with ISAM and MyISAM tables. Note that as
+MyISAM tables supports concurrent SELECT and INSERT, if there is no
+free blocks in the middle of the data file, you very seldom need to
+use INSERT DELAYED with MyISAM. 
+</BLOCKQUOTE>
+<P>
+<BLOCKQUOTE>When you use INSERT DELAYED, the client will get an OK at once and
+the row will be inserted when the table is not in use by any other
+thread.
+</BLOCKQUOTE>
+<P>
+<BLOCKQUOTE>Another major benefit of using INSERT DELAYED is that inserts from
+many clients are bundled together and written in one block. This is
+much faster than doing many separate inserts. 
+
+</BLOCKQUOTE>
+The general disadvantages of delayed inserts are:
+
+<P>
+
+<OL>
+<LI>The queued rows are only stored in memory until they are inserted
+into the table. If mysqld dies unexpectedly, any queued rows that
+weren't written to disk are lost.
+</LI>
+<LI>There is additional overhead for the server to handle a separate thread
+for each table on which you use INSERT DELAYED.
+</LI>
+</OL>
+<B>The MySQL documentation concludes, ``This means that you
+should only use INSERT DELAYED when you are really sure you need it!''
+Furthermore, the current state of error return from a failed INSERT
+DELAYED seems to be in flux, and may behave in unpredictable ways
+between different MySQL versions. See section <A HREF="node5.html#sub:DelayedInsFAQ">4.3.4</A>
+in the FAQ - you have been warned.</B>
+
+<P>
+If you are experiencing issues which could be solved by delayed inserts,
+uncomment the #MYSQLDELAYED line in the Makefile by removing the
+# that is in front of it. Recompile and reinstall your module. All
+regular INSERT statements are now INSERT DELAYED, and you should see
+no more blocking of the module.
+
+<P>
+
+<H2><A NAME="SECTION00046000000000000000"></A><A NAME="sec:ConfRef"></A>
+<BR>
+3.6 Configuration directive reference
+</H2>
+
+<P>
+It is imperative that you understand which directives are used <I>only
+once</I> in the main server config, and which are used inside VirtualHost
+stanzas and therefore multiple times within httpd.conf. The ``context''
+listed with each entry  informs you of this.
+
+<P>
+
+<H3><A NAME="SECTION00046100000000000000">
+3.6.1 LogSQLCookieLogTable</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLCookieLogTable&nbsp;table-name&nbsp;
+
+<P>
+Example:&nbsp;LogSQLCookieLogTable&nbsp;cookie_log
+
+<P>
+Default:&nbsp;cookies
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines which table is used for logging of cookies. Working in conjunction
+with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIES</SMALL>, you can log many of each request's
+associated cookies to a separate table. For meaningful data retrieval
+the cookie table is keyed to the access table by the unique request
+ID supplied by the standard Apache module mod_unique_id.
+
+<P>
+Note that you must create the table (see create-tables.sql, included
+in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION00046200000000000000">
+3.6.2 LogSQLCreateTables</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLCreateTables&nbsp;flag
+
+<P>
+Example:&nbsp;LogSQLCreateTables&nbsp;On&nbsp;
+
+<P>
+Default:&nbsp;Off&nbsp;
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>mod_log_sql has the ability to create its tables on-the-fly. The
+advantage to this is convenience: you don't have to execute any SQL
+by hand to prepare the table. This is especially helpful for people
+with lots of virtual hosts (who should also see the L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL>
+directive).
+
+<P>
+There is a slight disadvantage: if you wish to activate this feature,
+then the userid specified in L<SMALL>OG</SMALL>SQLL<SMALL>OGIN</SMALL>I<SMALL>NFO</SMALL> must have CREATE
+privileges on the database. In an absolutely paranoid, locked-down
+situation you may only want to grant your mod_log_sql user INSERT
+privileges on the database; in that situation you are unable to take
+advantage of L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL>. But most people - even
+the very security-conscious - will find that granting CREATE on the
+logging database is reasonable.
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION00046300000000000000">
+3.6.3 LogSQLDatabase </A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><B>MANDATORY</B>
+
+<P>
+Syntax:&nbsp;LogSQLDatabase&nbsp;database&nbsp;
+
+<P>
+Example:&nbsp;LogSQLDatabase&nbsp;loggingdb&nbsp;
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>Defines the database that is used for logging. ``database'' must
+be a valid db on the MySQL host defined in L<SMALL>OG</SMALL>SQLL<SMALL>OGIN</SMALL>I<SMALL>NFO</SMALL>. 
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION00046400000000000000">
+3.6.4 LogSQLForcePreserve</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLForcePreserve&nbsp;Flag
+
+<P>
+Example:&nbsp;LogSQLPreserveFile&nbsp;on
+
+<P>
+Default:&nbsp;off
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>You may need to perform debugging on your database and specifically
+want mod_log_sql to make no attempts to log to it. This directive
+instructs the module to send all its log entries directly to the preserve
+file and to make no database INSERT attempts.
+
+<P>
+This is presumably a directive for temporary use only; it could be
+dangerous if you set it and forget it, as all your entries will simply
+pile up in the preserve file.
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION00046500000000000000">
+3.6.5 LogSQLHeadersInLogTable</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLHeadersInLogTable&nbsp;table-name&nbsp;
+
+<P>
+Example:&nbsp;LogSQLHeadersInLogTable&nbsp;headers
+
+<P>
+Default:&nbsp;headers_in
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines which table is used for logging of inbound headers. Working
+in conjunction with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>H<SMALL>EADERS</SMALL>I<SMALL>N</SMALL>, you can log many
+of each request's associated headers to a separate table. For meaningful
+data retrieval the headers table is keyed to the access table by the
+unique request ID supplied by the standard Apache module mod_unique_id.
+
+<P>
+Note that you must create the table (see create-tables.sql, included
+in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION00046600000000000000">
+3.6.6 LogSQLHeadersOutLogTable</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLHeadersOutLogTable&nbsp;table-name&nbsp;
+
+<P>
+Example:&nbsp;LogSQLHeadersOutLogTable&nbsp;headers
+
+<P>
+Default:&nbsp;headers_out
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines which table is used for logging of outbound headers. Working
+in conjunction with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>H<SMALL>EADERS</SMALL>O<SMALL>UT</SMALL>, you can log many
+of each request's associated headers to a separate table. For meaningful
+data retrieval the headers table is keyed to the access table by the
+unique request ID supplied by the standard Apache module mod_unique_id.
+
+<P>
+Note that you must create the table (see create-tables.sql, included
+in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION00046700000000000000">
+3.6.7 LogSQLLoginInfo </A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><B>MANDATORY</B>&nbsp;
+
+<P>
+Syntax:&nbsp;LogSQLLoginInfo&nbsp;host&nbsp;user&nbsp;password
+
+<P>
+Example:&nbsp;LogSQLLoginInfo&nbsp;foobar.baz.com&nbsp;logwriter&nbsp;passw0rd&nbsp;
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>Defines the general parameters of the MySQL host to which you will
+be logging. ``host'' is the hostname or IP address of the MySQL
+machine, and is simply ``localhost'' if the database lives on
+the same machine as Apache. ``user'' is the MySQL userid (not
+a Unix userid!) with INSERT privileges on the table defined in L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>.
+``password'' is that user's password. 
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION00046800000000000000">
+3.6.8 LogSQLMachineID</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLMachineID&nbsp;somename
+
+<P>
+Example:&nbsp;LogSQLMachineID&nbsp;web01
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>If you have a farm of webservers then you may wish to know which particular
+machine made each entry; this is useful for analyzing your loadbalancing
+methodology. L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID permits you to distinguish each
+machine's entries if you assign each machine its own L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID:
+for example, the first webserver gets ``L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID
+web01,'' the second gets ``L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID web02,''
+etc.
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION00046900000000000000">
+3.6.9 LogSQLMassVirtualHosting</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLMassVirtualHosting&nbsp;flag&nbsp;
+
+<P>
+Example:&nbsp;LogSQLMassVirtualHosting&nbsp;On&nbsp;
+
+<P>
+Default:&nbsp;Off&nbsp;
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>If you administer a site hosting many, many virtual hosts then this
+option will appeal to you. If you turn on L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL>
+then several things happen:
+
+<P>
+
+<UL>
+<LI>the on-the-fly table creation feature is activated automatically 
+</LI>
+<LI>the transfer log table name is dynamically set from the virtual host's
+name after stripping out SQL-unfriendly characters (example: a virtual
+host www.grubbybaby.com gets logged to table access_www_grubbybaby_com) 
+</LI>
+<LI>which, in turn, means that each virtual host logs to its own segregated
+table. Because there is no data shared between virtual servers you
+can grant your users access to the tables they need; they will be
+unable to view others' data.
+</LI>
+</UL>
+This is a huge boost in convenience for sites with many virtual servers.
+Activating L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL> obviates the need to
+create every virtual server's table and provides more granular security
+possibilities.
+
+<P>
+You are advised to investigate the use of Apache's U<SMALL>SE</SMALL>C<SMALL>ANONICAL</SMALL>N<SMALL>AME
+</SMALL>O<SMALL>N</SMALL> directive with this directive in order to ensure that each virtual
+host maps to one table namespace.
+
+<P>
+This is defined only once in the httpd.conf file. 
+
+<P>
+
+<H3><A NAME="SECTION000461000000000000000">
+3.6.10 LogSQLNotesLogTable</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLNotesLogTable&nbsp;table-name&nbsp;
+
+<P>
+Example:&nbsp;LogSQLNotesLogTable&nbsp;notes_log
+
+<P>
+Default:&nbsp;notes
+
+<P>
+Context:&nbsp;virtual&nbsp;host&nbsp;
+</DD>
+</DL>Defines which table is used for logging of notes. Working in conjunction
+with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>N<SMALL>OTES</SMALL>, you can log many of each request's
+associated notes to a separate table. For meaningful data retrieval
+the notes table is keyed to the access table by the unique request
+ID supplied by the standard Apache module mod_unique_id.
+
+<P>
+Note that you must create the table (see create-tables.sql, included
+in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set to ``on''. 
+
+<P>
+
+<H3><A NAME="SECTION000461100000000000000">
+3.6.11 LogSQLPreserveFile</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLPreserveFile&nbsp;filename&nbsp;
+
+<P>
+Example:&nbsp;LogSQLPreserveFile&nbsp;offline-preserve&nbsp;
+
+<P>
+Default:&nbsp;/tmp/sql-preserve
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>mod_log_sql writes queries to this local preserve file in the event
+that it cannot reach the database, and thus ensures that your high-availability
+web frontend does not lose logs during a temporary database outage.
+This could happen for a number of reasons: the database goes offline,
+the network breaks, etc. You will not lose entries since the module
+has this backup. The file consists of a series of SQL statements that
+can be imported into your database at your convenience; furthermore,
+because the SQL queries contain the access timestamps you do not need
+to worry about out-of-order data after the import, which is done in
+a simple manner:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;mysql&nbsp;-uadminuser&nbsp;-p&nbsp;mydbname&nbsp;&lt;&nbsp;/tmp/sql-preserve
+</DD>
+</DL>If you do not define L<SMALL>OG</SMALL>SQLP<SMALL>RESERVE</SMALL>F<SMALL>ILE</SMALL> then all virtual
+servers will log to the same default preserve file (/tmp/sql-preserve).
+You can redefine this on a virtual-host basis in order to segregate
+your preserve files if you desire. Note that segregation is not usually
+necessary, as the SQL statements that are written to the preserve
+file already distinguish between different virtual hosts if you include
+the 'v' character in your L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL> directive.
+It is only necessary to segregate preserve-files by virualhost if
+you also segregate access logs by virtualhost.
+
+<P>
+The module will log to Apache's E<SMALL>RROR</SMALL>L<SMALL>OG</SMALL> when it notices
+a database outage, and upon database return. You will therefore know
+when the preserve file is being used, although it is your responsibility
+to import the file.
+
+<P>
+The file does not need to be created in advance. It is safe to remove
+or rename the file without interrupting Apache, as the module closes
+the filehandle immediately after completing the write. The file is
+created with the user &amp; group ID of the running Apache process (e.g.
+'nobody' on many Linux distributions).
+
+<P>
+
+<H3><A NAME="SECTION000461200000000000000">
+3.6.12 LogSQLRemhostIgnore</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLRemhostIgnore&nbsp;host1&nbsp;host2&nbsp;host3&nbsp;...&nbsp;hostN&nbsp;
+
+<P>
+Example:&nbsp;LogSQLRemhostIgnore&nbsp;localnet.com&nbsp;
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Lists a series of strings that, if present in the REMOTE_HOST, will
+cause that request to <B>not</B> be logged. This directive is useful
+for cutting down on log clutter when you are certain that you want
+to ignore requests from certain hosts, such as your own internal network
+machines. See section <A HREF="node4.html#sub:Ignore">3.4.2</A> for some tips for using this
+directive.
+
+<P>
+Each string is separated by a space, and no regular expressions or
+globbing are allowed. Each string is evaluated as a substring of the
+REMOTE_HOST using strstr(). The comparison is case sensitive.
+
+<P>
+
+<H3><A NAME="SECTION000461300000000000000">
+3.6.13 LogSQLRequestAccept</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLRequestAccept&nbsp;req1&nbsp;req2&nbsp;req3&nbsp;...&nbsp;reqN&nbsp;
+
+<P>
+Example:&nbsp;LogSQLRequestAccept&nbsp;.html&nbsp;.php&nbsp;.jpg
+
+<P>
+Default:&nbsp;if&nbsp;not&nbsp;specified,&nbsp;all&nbsp;requests&nbsp;are&nbsp;``accepted''
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Lists a series of strings that, if present in the URI, will permit
+that request to be considered for logging (depending on additional
+filtering by the ``ignore'' directives). Any request that fails
+to match one of the L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>A<SMALL>CCEPT</SMALL> entries will be discarded.
+
+<P>
+This directive is useful for cutting down on log clutter when you
+are certain that you only want to log certain kinds of requests, and
+just blanket-ignore everything else. See section <A HREF="node4.html#sub:Ignore">3.4.2</A>
+for some tips for using this directive.
+
+<P>
+Each string is separated by a space, and no regular expressions or
+globbing are allowed. Each string is evaluated as a substring of the
+URI using strstr(). The comparison is case sensitive.
+
+<P>
+This directive is completely optional. It is more general than L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>
+and is evaluated before L<SMALL>OG</SMALL>SQLR<SMALL>EQUEST</SMALL>I<SMALL>GNORE</SMALL>. If
+this directive is not used, <B>all</B> requests are accepted and
+passed on to the other filtering directives. Therefore, only use this
+directive if you have a specific reason to do so.
+
+<P>
+
+<H3><A NAME="SECTION000461400000000000000">
+3.6.14 LogSQLRequestIgnore</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLRequestIgnore&nbsp;req1&nbsp;req2&nbsp;req3&nbsp;...&nbsp;reqN&nbsp;
+
+<P>
+Example:&nbsp;LogSQLRequestIgnore&nbsp;root.exe&nbsp;cmd.exe&nbsp;default.ida&nbsp;favicon.ico&nbsp;
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Lists a series of strings that, if present in the URI, will cause
+that request to <B>NOT</B> be logged. This directive is
+useful for cutting down on log clutter when you are certain that you
+want to ignore requests for certain objects. See section <A HREF="node4.html#sub:Ignore">3.4.2</A>
+for some tips for using this directive.
+
+<P>
+Each string is separated by a space, and no regular expressions or
+globbing are allowed. Each string is evaluated as a substring of the
+URI using strstr(). The comparison is case sensitive.
+
+<P>
+
+<H3><A NAME="SECTION000461500000000000000">
+3.6.15 LogSQLSocketFile </A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLSocketFile&nbsp;filename&nbsp;
+
+<P>
+Example:&nbsp;LogSQLSocketFile&nbsp;/tmp/mysql.sock&nbsp;
+
+<P>
+Default:&nbsp;/var/lib/mysql/mysql.sock&nbsp;
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>At Apache runtime you can specify the MySQL socket file to use. Set
+this once in your main server config to override the default value.
+This value is irrelevant if your database resides on a separate machine.
+
+<P>
+mod_log_sql will automatically employ the socket for db communications
+if the database resides on the local host. If the db resides on a
+separate host the module will automatically use TCP/IP. This is a
+function of the MySQL API and is not user-configurable.
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION000461600000000000000">
+3.6.16 LogSQLTCPPort</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLTCPPort&nbsp;portnumber
+
+<P>
+Example:&nbsp;LogSQLTCPPort&nbsp;3309
+
+<P>
+Default:&nbsp;3306
+
+<P>
+Context:&nbsp;main&nbsp;server&nbsp;config
+</DD>
+</DL>Your database may listen on a different port than the default. If
+so, use this directive to instruct the module which port to use. This
+directive only applies if the database is on a different machine connected
+via TCP/IP.
+
+<P>
+This is defined only once in the httpd.conf file.
+
+<P>
+
+<H3><A NAME="SECTION000461700000000000000"></A><A NAME="sub:Frmat"></A>
+<BR>
+3.6.17 LogSQLTransferLogFormat 
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLTransferLogFormat&nbsp;format-string&nbsp;
+
+<P>
+Example:&nbsp;LogSQLTransferLogFormat&nbsp;huSUTv&nbsp;
+
+<P>
+Default:&nbsp;AbHhmRSsTUuv&nbsp;
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Each character in the format-string defines an attribute of the request
+that you wish to log. The default logs the information required to
+create Combined Log Format logs, plus several extras. Here is the
+full list of allowable keys, which sometimes resemble their Apache
+counterparts, but do not always:
+
+<P>
+<BLOCKQUOTE>
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="CENTER">&nbsp;</TD>
+<TH ALIGN="LEFT"><B><FONT SIZE="-1">What is this?</FONT></B></TH>
+<TH ALIGN="LEFT"><B><FONT SIZE="-1">Data field</FONT></B></TH>
+<TH ALIGN="LEFT"><B><FONT SIZE="-1">Column type</FONT></B></TH>
+<TH ALIGN="LEFT"><B><FONT SIZE="-1">Example</FONT></B></TH>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">A</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">User agent</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">agent</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(255)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Mozilla/4.0 (compat; MSIE 6.0; Windows)</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER">a</TD>
+<TD ALIGN="LEFT">CGI request arguments</TD>
+<TD ALIGN="LEFT">request_args</TD>
+<TD ALIGN="LEFT">varchar(255)</TD>
+<TD ALIGN="LEFT">user=Smith&amp;cart=1231&amp;item=532</TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">b</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Bytes transfered</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">bytes_sent</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">int unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">32561</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">c</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Text of cookie <IMG
+ WIDTH="13" HEIGHT="21" ALIGN="BOTTOM" BORDER="0"
+ SRC="img1.png"
+ ALT="$^{\textrm{1}}$"></FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">cookie</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(255)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Apache=sdyn.fooonline.net.1300102700823</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">H</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">HTTP request protocol</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_protocol</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(10)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">HTTP/1.1</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">h</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Name of remote host</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">remote_host</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(50)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">blah.foobar.com</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">I</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Request ID (from mod_unique_id)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">id</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">char(19)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">POlFcUBRH30AAALdBG8</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">l</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Ident user info</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">remote_logname</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(50)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">bobby</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">M</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Machine ID <IMG
+ WIDTH="13" HEIGHT="21" ALIGN="BOTTOM" BORDER="0"
+ SRC="img2.png"
+ ALT="$^{\textrm{2}}$"></FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">machine_id</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(25)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">web01</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">m</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">HTTP request method</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_method</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(6)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">GET</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">P</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">httpd child PID</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">child_pid</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">smallint unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">3215</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">p</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">httpd port</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">server_port</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">smallint unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">80</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">R</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Referer</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">referer</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(255)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">http://www.biglinks4u.com/linkpage.html</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">r</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Request in full form</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_line</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(255)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">GET /books-cycroad.html HTTP/1.1</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">S</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Time of request in UNIX format</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">time_stamp</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">int unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">1005598029</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">s</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">HTTP status of request</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">status</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">smallint unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">404</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">T</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Seconds to service request</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_duration</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">smallint unsigned</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">2</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">t</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Time of request in human format</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_time</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">char(28)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">[02/Dec/2001:15:01:26 -0800]</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">U</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Request in simple form</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">request_uri</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(255)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">/books-cycroad.html</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">u</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">User info from HTTP auth</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">remote_user</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(50)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">bobby</FONT></TD>
+</TR>
+<TR><TD ALIGN="CENTER"><FONT SIZE="-1">v</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">Virtual host servicing the request</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">virtual_host</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">varchar(50)</FONT></TD>
+<TD ALIGN="LEFT"><FONT SIZE="-1">www.foobar.com</FONT></TD>
+</TR>
+</TABLE></BLOCKQUOTE>
+<P>
+<BLOCKQUOTE>
+</BLOCKQUOTE>
+<P>
+<BLOCKQUOTE><IMG
+ WIDTH="13" HEIGHT="21" ALIGN="BOTTOM" BORDER="0"
+ SRC="img1.png"
+ ALT="$^{\textrm{1}}$"> You must also specify L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL>
+for this to take effect.
+</BLOCKQUOTE>
+<P>
+<BLOCKQUOTE><IMG
+ WIDTH="13" HEIGHT="21" ALIGN="BOTTOM" BORDER="0"
+ SRC="img2.png"
+ ALT="$^{\textrm{2}}$"> You must also specify L<SMALL>OG</SMALL>SQLM<SMALL>ACHINE</SMALL>ID for
+this to take effect.
+
+</BLOCKQUOTE>
+If you have compiled mod_log_sql with SSL logging capability, you
+also can use these:
+
+<P>
+<BLOCKQUOTE>
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="CENTER">&nbsp;</TD>
+<TH ALIGN="LEFT"><B>What is this?</B></TH>
+<TH ALIGN="LEFT"><B>Data field</B></TH>
+<TH ALIGN="LEFT"><B>Column Type</B></TH>
+<TH ALIGN="LEFT"><B>Example</B></TH>
+</TR>
+<TR><TD ALIGN="CENTER">z</TD>
+<TD ALIGN="LEFT">SSL cipher used</TD>
+<TD ALIGN="LEFT">ssl_cipher</TD>
+<TD ALIGN="LEFT">varchar(25)</TD>
+<TD ALIGN="LEFT">RC4-MD5</TD>
+</TR>
+<TR><TD ALIGN="CENTER">q</TD>
+<TD ALIGN="LEFT">Keysize of the SSL connection</TD>
+<TD ALIGN="LEFT">ssl_keysize</TD>
+<TD ALIGN="LEFT">smallint unsigned</TD>
+<TD ALIGN="LEFT">56</TD>
+</TR>
+<TR><TD ALIGN="CENTER">Q</TD>
+<TD ALIGN="LEFT">Maximum keysize supported</TD>
+<TD ALIGN="LEFT">ssl_maxkeysize</TD>
+<TD ALIGN="LEFT">smallint unsigned</TD>
+<TD ALIGN="LEFT">128</TD>
+</TR>
+</TABLE>
+</BLOCKQUOTE>
+
+<P>
+
+<H3><A NAME="SECTION000461800000000000000">
+3.6.18 LogSQLTransferLogTable</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><B>MANDATORY&nbsp;(unless</B>&nbsp;<B>L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL></B>&nbsp;<B>is&nbsp;``on'')</B>
+
+<P>
+Syntax:&nbsp;LogSQLTransferLogTable&nbsp;table-name&nbsp;
+
+<P>
+Example:&nbsp;LogSQLTransferLogTable&nbsp;access_log_table&nbsp;
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines which table is used for logging of Apache's transfers; this
+is analogous to Apache's TransferLog directive. table-name must be
+a valid table within the database defined in L<SMALL>OG</SMALL>SQLD<SMALL>ATABASE</SMALL>.
+
+<P>
+This directive is not necessary if you declare L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING
+</SMALL>O<SMALL>N</SMALL>, since that directive activates dynamically-named tables. If you
+attempt to use L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL> at the same time a
+warning will be logged and it will be ignored, since L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL>
+takes priority.
+
+<P>
+
+<H3><A NAME="SECTION000461900000000000000">
+3.6.19 LogSQLWhichCookie</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLWhichCookie&nbsp;cookiename&nbsp;
+
+<P>
+Example:&nbsp;LogSQLWhichCookie&nbsp;Clicks
+
+<P>
+Default:&nbsp;None
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>In HTTP, cookies have names to distinguish them from each other. Using
+mod_usertrack, for example, you can give your user-tracking cookies
+a name with the CookieName directive.
+
+<P>
+You must include a 'c' character in L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+for this directive to take effect; once you specify 'c', L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL>
+tells mod_log_sql which cookie to log. This is necessary because
+you will usually be setting and receiving more than one cookie from
+a client; this cookie designates which one to log.
+
+<P>
+Note: although this was intended for people who are using mod_usertrack
+to set user-tracking cookies, you aren't restricted in any way. You
+can choose which cookie you wish to log to the database -any cookie
+at all - and it doesn't necessarily have to have anything to do with
+mod_usertrack.
+
+<P>
+
+<H3><A NAME="SECTION000462000000000000000">
+3.6.20 LogSQLWhichCookies</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLWhichCookies&nbsp;cookie1&nbsp;cookie2&nbsp;...&nbsp;cookieN
+
+<P>
+Example:&nbsp;LogSQLWhichCookies&nbsp;userlogin&nbsp;foobar&nbsp;foobaz
+
+<P>
+Default:&nbsp;None
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines the list of cookies you would like logged. This works in conjunction
+with L<SMALL>OG</SMALL>SQLC<SMALL>OOKIE</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>. This directive does not require
+any additional characters to be added to the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+string. The feature is activated simply by including this directive,
+upon which you will begin populating the separate cookie table with
+data.
+
+<P>
+Note that you must have already created the table (see create-tables.sql,
+included in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set
+to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION000462100000000000000">
+3.6.21 LogSQLWhichHeadersIn</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLWhichHeadersIn&nbsp;item1&nbsp;item2&nbsp;...&nbsp;itemN
+
+<P>
+Example:&nbsp;LogSQLWhichHeadersIn&nbsp;UserAgent&nbsp;Accept-Encoding&nbsp;Host
+
+<P>
+Default:&nbsp;None
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines the list of inbound headers you would like logged. This works
+in conjunction with L<SMALL>OG</SMALL>SQLH<SMALL>EADERS</SMALL>I<SMALL>N</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>. This directive
+does not require any additional characters to be added to the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+string. The feature is activated simply by including this directive,
+upon which you will begin populating the separate inbound-headers
+table with data.
+
+<P>
+Note that you must have already created the table (see create-tables.sql,
+included in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set
+to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION000462200000000000000">
+3.6.22 LogSQLWhichHeadersOut</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLWhichHeadersOut&nbsp;item1&nbsp;item2&nbsp;...&nbsp;itemN
+
+<P>
+Example:&nbsp;LogSQLWhichHeadersOut&nbsp;Expires&nbsp;Content-Type&nbsp;Cache-Control
+
+<P>
+Default:&nbsp;None
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines the list of outbound headers you would like logged. This works
+in conjunction with L<SMALL>OG</SMALL>SQLH<SMALL>EADERS</SMALL>O<SMALL>UT</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>. This directive
+does not require any additional characters to be added to the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+string. The feature is activated simply by including this directive,
+upon which you will begin populating the separate outbound-headers
+table with data.
+
+<P>
+Note that you must have already created the table (see create-tables.sql,
+included in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set
+to ``on''.
+
+<P>
+
+<H3><A NAME="SECTION000462300000000000000">
+3.6.23 LogSQLWhichNotes</A>
+</H3>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Syntax:&nbsp;LogSQLWhichNotes&nbsp;item1&nbsp;item2&nbsp;...&nbsp;itemN
+
+<P>
+Example:&nbsp;LogSQLWhichNotes&nbsp;mod_gzip_result&nbsp;mod_gzip_compression_ratio
+
+<P>
+Default:&nbsp;None
+
+<P>
+Context:&nbsp;virtual&nbsp;host
+</DD>
+</DL>Defines the list of notes you would like logged. This works in conjunction
+with L<SMALL>OG</SMALL>SQLN<SMALL>OTES</SMALL>L<SMALL>OG</SMALL>T<SMALL>ABLE</SMALL>. This directive does not require
+any additional characters to be added to the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+string. The feature is activated simply by including this directive,
+upon which you will begin populating the separate notes table with
+data.
+
+<P>
+Note that you must have already created the table (see create-tables.sql,
+included in the package), or L<SMALL>OG</SMALL>SQLC<SMALL>REATE</SMALL>T<SMALL>ABLES</SMALL> must be set
+to ``on''.
+
+<P>
+<HR>
+<!--Navigation Panel-->
+<A NAME="tex2html172"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html168"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html162"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html170"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html173"
+  HREF="node5.html">4 FAQ</A>
+<B> Up:</B> <A NAME="tex2html169"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html163"
+  HREF="node3.html">2 Installation</A>
+ &nbsp; <B>  <A NAME="tex2html171"
+  HREF="node1.html">Contents</A></B> 
+<!--End of Navigation Panel-->
+<ADDRESS>
+Chris Powell
+2002-12-18
+</ADDRESS>
+</BODY>
+</HTML>

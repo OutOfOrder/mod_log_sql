@@ -1,0 +1,33 @@
+body {
+	margin-left: 3%;
+	background-color: #ccccFF;
+	font-family: sans-serif; 
+}
+
+h1 {
+	text-align: center;
+}
+
+h2 { 
+	margin-left: -1%; 
+	font-size: 150%;
+}
+
+h3 {
+	margin-left: -1%;
+}
+
+h4 {
+	text-align: center;
+}
+
+p { 
+}
+
+pre { 
+	font-family: monospace;
+}
+
+DD {
+	font-family: monospace;
+}

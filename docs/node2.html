@@ -1,0 +1,276 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2002-1 (1.68)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>1 Introduction</TITLE>
+<META NAME="description" CONTENT="1 Introduction">
+<META NAME="keywords" CONTENT="documentation">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="documentation.css">
+
+<LINK REL="next" HREF="node3.html">
+<LINK REL="previous" HREF="node1.html">
+<LINK REL="up" HREF="documentation.html">
+<LINK REL="next" HREF="node3.html">
+</HEAD>
+
+<BODY >
+<!--Navigation Panel-->
+<A NAME="tex2html134"
+  HREF="node3.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html130"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html124"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html132"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html135"
+  HREF="node3.html">2 Installation</A>
+<B> Up:</B> <A NAME="tex2html131"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html125"
+  HREF="node1.html">Contents</A>
+ &nbsp; <B>  <A NAME="tex2html133"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL>
+<LI><A NAME="tex2html136"
+  HREF="node2.html#SECTION00021000000000000000">1.1 Homepage </A>
+<LI><A NAME="tex2html137"
+  HREF="node2.html#SECTION00022000000000000000">1.2 Summary</A>
+<LI><A NAME="tex2html138"
+  HREF="node2.html#SECTION00023000000000000000">1.3 Approach</A>
+<LI><A NAME="tex2html139"
+  HREF="node2.html#SECTION00024000000000000000">1.4 What gets logged by default? </A>
+<LI><A NAME="tex2html140"
+  HREF="node2.html#SECTION00025000000000000000">1.5 Miscellaneous Notes</A>
+<LI><A NAME="tex2html141"
+  HREF="node2.html#SECTION00026000000000000000">1.6 Author / Maintainer</A>
+</UL>
+<!--End of Table of Child-Links-->
+<HR>
+
+<H1><A NAME="SECTION00020000000000000000">
+1 Introduction</A>
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00021000000000000000">
+1.1 Homepage </A>
+</H2>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>http://www.grubbybaby.com/mod_log_sql/
+</DD>
+</DL>
+<P>
+
+<H2><A NAME="SECTION00022000000000000000">
+1.2 Summary</A>
+</H2>
+
+<P>
+This Apache module will permit you to log to a SQL database; it can
+log each access request as well as data associated with each request:
+cookies, notes, and inbound/outbound headers. Unlike logging to a
+flat text file - which is standard in Apache - a SQL-based log exhibits
+tremendous flexibility and power of data extraction. (See section
+<A HREF="node5.html#sub:why">4.1.1</A> in the FAQ for further discussion and examples of the
+advantages to SQL.)
+
+<P>
+This module can either replace or happily coexist with mod_log_config,
+Apache's text file logging facility. In addition to being more configurable
+than the standard module, mod_log_sql is much more flexible.
+
+<P>
+
+<H2><A NAME="SECTION00023000000000000000">
+1.3 Approach</A>
+</H2>
+
+<P>
+This project was formerly known as ``mod_log_mysql.'' It was
+renamed ``mod_log_sql'' in order to reflect the project goal
+of database-inspecificity. The module currently supports MySQL, but
+support for other database backends is underway.
+
+<P>
+In order to save speed and overhead, links are kept alive in between
+queries. This module uses one dedicated SQL link per httpd child,
+opened by each child process when it is born. Among other things,
+this means that this module supports logging into only one MySQL server,
+and for now, also, only one SQL database. But that's a small tradeoff
+compared to the blinding speed of this module. Error reporting is
+robust throughout the module and will inform the administrator of
+database issues in the Apache E<SMALL>RROR</SMALL>L<SMALL>OG</SMALL> for the server/virtual
+server.
+
+<P>
+Virtual hosts are supported in the same manner they are in the regular
+logging modules. The administrator defines some basic 'global' directives
+in the main server config, then defines more specific 'local' directives
+inside each VirtualHost stanza.
+
+<P>
+A robust &#34;preserve&#34; capability has now been implemented.
+This permits the module to preserve any failed INSERT commands to
+a local file on its machine. In any situation that the database is
+unavailable - e.g. the network fails or the database host is rebooted
+- mod_log_sql will note this in the error log and begin appending
+its log entries to the preserve file (which is created with the user
+&amp; group ID of the running Apache process, e.g. &#34;nobody/nobody&#34;
+on many Linux installations). When database availablity returns, mod_log_sql
+seamlessly resumes logging to it. When convenient for the sysadmin,
+he/she can easily import the preserve file into the database because
+it is simply a series of SQL insert statements.
+
+<P>
+
+<H2><A NAME="SECTION00024000000000000000">
+1.4 What gets logged by default? </A>
+</H2>
+
+<P>
+All the data that would be contained in the &#34;Combined Log
+Format&#34; is logged by default, plus a little extra. Your best
+bet is to begin by accepting this default, then later customize the
+log configuration based on your needs.
+
+<P>
+The documentation of the run-time directives includes a full explanation
+of what you can log, including examples - see section <A HREF="node4.html#sec:ConfRef">3.6</A>.
+
+<P>
+
+<H2><A NAME="SECTION00025000000000000000">
+1.5 Miscellaneous Notes</A>
+</H2>
+
+<P>
+
+<UL>
+<LI>Note which directives go in the 'main server config' and which directives
+apply to the 'virtual host config'. This is made clear in the directive
+documentation.
+</LI>
+<LI>The 'time_stamp' field is stored in an UNSIGNED INTEGER column, in
+the standard unix ``seconds since the epoch'' format. This is
+superior to storing the access time as a string due to size requirements:
+an UNSIGNED INT requires 4 bytes, whereas an Apache date string -
+e.g. &#34;18/Nov/2001:13:59:52 -0800&#34; - requires 26
+bytes: those extra 22 bytes become significant when multiplied by
+thousands of accesses on a busy server. Besides, an INT type is far
+more flexible for comparisons, etc.
+
+<P>
+In MySQL 3.21 and above you can easily convert this to a human readable
+format using from_unixtime(), e.g.:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>select&nbsp;remote_host,request_uri,from_unixtime(time_stamp)&nbsp;from&nbsp;access_log;
+</DD>
+</DL>The enclosed perl program ``make_combined_log.pl'' extracts
+your access log in a format that is completely compatible with the
+Combined Log Format. You can then feed this to your favorite web log
+analysis tool.
+
+<P>
+</LI>
+<LI>The table's string values can be CHAR or VARCHAR, at a length of your
+choice. VARCHAR is superior because it truncates long strings; CHAR
+types are fixed-length and will be padded with spaces, resulting in
+waste. Just like the time_stamp issue described above, that kind
+of space waste multiplies over thousands of records.
+</LI>
+<LI>Be careful not to go overboard setting fields to NOT NULL. If a field
+is marked NOT NULL then it must contain data in the INSERT statement,
+or the INSERT will fail. These mysterious failures can be quite frustrating
+and difficult to debug.
+</LI>
+<LI>When Apache logs a numeric field, it uses a '-' character to mean
+``not applicable,'' e.g. the number of bytes returned on a 304
+(unchanged) request. Since '-' is an illegal character in an SQL numeric
+field, such fields are assigned the value 0 instead of '-' which,
+of course, makes perfect sense anyway.
+</LI>
+</UL>
+
+<P>
+
+<H2><A NAME="SECTION00026000000000000000">
+1.6 Author / Maintainer</A>
+</H2>
+
+<P>
+The actual logging code was taken from the already existing flat file
+text modules, so all that credit goes to the Apache Server group.
+
+<P>
+The MySQL routines and directives were added by Zeev Suraski &lt;bourbon@netvision.net.il&gt;.
+
+<P>
+All changes from 1.06+ and the new documentation were added by Chris
+Powell &lt;chris@grubbybaby.com&gt;. It seems that the module had fallen
+into the &#34;unmaintained&#34; category - it hadn't been
+updated since 1998 - so Chris adopted it as the new maintainer.
+
+<P>
+<HR>
+<!--Navigation Panel-->
+<A NAME="tex2html134"
+  HREF="node3.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html130"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html124"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html132"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html135"
+  HREF="node3.html">2 Installation</A>
+<B> Up:</B> <A NAME="tex2html131"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html125"
+  HREF="node1.html">Contents</A>
+ &nbsp; <B>  <A NAME="tex2html133"
+  HREF="node1.html">Contents</A></B> 
+<!--End of Navigation Panel-->
+<ADDRESS>
+Chris Powell
+2002-12-18
+</ADDRESS>
+</BODY>
+</HTML>

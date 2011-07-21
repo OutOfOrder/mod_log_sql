@@ -1,0 +1,1270 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2002-1 (1.68)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>4 FAQ</TITLE>
+<META NAME="description" CONTENT="4 FAQ">
+<META NAME="keywords" CONTENT="documentation">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="documentation.css">
+
+<LINK REL="next" HREF="node6.html">
+<LINK REL="previous" HREF="node4.html">
+<LINK REL="up" HREF="documentation.html">
+<LINK REL="next" HREF="node6.html">
+</HEAD>
+
+<BODY >
+<!--Navigation Panel-->
+<A NAME="tex2html219"
+  HREF="node6.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html215"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html209"
+  HREF="node4.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html217"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html220"
+  HREF="node6.html">About this document ...</A>
+<B> Up:</B> <A NAME="tex2html216"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html210"
+  HREF="node4.html">3 Configuration</A>
+ &nbsp; <B>  <A NAME="tex2html218"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL>
+<LI><A NAME="tex2html221"
+  HREF="node5.html#SECTION00051000000000000000">4.1 General module questions</A>
+<UL>
+<LI><A NAME="tex2html222"
+  HREF="node5.html#SECTION00051100000000000000">4.1.1 Why log to an SQL database?</A>
+<LI><A NAME="tex2html223"
+  HREF="node5.html#SECTION00051200000000000000">4.1.2 Why use MySQL? Are there alternatives?</A>
+<LI><A NAME="tex2html224"
+  HREF="node5.html#SECTION00051300000000000000">4.1.3 Is this code production-ready?</A>
+<LI><A NAME="tex2html225"
+  HREF="node5.html#SECTION00051400000000000000">4.1.4 Who's using mod_log_sql?</A>
+<LI><A NAME="tex2html226"
+  HREF="node5.html#SECTION00051500000000000000">4.1.5 Why doesn't the module also replace the Apache ErrorLog?</A>
+<LI><A NAME="tex2html227"
+  HREF="node5.html#SECTION00051600000000000000">4.1.6 Does mod_log_sql work with Apache 2.x?</A>
+<LI><A NAME="tex2html228"
+  HREF="node5.html#SECTION00051700000000000000">4.1.7 Does mod_log_sql connect to MySQL via TCP/IP or a socket?</A>
+<LI><A NAME="tex2html229"
+  HREF="node5.html#SECTION00051800000000000000">4.1.8 I have discovered a bug. Who can I contact?</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html230"
+  HREF="node5.html#SECTION00052000000000000000">4.2 Problems</A>
+<UL>
+<LI><A NAME="tex2html231"
+  HREF="node5.html#SECTION00052100000000000000">4.2.1 Apache segfaults when using PHP and mod_log_sql</A>
+<LI><A NAME="tex2html232"
+  HREF="node5.html#SECTION00052200000000000000">4.2.2 Apache appears to start up fine, but nothing
+is getting logged in the database</A>
+<LI><A NAME="tex2html233"
+  HREF="node5.html#SECTION00052300000000000000">4.2.3 Why do I get the message ``insufficient configuration info to
+establish database link'' in my Apache error log?</A>
+<LI><A NAME="tex2html234"
+  HREF="node5.html#SECTION00052400000000000000">4.2.4 My database cannot handle all the open connections from mod_log_sql,
+is there anything I can do?</A>
+<LI><A NAME="tex2html235"
+  HREF="node5.html#SECTION00052500000000000000">4.2.5 Why do I occasionally see a ``lost connection to MySQL server''
+message in my Apache error log?</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html236"
+  HREF="node5.html#SECTION00053000000000000000">4.3 Performance and Tuning</A>
+<UL>
+<LI><A NAME="tex2html237"
+  HREF="node5.html#SECTION00053100000000000000">4.3.1 How well does it perform?</A>
+<LI><A NAME="tex2html238"
+  HREF="node5.html#SECTION00053200000000000000">4.3.2 Do I need to be worried about all the running MySQL children? Will
+holding open <I>n</I> Apache-to-MySQL connections consume a lot of
+memory? </A>
+<LI><A NAME="tex2html239"
+  HREF="node5.html#SECTION00053300000000000000">4.3.3 My webserver cannot handle all the traffic that my site receives,
+is there anything I can do?</A>
+<LI><A NAME="tex2html240"
+  HREF="node5.html#SECTION00053400000000000000">4.3.4 What is the issue with activating delayed
+inserts?</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html241"
+  HREF="node5.html#SECTION00054000000000000000">4.4 ``How do I...?'' - accomplishing certain tasks</A>
+<UL>
+<LI><A NAME="tex2html242"
+  HREF="node5.html#SECTION00054100000000000000">4.4.1 I am using LogSQLMassVirtualHosting, and sometimes a single VirtualHost
+gets logged to two different tables. How do I prevent that?</A>
+<LI><A NAME="tex2html243"
+  HREF="node5.html#SECTION00054200000000000000">4.4.2 How do I extract the data in a format that my analysis tool can understand?</A>
+<LI><A NAME="tex2html244"
+  HREF="node5.html#SECTION00054300000000000000">4.4.3 How can I log mod_usertrack cookies?</A>
+<LI><A NAME="tex2html245"
+  HREF="node5.html#SECTION00054400000000000000">4.4.4 What if I want to log more than one cookie? What is the difference
+between LogSQLWhichCookie and LogSQLWhichCookies?</A>
+<LI><A NAME="tex2html246"
+  HREF="node5.html#SECTION00054500000000000000">4.4.5 What are the SSL logging features, and how do I activate them?</A>
+</UL></UL>
+<!--End of Table of Child-Links-->
+<HR>
+
+<H1><A NAME="SECTION00050000000000000000">
+4 FAQ</A>
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00051000000000000000">
+4.1 General module questions</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00051100000000000000"></A><A NAME="sub:why"></A>
+<BR>
+4.1.1 Why log to an SQL database?
+</H3>
+
+<P>
+To begin with, let's get it out of the way: logging to a database
+is not a panacea. But while there are complexities with this solution,
+the benefit can be substantial for certain classes of administrator
+or people with advanced requirements:
+
+<P>
+
+<UL>
+<LI>Chores like log rotation go away, as you can DELETE records from the
+SQL database once they are no longer useful. For example, the excellent
+and popular log-analysis tool Webalizer (http://www.webalizer.com)
+does not need historic logs after it has processed them, enabling
+you to delete older logs.
+</LI>
+<LI>People with clusters of web servers (for high availability) will benefit
+the most - all their webservers can log to a single SQL database.
+This obviates the need to collate/interleave the many separate logfiles,
+which can be / highly/ problematic. 
+</LI>
+<LI>People acquainted with the power of SQL SELECT statements will know
+the flexibility of the extraction possibilities at their fingertips.
+</LI>
+</UL>
+For example, do you want to see all your 404's? Do this:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>select&nbsp;remote_host,status,request_uri,bytes_sent,from_unixtime(time_stamp)
+
+<P>
+from&nbsp;acc_log_tbl&nbsp;where&nbsp;status=404&nbsp;order&nbsp;by&nbsp;time_stamp;
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">remote_host</TD>
+<TD ALIGN="LEFT">status</TD>
+<TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">bytes_sent</TD>
+<TD ALIGN="LEFT">from_unixtime(time_stamp)</TD>
+</TR>
+<TR><TD ALIGN="LEFT">marge.mmm.co.uk</TD>
+<TD ALIGN="LEFT">404</TD>
+<TD ALIGN="LEFT">/favicon.ico</TD>
+<TD ALIGN="LEFT">321</TD>
+<TD ALIGN="LEFT">2001-11-20 02:30:56</TD>
+</TR>
+<TR><TD ALIGN="LEFT">62.180.239.251</TD>
+<TD ALIGN="LEFT">404</TD>
+<TD ALIGN="LEFT">/favicon.ico</TD>
+<TD ALIGN="LEFT">333</TD>
+<TD ALIGN="LEFT">2001-11-20 02:45:25</TD>
+</TR>
+<TR><TD ALIGN="LEFT">212.234.12.66</TD>
+<TD ALIGN="LEFT">404</TD>
+<TD ALIGN="LEFT">/favicon.ico</TD>
+<TD ALIGN="LEFT">321</TD>
+<TD ALIGN="LEFT">2001-11-20 03:01:00</TD>
+</TR>
+<TR><TD ALIGN="LEFT">212.210.78.254</TD>
+<TD ALIGN="LEFT">404</TD>
+<TD ALIGN="LEFT">/favicon.ico</TD>
+<TD ALIGN="LEFT">333</TD>
+<TD ALIGN="LEFT">2001-11-20 03:26:05</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><P>
+</DD>
+</DL>Or do you want to see how many bytes you've sent within a certain
+directory or site? Do this:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>select&nbsp;request_uri,sum(bytes_sent)&nbsp;as&nbsp;bytes,count(request_uri)&nbsp;as&nbsp;howmany&nbsp;from
+
+<P>
+acc_log_tbl&nbsp;where&nbsp;request_uri&nbsp;like&nbsp;'%mod_log_sql%'&nbsp;group&nbsp;by&nbsp;request_uri&nbsp;order
+
+<P>
+by&nbsp;howmany&nbsp;desc;&nbsp;
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">bytes</TD>
+<TD ALIGN="LEFT">howmany</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/style_1.css</TD>
+<TD ALIGN="LEFT">157396</TD>
+<TD ALIGN="LEFT">1288</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/</TD>
+<TD ALIGN="LEFT">2514337</TD>
+<TD ALIGN="LEFT">801</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/mod_log_sql.tar.gz</TD>
+<TD ALIGN="LEFT">9769312</TD>
+<TD ALIGN="LEFT">456</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/faq.html</TD>
+<TD ALIGN="LEFT">5038728</TD>
+<TD ALIGN="LEFT">436</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><P>
+</DD>
+</DL>Or maybe you want to see who's linking to you? Do this:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>select&nbsp;count(referer)&nbsp;as&nbsp;num,referer&nbsp;from&nbsp;acc_log_tbl&nbsp;where
+
+<P>
+request_uri='/mod_log_sql/'&nbsp;group&nbsp;by&nbsp;referer&nbsp;order&nbsp;by&nbsp;num&nbsp;desc;
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">num</TD>
+<TD ALIGN="LEFT">referer</TD>
+</TR>
+<TR><TD ALIGN="LEFT">271</TD>
+<TD ALIGN="LEFT">http://freshmeat.net/projects/mod_log_sql/</TD>
+</TR>
+<TR><TD ALIGN="LEFT">96</TD>
+<TD ALIGN="LEFT">http://modules.apache.org/search?id=339</TD>
+</TR>
+<TR><TD ALIGN="LEFT">48</TD>
+<TD ALIGN="LEFT">http://freshmeat.net/</TD>
+</TR>
+<TR><TD ALIGN="LEFT">8</TD>
+<TD ALIGN="LEFT">http://freshmeat.net</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><P>
+</DD>
+</DL>As you can see, there are myriad possibilities that can be constructed
+with the wonderful SQL SELECT statement. Logging to an SQL database
+can be really quite useful!
+
+<P>
+
+<H3><A NAME="SECTION00051200000000000000">
+4.1.2 Why use MySQL? Are there alternatives?</A>
+</H3>
+
+<P>
+MySQL is a robust, free, and very powerful production-quality database
+engine. It is well supported and comes with detailed documentation.
+Many 3rd-party software pacakges (e.g. Slashcode, the engine that
+powers Slashdot) run exclusively with MySQL. In other words, you will
+belong to a very robust and well-supported community by choosing MySQL.
+
+<P>
+That being said, there are alternatives. PostgreSQL is probably MySQL's
+leading &#34;competitor&#34; in the free database world.
+There is also an excellent module available for Apache to permit logging
+to a PostgreSQL database, called pgLOGd (http://www.digitalstratum.com/pglogd/).
+
+<P>
+
+<H3><A NAME="SECTION00051300000000000000">
+4.1.3 Is this code production-ready?</A>
+</H3>
+
+<P>
+By all accounts it is. It is known to work without a problem on many-thousands-of-hits-per-day
+webservers. Does that mean it is 100% bug free? Well, no software
+is. But it is well-tested and believed to be fully compatible with
+production environments. (The usual disclaimers apply. This software
+is provided without warranty of any kind.)
+
+<P>
+
+<H3><A NAME="SECTION00051400000000000000">
+4.1.4 Who's using mod_log_sql?</A>
+</H3>
+
+<P>
+Good question! It would be great to find out! If you are a production-level
+mod_log_sql user, please contact the maintainer, Chris Powell (chris@grubbybaby.com)
+so that you can be mentioned here.
+
+<P>
+
+<H3><A NAME="SECTION00051500000000000000">
+4.1.5 Why doesn't the module also replace the Apache ErrorLog?</A>
+</H3>
+
+<P>
+There are circumstances when that would be quite unwise - for example,
+if Apache could not reach the MySQL server for some reason and needed
+to log that fact. Without a text-based error log you'd never know
+anything was wrong, because Apache would be trying to log a database
+connection error to the database... you get the point.
+
+<P>
+Error logs are usually not very high-traffic and are really best left
+as text files on a web server machine.
+
+<P>
+
+<H3><A NAME="SECTION00051600000000000000">
+4.1.6 Does mod_log_sql work with Apache 2.x?</A>
+</H3>
+
+<P>
+As of this writing, no. The Apache Group significantly altered the
+module API with the release of Apache 2.0. All modules written for
+1.3, including mod_log_sql, will not work with 2.0.
+
+<P>
+mod_log_sql will eventually be ported to Apache 2.x, but not immediately.
+It is going to take some time, and there are other features that have
+higher priority. Please sign up for the announcements list (on the
+main website) or monitor the website for updates to learn when the
+port (and other releases) are available.
+
+<P>
+&lt;OPINION&gt;If you're a *NIX user, stick with Apache 1.3.x for now.
+Major modules like mod_ssl and PHP are not even ready for 2.0 yet,
+and the main benefits in 2.0 are for Win32 users anyway. Apache 1.3.x
+is rock-stable and performs equally well on *NIX as 2.0.&lt;/OPINION&gt;
+
+<P>
+
+<H3><A NAME="SECTION00051700000000000000">
+4.1.7 Does mod_log_sql connect to MySQL via TCP/IP or a socket?</A>
+</H3>
+
+<P>
+It depends! This is not determined by mod_log_sql. mod_log_sql
+relies on a connection command that is supplied in the MySQL API,
+and that command is somewhat intelligent. How it works:
+
+<P>
+
+<UL>
+<LI>if the specified MySQL database is on the same machine, the connection
+command uses a socket to communicate with MySQL
+</LI>
+<LI>if the specified MySQL database is on a different machine, mod_log_sql
+connects using TCP/IP. 
+</LI>
+</UL>
+You don't have any control of which methodology is used. You can fine-tune
+some of the configuration, however. The L<SMALL>OG</SMALL>SQLS<SMALL>OCKET</SMALL>F<SMALL>ILE</SMALL>
+runtime configuration directive overrides the default of ``/var/lib/mysql/mysql.sock''
+for socket-based connections, whereas the L<SMALL>OG</SMALL>SQLTCPP<SMALL>ORT</SMALL> command
+allows to you override the default TCP port of 3306 for TCP/IP connections.
+
+<P>
+
+<H3><A NAME="SECTION00051800000000000000">
+4.1.8 I have discovered a bug. Who can I contact?</A>
+</H3>
+
+<P>
+Please contact the maintainer (chris@grubbybaby.com)! Your
+comments, suggestions, bugfixes, bug catches, and usage testimonials
+are always welcome. As free software, mod_log_sql is intended to
+be a community effort - any code contributions or other ideas will
+be fully and openly credited, of course.
+
+<P>
+
+<H2><A NAME="SECTION00052000000000000000">
+4.2 Problems</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00052100000000000000">
+4.2.1 Apache segfaults when using PHP and mod_log_sql</A>
+</H3>
+
+<P>
+This occurs if you compiled PHP with MySQL database support. PHP utilizes
+its internal, bundled MySQL libraries by default. These conflict with
+the ``real'' MySQL libraries linked by mod_log_sql, causing
+the segmentation fault. 
+
+<P>
+The solution is to configure PHP to link against the real MySQL libraries
+and recompile mod_php. Apache will run properly once the modules
+are all using the same version of the MySQL libraries.
+
+<P>
+
+<H3><A NAME="SECTION00052200000000000000"></A><A NAME="faq:NothingLogged"></A>
+<BR>
+4.2.2 Apache appears to start up fine, but nothing
+is getting logged in the database
+</H3>
+
+<P>
+If you do not see any entries in the access_log, then something is
+preventing the inserts from happening. This could be caused by several
+things:
+
+<P>
+
+<UL>
+<LI>Improper privileges set up in the MySQL database 
+</LI>
+<LI>You aren't hitting a VirtualHost that has a LogSQLTransferLogTable
+entry 
+</LI>
+<LI>You didn't specify the right database host or login information
+</LI>
+<LI>Another factor is preventing a connection to the database
+</LI>
+</UL>
+Important: it is improper to ask for help before you have followed
+these steps.
+
+<P>
+First examine the MySQL log that you established in step <A HREF="node4.html#step:EnaLog">6</A>
+of section <A HREF="node4.html#sub:PrepDb">3.1</A>. Ensure that the INSERT statements are
+not being rejected because of a malformed table name or other typographical
+error. By enabling that log, you instructed MySQL to log every connection
+and command it receives - if you see no INSERT attempts in the log,
+the module isn't successfully connecting to the database. If you see
+nothing at all in the log - not even a record of your administrative
+connection attempts, then you did not enable the log correctly. If
+you do see INSERT attempts but they are failing, the log should tell
+you why.
+
+<P>
+Second, confirm that your L<SMALL>OG</SMALL>SQL* directives are all correct.
+
+<P>
+Third, examine the Apache error logs for messages from mod_log_sql;
+the module will offer hints as to why it cannot connect, etc. 
+
+<P>
+The next thing to do is recompile the module with debugging output
+activated. change the &#34;#undef DEBUG&#34; on line 8
+of mod_log_sql.c to &#34;#define DEBUG&#34; and recompile/reinstall.
+The module will now output copious notes about what it is doing, and
+this will help you (and the maintainer) solve the problem. In order
+to see the debugging messages, ensure that you make them visible using
+the L<SMALL>OG</SMALL>L<SMALL>EVEL</SMALL> directive <B>in the main server config
+as well as in each</B> <B>V<SMALL>IRTUAL</SMALL>H<SMALL>OST</SMALL></B> <B>config:</B>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogLevel&nbsp;debug
+
+<P>
+ErrorLog&nbsp;/var/log/httpd/server-messages&nbsp;
+</DD>
+</DL>
+<P>
+
+<H3><A NAME="SECTION00052300000000000000">
+4.2.3 Why do I get the message ``insufficient configuration info to
+establish database link'' in my Apache error log?</A>
+</H3>
+
+<P>
+At a minimum, L<SMALL>OG</SMALL>SQLD<SMALL>ATABASE</SMALL> and L<SMALL>OG</SMALL>SQLL<SMALL>OGIN</SMALL>I<SMALL>NFO</SMALL>
+must be defined in order for the module to be able to establish a
+database link. If these are not defined or are incomplete you will
+receive this error message.
+
+<P>
+
+<H3><A NAME="SECTION00052400000000000000">
+4.2.4 My database cannot handle all the open connections from mod_log_sql,
+is there anything I can do?</A>
+</H3>
+
+<P>
+The rule of thumb: if you have <I>n</I> webservers each configured
+to support <I>y</I> M<SMALL>AX</SMALL>C<SMALL>LIENTS</SMALL>, then your database must be
+able to handle <IMG
+ WIDTH="41" HEIGHT="29" ALIGN="MIDDLE" BORDER="0"
+ SRC="img3.png"
+ ALT="$n\times y$"> simultenous connections <I>in the worst
+case.</I> Certainly you must use common sense, consider reasonable traffic
+expectations and structure things accordingly.
+
+<P>
+Tweaking my.cnf to scale to high connection loads is imperative. But
+if hardware limitations prevent your MySQL server from gracefully
+handling the number of incoming connections, it would be beneficial
+to upgrade the memory or CPU on that server in order to handle the
+load. 
+
+<P>
+Jeremy Zawodny, a highly respected MySQL user and contributor to Linux
+Magazine, has this very helpful and highly appropriate article on
+tuning MySQL: http://jeremy.zawodny.com/blog/archives/000173.html
+
+<P>
+Please remember that mod_log_sql's overriding principle is <B>performance</B>
+- that is what the target audience demands and expects. Other database
+logging solutions do not open and maintain many database connections,
+but their performance suffers drastically. For example, pgLOGd funnels
+all log connections through a separate daemon that connects to the
+database, but that bottlenecks the entire process. mod_log_sql achieves
+performance numbers an order of magnitude greater than the alternatives
+because it dispenses with the overhead associated with rapid connection
+cycling, and it doesn't attempt to shoehorn all the database traffic
+through a single extra daemon or proxy process.
+
+<P>
+
+<H3><A NAME="SECTION00052500000000000000">
+4.2.5 Why do I occasionally see a ``lost connection to MySQL server''
+message in my Apache error log?</A>
+</H3>
+
+<P>
+This message may appear every now and then in your Apache error log,
+especially on very lightly loaded servers. This doesn't mean that
+anything is necessarily wrong. Within each httpd child process, mod_log_sql
+will open (and keep open) a connection to the MySQL server. MySQL,
+however, will close connections that haven't been used in a while;
+the default timeout is 8 hours. When this occurs, mod_log_sql will
+notice and re-open the connection. That event is what is being logged,
+and looks like this:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>[Tue&nbsp;Nov&nbsp;12&nbsp;19:04:10&nbsp;2002]&nbsp;[error]&nbsp;mod_log_sql:&nbsp;first&nbsp;attempt&nbsp;failed,&nbsp;
+
+<P>
+&nbsp;&nbsp;API&nbsp;said:&nbsp;error&nbsp;2013,&nbsp;Lost&nbsp;connection&nbsp;to&nbsp;MySQL&nbsp;server&nbsp;during&nbsp;query&nbsp;
+
+<P>
+[Tue&nbsp;Nov&nbsp;12&nbsp;19:04:10&nbsp;2002]&nbsp;[error]&nbsp;mod_log_sql:&nbsp;reconnect&nbsp;successful
+
+<P>
+[Tue&nbsp;Nov&nbsp;12&nbsp;19:04:10&nbsp;2002]&nbsp;[error]&nbsp;mod_log_sql:&nbsp;second&nbsp;attempt&nbsp;successful
+</DD>
+</DL>Reference: MySQL documentation (http://www.mysql.com/documentation/mysql/bychapter/manual_Problems.html#Gone_away)
+
+<P>
+
+<H2><A NAME="SECTION00053000000000000000">
+4.3 Performance and Tuning</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00053100000000000000">
+4.3.1 How well does it perform?</A>
+</H3>
+
+<P>
+mod_log_sql scales to very high loads. Apache 1.3.22 + mod_log_sql
+was benchmarked using the &#34;ab&#34; (Apache Bench) program
+that comes with the Apache distribution; here are the results.
+
+<P>
+Overall configuration:
+
+<P>
+
+<UL>
+<LI>Machine A: Apache webserver 
+</LI>
+<LI>Machine B: MySQL server 
+</LI>
+<LI>Machines A and B connected with 100Mbps Ethernet
+</LI>
+<LI>Webserver: Celeron 400, 128 MB RAM, IDE storage
+</LI>
+</UL>
+Apache configuration:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Timeout&nbsp;300&nbsp;
+
+<P>
+KeepAlive&nbsp;On&nbsp;
+
+<P>
+MaxKeepAliveRequests&nbsp;100&nbsp;
+
+<P>
+KeepAliveTimeout&nbsp;15&nbsp;
+
+<P>
+MinSpareServers&nbsp;5&nbsp;
+
+<P>
+StartServers&nbsp;10&nbsp;
+
+<P>
+MaxSpareServers&nbsp;15&nbsp;
+
+<P>
+MaxClients&nbsp;256&nbsp;
+
+<P>
+MaxRequestsPerChild&nbsp;5000&nbsp;
+
+<P>
+LogSQLTransferLogFormat&nbsp;AbHhmRSsTUuvc&nbsp;
+
+<P>
+LogSQLWhichCookie&nbsp;Clicks&nbsp;
+
+<P>
+CookieTracking&nbsp;on&nbsp;
+
+<P>
+CookieName&nbsp;Clicks
+</DD>
+</DL>&#34;ab&#34; commandline:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>./ab&nbsp;-c&nbsp;10&nbsp;-t&nbsp;20&nbsp;-v&nbsp;2&nbsp;-C&nbsp;Clicks=ab_run&nbsp;http://www.hostname.com/target&nbsp;
+</DD>
+</DL>( 10 concurrent requests; 20 second test; setting a cookie &#34;Clicks=ab_run&#34;;
+target = the mod_log_sql homepage. )
+
+<P>
+Ten total ab runs were conducted: five with MySQL logging enabled,
+and five with all MySQL directives commented out of httpd.conf. Then
+each five were averaged. The results:
+
+<P>
+
+<UL>
+<LI>Average of five runs employing MySQL <I>and</I> standard text logging:
+<B>139.01 requests per second, zero errors</B>.
+</LI>
+<LI>Average of five runs employing <I>only</I> standard text logging:
+<B>139.96 requests per second, zero errors</B>.
+</LI>
+</UL>
+In other words, any rate-limiting effects on this particular hardware
+setup are not caused by MySQL. Note that although this very simple
+webserver setup is hardly cutting-edge - it is, after all, a fairly
+small machine - 139 requests per second equal over <I>twelve million
+hits per day.</I>
+
+<P>
+If you run this benchmark yourself, take note of three things:
+
+<P>
+
+<OL>
+<LI>Use a target URL that is on your own webserver :-). 
+</LI>
+<LI>Wait until all your connections are closed out between runs; after
+several thousand requests your TCP/IP stack will be filled with hundreds
+of connections in TIME_WAIT that need to close. Do a &#34;netstat
+-t|wc -l&#34; on the webserver to see. If you don't wait, you
+can expect to see a lot of messages like &#34;ip_conntrack:
+table full, dropping packet&#34; in your logs. (This has nothing
+to do with mod_log_sql, this is simply the nature of the TCP/IP
+stack in the Linux kernel.)
+</LI>
+<LI>When done with your runs, clean these many thousands of requests out
+of your database:
+</LI>
+</OL>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;delete&nbsp;from&nbsp;access_log&nbsp;where&nbsp;agent&nbsp;like&nbsp;'ApacheBench%';&nbsp;
+
+<P>
+mysql&gt;&nbsp;optimize&nbsp;table&nbsp;access_log;&nbsp;
+</DD>
+</DL>
+<P>
+
+<H3><A NAME="SECTION00053200000000000000">
+4.3.2 Do I need to be worried about all the running MySQL children? Will
+holding open <I>n</I> Apache-to-MySQL connections consume a lot of
+memory? </A>
+</H3>
+
+<P>
+Short answer: you shouldn't be worried.
+
+<P>
+Long answer: you might be evaluating at the output of ``ps -aufxw''
+and becoming alarmed at all the 7MB httpd processes or 22MB mysqld
+children that you see. Don't be alarmed<I>.</I> It's true that mod_log_sql
+opens and holds open many MySQL connections: each httpd child maintains
+one open database connection (and holds it open for performance reasons).
+Four webservers, each running 20 Apache children, will hold open 80
+MySQL connections, which means that your MySQL server needs to handle
+80 simultaneous connections. In truth, your MySQL server needs to
+handle far more than that if traffic to your website spikes and the
+Apache webservers spawn off an additional 30 children each...
+
+<P>
+Fortunately the cost reported by 'ps -aufxw' is deceptive. This is
+due to an OS memory-management feature called ``copy-on-write.''
+When you have a number of identical child processes (e.g. Apache,
+MySQL), it would appear in ``ps'' as though each one occupies
+a great deal of RAM - as much as 7MB per httpd child! In actuality
+each additional child only occupies a small bit of extra memory -
+most of the memory pages are common to each child and therefore shared
+in a ``read-only'' fashion. The OS can get away with this because
+the majority of memory pages for one child are identical across all
+children. Instead of thinking of each child as a rubber stamp of the
+others, think of each child as a basket of links to a common memory
+area.
+
+<P>
+A memory page is only duplicated when it needs to be written to, hence
+``copy-on-write.'' The result is efficiency and decreased memory
+consumption. ``ps'' may report 7MB per child, but it might really
+only ``cost'' 900K of extra memory to add one more child. It is
+<B>not</B> <B>correct</B> to assume that 20 Apache
+children with a VSZ of 7MB each equals <!-- MATH
+ $(20\times 7MB)$
+ -->
+<IMG
+ WIDTH="90" HEIGHT="32" ALIGN="MIDDLE" BORDER="0"
+ SRC="img4.png"
+ ALT="$(20\times 7MB)$"> of memory
+consumption - the real answer is much, much lower. The same ``copy-on-write''
+rules apply to all your MySQL children: 40 mysqld children @ 22MB
+each <B>do not</B> occupy 880MB of RAM.
+
+<P>
+The bottom line: although there is a cost to spawn extra httpd or
+mysqld children, that cost is not as great as ``ps'' would lead
+you to believe.
+
+<P>
+
+<H3><A NAME="SECTION00053300000000000000">
+4.3.3 My webserver cannot handle all the traffic that my site receives,
+is there anything I can do?</A>
+</H3>
+
+<P>
+If you have exhausted all the tuning possibilities on your existing
+server, it is probably time you evaluated the benefits of clustering
+two or more webservers together in a load-balanced fashion. In fact,
+users of such a setup are mod_log_sql's target audience!
+
+<P>
+
+<H3><A NAME="SECTION00053400000000000000"></A><A NAME="sub:DelayedInsFAQ"></A>
+<BR>
+4.3.4 What is the issue with activating delayed
+inserts?
+</H3>
+
+<P>
+There are several.
+
+<P>
+
+<OL>
+<LI>INSERT DELAYED is a specific syntax to MySQL and is not supported
+by any other database. Ergo, why is it needed, and what MySQL deficiency
+is it working around? INSERT DELAYED is a kluge.
+</LI>
+<LI>The MySQL documentation is unclear whether INSERT DELAYED is even
+necessary for an optimized database. It says, ``The DELAYED option
+for the INSERT statement is a MySQL-specific option that is very useful
+if you have clients that can't wait for the INSERT to complete.''
+But then it goes on to say, ``Note that as MyISAM tables supports
+concurrent SELECT and INSERT, if there is no free blocks in the middle
+of the data file, you very seldom need to use INSERT DELAYED with
+MyISAM.''
+</LI>
+<LI>Because INSERT DELAYED returns without waiting for the data to be
+written, a hard kill of your MySQL database at the right (wrong?)
+moment could lose those logfile entries.
+</LI>
+<LI>As of MySQL version 3.23.52, the error return functions disagree after
+a failed INSERT DELAYED: mysql_errno() always returns 0, even if
+mysql_error() returns a textual error. I have reported this bug to
+the MySQL folks. However, we have no way of knowing what solution
+they will adopt to fix this, and with the worst case solution mod_log_sql
+would not be able to tell if anything went wrong with a delayed insert.
+</LI>
+</OL>
+Instead of delayed inserts, you may wish to utilize InnoDB tables
+(instead of the standard MyISAM tables). InnoDB tables suppot row-level
+locking and are recommended for high-volume databases.
+
+<P>
+If after understanding these problems you still wish to enable delayed
+inserts, section <A HREF="node4.html#sub:DelayedIns">3.5.4</A> discusses how.
+
+<P>
+
+<H2><A NAME="SECTION00054000000000000000">
+4.4 ``How do I...?'' - accomplishing certain tasks</A>
+</H2>
+
+<P>
+
+<H3><A NAME="SECTION00054100000000000000">
+4.4.1 I am using LogSQLMassVirtualHosting, and sometimes a single VirtualHost
+gets logged to two different tables. How do I prevent that?</A>
+</H3>
+
+<P>
+Proper usage of the Apache runtime S<SMALL>ERVER</SMALL>N<SMALL>AME</SMALL> directive and
+the directive U<SMALL>SE</SMALL>C<SMALL>ANONICAL</SMALL>N<SMALL>AME </SMALL>O<SMALL>N</SMALL> (or DNS) are necessary
+to prevent this problem. ``On'' is the default for U<SMALL>SE</SMALL>C<SMALL>ANONICAL</SMALL>N<SMALL>AME</SMALL>,
+and specifies that self-referential URLs are generated from the S<SMALL>ERVER</SMALL>N<SMALL>AME</SMALL>
+part of your VirtualHost:
+
+<P>
+<BLOCKQUOTE>
+With UseCanonicalName on (and in all versions prior to 1.3) Apache
+will use the ServerName and Port directives to construct the canonical
+name for the server. With UseCanonicalName off Apache will form self-referential
+URLs using the hostname and port supplied by the client if any are
+supplied (otherwise it will use the canonical name, as defined above).
+[From the Apache documentation http://httpd.apache.org/docs/mod/core.html#usecanonicalname]
+
+</BLOCKQUOTE>
+The module inherits Apache's ``knowledge'' about the server name
+being accessed. As long as those two directives are properly configured,
+mod_log_sql will log to only one table per virtual host while using
+L<SMALL>OG</SMALL>SQLM<SMALL>ASS</SMALL>V<SMALL>IRTUAL</SMALL>H<SMALL>OSTING</SMALL>.
+
+<P>
+
+<H3><A NAME="SECTION00054200000000000000">
+4.4.2 How do I extract the data in a format that my analysis tool can understand?</A>
+</H3>
+
+<P>
+mod_log_sql would be virtually useless if there weren't a way for
+you to extract the data from your database in a somewhat meaningful
+fashion. To that end there's a Perl script enclosed with the distribution.
+That script (make_combined_log.pl) is designed to extract N-many
+days worth of access logs and provide them in a Combined Log Format
+output. You can use this very tool right in /etc/crontab to extract
+logs on a regular basis so that your favorite web analysis tool can
+read them. Or you can examine the Perl code to construct your own
+custom tool.
+
+<P>
+For example, let's say that you want your web statistics updated once
+per day in the wee hours of the morning. A good way to accomplish
+that could be the following entries in /etc/crontab:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;Generate&nbsp;the&nbsp;temporary&nbsp;apache&nbsp;logs&nbsp;from&nbsp;the&nbsp;MySQL&nbsp;database&nbsp;(for&nbsp;webalizer)&nbsp;
+
+<P>
+05&nbsp;04&nbsp;*&nbsp;*&nbsp;*&nbsp;root&nbsp;make_combined_log.pl&nbsp;1&nbsp;www.grubbybaby.com&nbsp;&gt;&nbsp;/var/log/temp01
+
+<P>
+#&nbsp;Run&nbsp;webalizer&nbsp;on&nbsp;httpd&nbsp;log&nbsp;
+
+<P>
+30&nbsp;04&nbsp;*&nbsp;*&nbsp;*&nbsp;root&nbsp;webalizer&nbsp;-c&nbsp;/etc/webalizer.conf;&nbsp;rm&nbsp;-f&nbsp;/var/log/temp01
+</DD>
+</DL>Or if you have a newer system that puts files in /etc/cron.daily etc.,
+create a file called ``webalizer'' in the cron.daily subdirectory.
+Use the following as the contents of your file, and make sure to chmod
+755 it when done.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#!/bin/sh
+
+<P>
+/usr/local/sbin/make_combined_log.pl&nbsp;1&nbsp;www.yourdomain.com&nbsp;&gt;&nbsp;/var/log/httpd/templog
+
+<P>
+/usr/local/bin/webalizer&nbsp;-q&nbsp;-c&nbsp;/etc/webalizer.conf&nbsp;
+
+<P>
+rm&nbsp;-f&nbsp;/var/log/httpd/templog
+</DD>
+</DL>See? Easy.
+
+<P>
+
+<H3><A NAME="SECTION00054300000000000000"></A><A NAME="sec:cookie"></A>
+<BR>
+4.4.3 How can I log mod_usertrack cookies?
+</H3>
+
+<P>
+A number of people like to log mod_usertrack cookies in their Apache
+TransferLog to aid in understanding their visitors' clickstreams.
+This is accomplished, for example, with a statement as follows:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LogFormat&nbsp;&#34;%h&nbsp;%l&nbsp;%u&nbsp;%t&nbsp;&#92;&#34;%r&#92;&#34;&nbsp;%s&nbsp;%b&nbsp;&#92;&#34;%{Referer}i&#92;&#34;&nbsp;&#92;&#34;%{User-Agent}i&#92;&#34;&#34;&nbsp;&#92;&#34;%{cookie}n&#92;&#34;&#34;
+</DD>
+</DL>Naturally it would be nice for mod_log_sql to permit the admin to
+log the cookie data as well, so as of version 1.10 you can do this.
+You need to have already compiled mod_usertrack into httpd - it's
+one of the standard Apache modules.
+
+<P>
+First make sure you have a column called &#34;cookie&#34;
+in the MySQL database to hold the cookies, which can be done as follows
+if you already have a working database:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>alter&nbsp;table&nbsp;acc_log_tbl&nbsp;add&nbsp;column&nbsp;cookie&nbsp;varchar(255);
+</DD>
+</DL>Next configure your server to set usertracking cookies as follows,
+and make sure you include the new 'c' directive in your L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>,
+which activates cookie logging. Here's an example:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>&lt;VirtualHost&nbsp;1.2.3.4&gt;&nbsp;
+
+<P>
+&nbsp;CookieTracking&nbsp;on&nbsp;
+
+<P>
+&nbsp;CookieStyle&nbsp;Cookie&nbsp;
+
+<P>
+&nbsp;CookieName&nbsp;Foobar&nbsp;
+
+<P>
+&nbsp;LogSQLTransferLogFormat&nbsp;huSUsbTvRAc&nbsp;
+
+<P>
+&nbsp;LogSQLWhichCookie&nbsp;Foobar&nbsp;
+
+<P>
+&lt;/VirtualHost&gt;
+</DD>
+</DL>The first three lines configure mod_usertrack to create a COOKIE
+(RFC 2109) format cookie called Foobar. The last two lines tell mod_log_sql
+to log cookies named Foobar. You have to choose which cookie to log
+because more than one cookie can/will be sent to the server by the
+client.
+
+<P>
+Recap: the 'c' character <I>activates</I> cookie logging, and the
+L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL> directive <I>chooses</I> which cookie to
+log.
+
+<P>
+FYI, you are advised NOT to use C<SMALL>OOKIE</SMALL>S<SMALL>TYLE </SMALL>C<SMALL>OOKIE2</SMALL> - it
+seems that even newer browsers (IE 5.5, etc.) have trouble with the
+new COOKIE2 (RFC 2965) format. Just stick with the standard COOKIE
+format and you'll be fine.
+
+<P>
+Perform some hits on your server and run a select:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;select&nbsp;request_uri,cookie&nbsp;from&nbsp;access_log&nbsp;where&nbsp;cookie&nbsp;is&nbsp;not&nbsp;null;
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">cookie</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/</TD>
+<TD ALIGN="LEFT">ool-18e4.dyn.optonline.net.130051007102700823</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/usa.gif</TD>
+<TD ALIGN="LEFT">ool-18e4.dyn.optonline.net.130051007102700823</TD>
+</TR>
+<TR><TD ALIGN="LEFT">/mod_log_sql/style_1.css</TD>
+<TD ALIGN="LEFT">ool-18e4.dyn.optonline.net.130051007102700823</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD><P>
+</DD>
+</DL>
+<P>
+
+<H3><A NAME="SECTION00054400000000000000">
+4.4.4 What if I want to log more than one cookie? What is the difference
+between LogSQLWhichCookie and LogSQLWhichCookies?</A>
+</H3>
+
+<P>
+As of version 1.17, you have a choice in how you want cookie logging
+handled.
+
+<P>
+If you are interested in logging only one cookie per request, follow
+the instructions in section <A HREF="node5.html#sec:cookie">4.4.3</A> above. That cookie will
+be logged to a column in the regular access_log table, and the actual
+cookie you want to log is specified with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL>.
+Don't forget to specify the 'c' character in L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>.
+
+<P>
+If, however, you need to log multiple cookies per request, you must
+employ the L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIES</SMALL> (note the plural) directive.
+The cookies you specify will be logged to a separate table (as discussed
+in section <A HREF="node4.html#secMulTable">3.5.2</A>), and entries in that table will be
+linked to the regular access_log entries via the unique ID that is
+supplied by mod_unique_id. Without mod_unique_id the information
+will still be logged but you will be unable to correlate which cookies
+go with which access-requests. Furthermore, with L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIES</SMALL>,
+you do <B>not</B> need to include the 'c' character in L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>.
+
+<P>
+L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIE</SMALL> and L<SMALL>OG</SMALL>SQLW<SMALL>HICH</SMALL>C<SMALL>OOKIES</SMALL> can coexist
+without conflict because they operate on entireley different tables,
+but you're better off choosing the one you need.
+
+<P>
+
+<H3><A NAME="SECTION00054500000000000000">
+4.4.5 What are the SSL logging features, and how do I activate them?</A>
+</H3>
+
+<P>
+Note: you do <B>not</B> need to compile SSL support into mod_log_sql
+in order to simply use it with a secure site. You only need to compile
+SSL support into mod_log_sql if you want to log SSL-specific data
+such as the cipher type used, or the keysize that was negotiated.
+If that information is unimportant to you, you can ignore this FAQ.
+
+<P>
+By adding certain characters to your L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL>
+string you can tell mod_log_sql to log the SSL cipher, the SSL keysize
+of the connection, and the maximum keysize that was available. This
+would let you tell, for example, which clients were using only export-grade
+security to access your secure software area.
+
+<P>
+You can compile mod_log_sql with SSL logging support if you have
+the right packages installed. If you already have an SSL-enabled Apache
+then you by definition have the correct packages already installed:
+OpenSSL and mod_ssl.
+
+<P>
+You need to ensure that your database is set up to log the SSL data.
+Issue the following commands to MySQL if your access table does not
+already have them:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>alter&nbsp;table&nbsp;access_log&nbsp;add&nbsp;column&nbsp;ssl_cipher&nbsp;varchar(25);
+
+<P>
+alter&nbsp;table&nbsp;access_log&nbsp;add&nbsp;column&nbsp;ssl_keysize&nbsp;smallint&nbsp;unsigned;
+
+<P>
+alter&nbsp;table&nbsp;access_log&nbsp;add&nbsp;column&nbsp;ssl_maxkeysize&nbsp;smallint&nbsp;unsigned;
+</DD>
+</DL>Finally configure httpd.conf to activate the SSL fields. Note that
+this is only meaningful in a VirtualHost that is set up for SSL.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>&lt;VirtualHost&nbsp;1.2.3.4:443&gt;&nbsp;
+
+<P>
+&nbsp;LogSQLTransferLogFormat&nbsp;AbHhmRSsTUuvc<B>Qqz</B>&nbsp;
+
+<P>
+&lt;/VirtualHost&gt;
+</DD>
+</DL>The last three characters (Qqz) in the directive are the SSL ones;
+see section <A HREF="node4.html#sub:Frmat">3.6.17</A> in the directives documentation for details
+of the L<SMALL>OG</SMALL>SQLT<SMALL>RANSFER</SMALL>L<SMALL>OG</SMALL>F<SMALL>ORMAT</SMALL> directive.
+
+<P>
+Restart Apache, then perform some hits on your server. Then run the
+following select statement:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>mysql&gt;&nbsp;select&nbsp;remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
+
+<P>
+from&nbsp;access_log&nbsp;where&nbsp;ssl_cipher&nbsp;is&nbsp;not&nbsp;null;
+
+<P>
+</DD>
+</DL>
+<DIV ALIGN="CENTER">
+<TABLE CELLPADDING=3 BORDER="1">
+<TR><TD ALIGN="LEFT">remote_host</TD>
+<TD ALIGN="LEFT">request_uri</TD>
+<TD ALIGN="LEFT">ssl_cipher</TD>
+<TD ALIGN="LEFT">ssl_keysize</TD>
+<TD ALIGN="LEFT">ssl_maxkeysize</TD>
+</TR>
+<TR><TD ALIGN="LEFT">216.190.52.4</TD>
+<TD ALIGN="LEFT">/dir/somefile.html</TD>
+<TD ALIGN="LEFT">RC4-MD5</TD>
+<TD ALIGN="LEFT">128</TD>
+<TD ALIGN="LEFT">128</TD>
+</TR>
+<TR><TD ALIGN="LEFT">216.190.52.4</TD>
+<TD ALIGN="LEFT">/dir/somefile.gif</TD>
+<TD ALIGN="LEFT">RC4-MD5</TD>
+<TD ALIGN="LEFT">128</TD>
+<TD ALIGN="LEFT">128</TD>
+</TR>
+<TR><TD ALIGN="LEFT">216.190.52.4</TD>
+<TD ALIGN="LEFT">/dir/somefile.jpg</TD>
+<TD ALIGN="LEFT">RC4-MD5</TD>
+<TD ALIGN="LEFT">128</TD>
+<TD ALIGN="LEFT">128</TD>
+</TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>
+</DD>
+</DL>
+<P>
+<HR>
+<!--Navigation Panel-->
+<A NAME="tex2html219"
+  HREF="node6.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html215"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html209"
+  HREF="node4.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html217"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html220"
+  HREF="node6.html">About this document ...</A>
+<B> Up:</B> <A NAME="tex2html216"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html210"
+  HREF="node4.html">3 Configuration</A>
+ &nbsp; <B>  <A NAME="tex2html218"
+  HREF="node1.html">Contents</A></B> 
+<!--End of Navigation Panel-->
+<ADDRESS>
+Chris Powell
+2002-12-18
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2002-1 (1.68)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Installing and Running mod_log_sql</TITLE>
+<META NAME="description" CONTENT="Installing and Running mod_log_sql">
+<META NAME="keywords" CONTENT="documentation">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="documentation.css">
+
+<LINK REL="next" HREF="node1.html">
+</HEAD>
+
+<BODY >
+<!--Navigation Panel-->
+<A NAME="tex2html6"
+  HREF="node1.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up_g.png"> 
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev_g.png"> 
+<A NAME="tex2html4"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html7"
+  HREF="node1.html">Contents</A>
+ &nbsp; <B>  <A NAME="tex2html5"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+
+<P>
+
+
+
+
+<P>
+
+<P>
+<H1 ALIGN="CENTER">Installing and Running mod_log_sql</H1>
+<P ALIGN="CENTER"><STRONG>Christopher Powell, &lt;chris@grubbybaby.com&gt; </STRONG></P>
+<BR><HR>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"></A>
+
+<UL>
+<LI><A NAME="tex2html8"
+  HREF="node1.html">Contents</A>
+<LI><A NAME="tex2html9"
+  HREF="node2.html">1 Introduction</A>
+<UL>
+<LI><A NAME="tex2html10"
+  HREF="node2.html#SECTION00021000000000000000">1.1 Homepage </A>
+<LI><A NAME="tex2html11"
+  HREF="node2.html#SECTION00022000000000000000">1.2 Summary</A>
+<LI><A NAME="tex2html12"
+  HREF="node2.html#SECTION00023000000000000000">1.3 Approach</A>
+<LI><A NAME="tex2html13"
+  HREF="node2.html#SECTION00024000000000000000">1.4 What gets logged by default? </A>
+<LI><A NAME="tex2html14"
+  HREF="node2.html#SECTION00025000000000000000">1.5 Miscellaneous Notes</A>
+<LI><A NAME="tex2html15"
+  HREF="node2.html#SECTION00026000000000000000">1.6 Author / Maintainer</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html16"
+  HREF="node3.html">2 Installation</A>
+<UL>
+<LI><A NAME="tex2html17"
+  HREF="node3.html#SECTION00031000000000000000">2.1 Requirements</A>
+<LI><A NAME="tex2html18"
+  HREF="node3.html#SECTION00032000000000000000">2.2 Platform-specific notes</A>
+<UL>
+<LI><A NAME="tex2html19"
+  HREF="node3.html#SECTION00032100000000000000">2.2.1 Solaris</A>
+<LI><A NAME="tex2html20"
+  HREF="node3.html#SECTION00032200000000000000">2.2.2 BSD</A>
+<LI><A NAME="tex2html21"
+  HREF="node3.html#SECTION00032300000000000000">2.2.3 Win32</A>
+</UL>
+<LI><A NAME="tex2html22"
+  HREF="node3.html#SECTION00033000000000000000">2.3 Do I want a DSO or a static module?</A>
+<LI><A NAME="tex2html23"
+  HREF="node3.html#SECTION00034000000000000000">2.4 Installation as an Apache DSO (Preferred) </A>
+<LI><A NAME="tex2html24"
+  HREF="node3.html#SECTION00035000000000000000">2.5 Installation as a static module compiled into
+httpd</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html25"
+  HREF="node4.html">3 Configuration</A>
+<UL>
+<LI><A NAME="tex2html26"
+  HREF="node4.html#SECTION00041000000000000000">3.1 Preparing MySQL for logging</A>
+<LI><A NAME="tex2html27"
+  HREF="node4.html#SECTION00042000000000000000">3.2 A very basic logging setup in Apache</A>
+<LI><A NAME="tex2html28"
+  HREF="node4.html#SECTION00043000000000000000">3.3 Testing the basic setup</A>
+<LI><A NAME="tex2html29"
+  HREF="node4.html#SECTION00044000000000000000">3.4 How to tune logging with run-time directives</A>
+<UL>
+<LI><A NAME="tex2html30"
+  HREF="node4.html#SECTION00044100000000000000">3.4.1 Instructing the module what to log</A>
+<LI><A NAME="tex2html31"
+  HREF="node4.html#SECTION00044200000000000000">3.4.2 Instructing the module what NOT to log using filtering
+directives</A>
+</UL>
+<LI><A NAME="tex2html32"
+  HREF="node4.html#SECTION00045000000000000000">3.5 Advanced logging scenarios</A>
+<UL>
+<LI><A NAME="tex2html33"
+  HREF="node4.html#SECTION00045100000000000000">3.5.1 Using the module in an ISP environment</A>
+<LI><A NAME="tex2html34"
+  HREF="node4.html#SECTION00045200000000000000">3.5.2 Logging many-to-one data in separate tables</A>
+<LI><A NAME="tex2html35"
+  HREF="node4.html#SECTION00045300000000000000">3.5.3 Using the same database for production and test</A>
+<LI><A NAME="tex2html36"
+  HREF="node4.html#SECTION00045400000000000000">3.5.4 Optimizing for a busy database</A>
+</UL>
+<LI><A NAME="tex2html37"
+  HREF="node4.html#SECTION00046000000000000000">3.6 Configuration directive reference</A>
+<UL>
+<LI><A NAME="tex2html38"
+  HREF="node4.html#SECTION00046100000000000000">3.6.1 LogSQLCookieLogTable</A>
+<LI><A NAME="tex2html39"
+  HREF="node4.html#SECTION00046200000000000000">3.6.2 LogSQLCreateTables</A>
+<LI><A NAME="tex2html40"
+  HREF="node4.html#SECTION00046300000000000000">3.6.3 LogSQLDatabase </A>
+<LI><A NAME="tex2html41"
+  HREF="node4.html#SECTION00046400000000000000">3.6.4 LogSQLForcePreserve</A>
+<LI><A NAME="tex2html42"
+  HREF="node4.html#SECTION00046500000000000000">3.6.5 LogSQLHeadersInLogTable</A>
+<LI><A NAME="tex2html43"
+  HREF="node4.html#SECTION00046600000000000000">3.6.6 LogSQLHeadersOutLogTable</A>
+<LI><A NAME="tex2html44"
+  HREF="node4.html#SECTION00046700000000000000">3.6.7 LogSQLLoginInfo </A>
+<LI><A NAME="tex2html45"
+  HREF="node4.html#SECTION00046800000000000000">3.6.8 LogSQLMachineID</A>
+<LI><A NAME="tex2html46"
+  HREF="node4.html#SECTION00046900000000000000">3.6.9 LogSQLMassVirtualHosting</A>
+<LI><A NAME="tex2html47"
+  HREF="node4.html#SECTION000461000000000000000">3.6.10 LogSQLNotesLogTable</A>
+<LI><A NAME="tex2html48"
+  HREF="node4.html#SECTION000461100000000000000">3.6.11 LogSQLPreserveFile</A>
+<LI><A NAME="tex2html49"
+  HREF="node4.html#SECTION000461200000000000000">3.6.12 LogSQLRemhostIgnore</A>
+<LI><A NAME="tex2html50"
+  HREF="node4.html#SECTION000461300000000000000">3.6.13 LogSQLRequestAccept</A>
+<LI><A NAME="tex2html51"
+  HREF="node4.html#SECTION000461400000000000000">3.6.14 LogSQLRequestIgnore</A>
+<LI><A NAME="tex2html52"
+  HREF="node4.html#SECTION000461500000000000000">3.6.15 LogSQLSocketFile </A>
+<LI><A NAME="tex2html53"
+  HREF="node4.html#SECTION000461600000000000000">3.6.16 LogSQLTCPPort</A>
+<LI><A NAME="tex2html54"
+  HREF="node4.html#SECTION000461700000000000000">3.6.17 LogSQLTransferLogFormat </A>
+<LI><A NAME="tex2html55"
+  HREF="node4.html#SECTION000461800000000000000">3.6.18 LogSQLTransferLogTable</A>
+<LI><A NAME="tex2html56"
+  HREF="node4.html#SECTION000461900000000000000">3.6.19 LogSQLWhichCookie</A>
+<LI><A NAME="tex2html57"
+  HREF="node4.html#SECTION000462000000000000000">3.6.20 LogSQLWhichCookies</A>
+<LI><A NAME="tex2html58"
+  HREF="node4.html#SECTION000462100000000000000">3.6.21 LogSQLWhichHeadersIn</A>
+<LI><A NAME="tex2html59"
+  HREF="node4.html#SECTION000462200000000000000">3.6.22 LogSQLWhichHeadersOut</A>
+<LI><A NAME="tex2html60"
+  HREF="node4.html#SECTION000462300000000000000">3.6.23 LogSQLWhichNotes</A>
+</UL>
+</UL>
+<BR>
+<LI><A NAME="tex2html61"
+  HREF="node5.html">4 FAQ</A>
+<UL>
+<LI><A NAME="tex2html62"
+  HREF="node5.html#SECTION00051000000000000000">4.1 General module questions</A>
+<UL>
+<LI><A NAME="tex2html63"
+  HREF="node5.html#SECTION00051100000000000000">4.1.1 Why log to an SQL database?</A>
+<LI><A NAME="tex2html64"
+  HREF="node5.html#SECTION00051200000000000000">4.1.2 Why use MySQL? Are there alternatives?</A>
+<LI><A NAME="tex2html65"
+  HREF="node5.html#SECTION00051300000000000000">4.1.3 Is this code production-ready?</A>
+<LI><A NAME="tex2html66"
+  HREF="node5.html#SECTION00051400000000000000">4.1.4 Who's using mod_log_sql?</A>
+<LI><A NAME="tex2html67"
+  HREF="node5.html#SECTION00051500000000000000">4.1.5 Why doesn't the module also replace the Apache ErrorLog?</A>
+<LI><A NAME="tex2html68"
+  HREF="node5.html#SECTION00051600000000000000">4.1.6 Does mod_log_sql work with Apache 2.x?</A>
+<LI><A NAME="tex2html69"
+  HREF="node5.html#SECTION00051700000000000000">4.1.7 Does mod_log_sql connect to MySQL via TCP/IP or a socket?</A>
+<LI><A NAME="tex2html70"
+  HREF="node5.html#SECTION00051800000000000000">4.1.8 I have discovered a bug. Who can I contact?</A>
+</UL>
+<LI><A NAME="tex2html71"
+  HREF="node5.html#SECTION00052000000000000000">4.2 Problems</A>
+<UL>
+<LI><A NAME="tex2html72"
+  HREF="node5.html#SECTION00052100000000000000">4.2.1 Apache segfaults when using PHP and mod_log_sql</A>
+<LI><A NAME="tex2html73"
+  HREF="node5.html#SECTION00052200000000000000">4.2.2 Apache appears to start up fine, but nothing
+is getting logged in the database</A>
+<LI><A NAME="tex2html74"
+  HREF="node5.html#SECTION00052300000000000000">4.2.3 Why do I get the message ``insufficient configuration info to
+establish database link'' in my Apache error log?</A>
+<LI><A NAME="tex2html75"
+  HREF="node5.html#SECTION00052400000000000000">4.2.4 My database cannot handle all the open connections from mod_log_sql,
+is there anything I can do?</A>
+<LI><A NAME="tex2html76"
+  HREF="node5.html#SECTION00052500000000000000">4.2.5 Why do I occasionally see a ``lost connection to MySQL server''
+message in my Apache error log?</A>
+</UL>
+<LI><A NAME="tex2html77"
+  HREF="node5.html#SECTION00053000000000000000">4.3 Performance and Tuning</A>
+<UL>
+<LI><A NAME="tex2html78"
+  HREF="node5.html#SECTION00053100000000000000">4.3.1 How well does it perform?</A>
+<LI><A NAME="tex2html79"
+  HREF="node5.html#SECTION00053200000000000000">4.3.2 Do I need to be worried about all the running MySQL children? Will
+holding open <I>n</I> Apache-to-MySQL connections consume a lot of
+memory? </A>
+<LI><A NAME="tex2html80"
+  HREF="node5.html#SECTION00053300000000000000">4.3.3 My webserver cannot handle all the traffic that my site receives,
+is there anything I can do?</A>
+<LI><A NAME="tex2html81"
+  HREF="node5.html#SECTION00053400000000000000">4.3.4 What is the issue with activating delayed
+inserts?</A>
+</UL>
+<LI><A NAME="tex2html82"
+  HREF="node5.html#SECTION00054000000000000000">4.4 ``How do I...?'' - accomplishing certain tasks</A>
+<UL>
+<LI><A NAME="tex2html83"
+  HREF="node5.html#SECTION00054100000000000000">4.4.1 I am using LogSQLMassVirtualHosting, and sometimes a single VirtualHost
+gets logged to two different tables. How do I prevent that?</A>
+<LI><A NAME="tex2html84"
+  HREF="node5.html#SECTION00054200000000000000">4.4.2 How do I extract the data in a format that my analysis tool can understand?</A>
+<LI><A NAME="tex2html85"
+  HREF="node5.html#SECTION00054300000000000000">4.4.3 How can I log mod_usertrack cookies?</A>
+<LI><A NAME="tex2html86"
+  HREF="node5.html#SECTION00054400000000000000">4.4.4 What if I want to log more than one cookie? What is the difference
+between LogSQLWhichCookie and LogSQLWhichCookies?</A>
+<LI><A NAME="tex2html87"
+  HREF="node5.html#SECTION00054500000000000000">4.4.5 What are the SSL logging features, and how do I activate them?</A>
+</UL>
+</UL>
+<BR>
+<LI><A NAME="tex2html88"
+  HREF="node6.html">About this document ...</A>
+</UL>
+<!--End of Table of Child-Links-->
+<BR><HR>
+<ADDRESS>
+Chris Powell
+2002-12-18
+</ADDRESS>
+</BODY>
+</HTML>

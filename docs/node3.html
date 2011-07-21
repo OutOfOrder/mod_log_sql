@@ -1,0 +1,664 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2002-1 (1.68)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>2 Installation</TITLE>
+<META NAME="description" CONTENT="2 Installation">
+<META NAME="keywords" CONTENT="documentation">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="documentation.css">
+
+<LINK REL="next" HREF="node4.html">
+<LINK REL="previous" HREF="node2.html">
+<LINK REL="up" HREF="documentation.html">
+<LINK REL="next" HREF="node4.html">
+</HEAD>
+
+<BODY >
+<!--Navigation Panel-->
+<A NAME="tex2html152"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html148"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html142"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html150"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html153"
+  HREF="node4.html">3 Configuration</A>
+<B> Up:</B> <A NAME="tex2html149"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html143"
+  HREF="node2.html">1 Introduction</A>
+ &nbsp; <B>  <A NAME="tex2html151"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL>
+<LI><A NAME="tex2html154"
+  HREF="node3.html#SECTION00031000000000000000">2.1 Requirements</A>
+<LI><A NAME="tex2html155"
+  HREF="node3.html#SECTION00032000000000000000">2.2 Platform-specific notes</A>
+<UL>
+<LI><A NAME="tex2html156"
+  HREF="node3.html#SECTION00032100000000000000">2.2.1 Solaris</A>
+<LI><A NAME="tex2html157"
+  HREF="node3.html#SECTION00032200000000000000">2.2.2 BSD</A>
+<LI><A NAME="tex2html158"
+  HREF="node3.html#SECTION00032300000000000000">2.2.3 Win32</A>
+</UL>
+<BR>
+<LI><A NAME="tex2html159"
+  HREF="node3.html#SECTION00033000000000000000">2.3 Do I want a DSO or a static module?</A>
+<LI><A NAME="tex2html160"
+  HREF="node3.html#SECTION00034000000000000000">2.4 Installation as an Apache DSO (Preferred) </A>
+<LI><A NAME="tex2html161"
+  HREF="node3.html#SECTION00035000000000000000">2.5 Installation as a static module compiled into
+httpd</A>
+</UL>
+<!--End of Table of Child-Links-->
+<HR>
+
+<H1><A NAME="SECTION00030000000000000000">
+2 Installation</A>
+</H1>
+
+<P>
+
+<H2><A NAME="SECTION00031000000000000000">
+2.1 Requirements</A>
+</H2>
+
+<P>
+
+<UL>
+<LI>A compatible system. mod_log_sql was authored and tested on systems
+based on Red Hat Linux (Red Hat, Mandrake), but the module should
+easily adapt to any modern distribution. mod_log_sql has also been
+ported successfully to Solaris and FreeBSD.
+</LI>
+<LI>Apache 1.2 or 1.3. Ideally you should already have successfully compiled
+Apache and understand the process, but this document tries to make
+it simple for beginners.
+</LI>
+<LI>The MySQL development headers. This package is called different things
+on different distros. For example, Red Hat 6.x calls this RPM ``MySQL-devel''
+whereas Mandrake calls it ``libmysql10-devel.''
+</LI>
+<LI>MySQL &gt;= 3.23.15 configured, installed and running on either localhost
+or an accessible networked machine. You should already have a basic
+understanding of MySQL and how it functions.
+</LI>
+<LI>Optionally, if you want to be able to log SSL information such as
+keysize or cipher, you need OpenSSL and mod_ssl installed.
+</LI>
+</UL>
+
+<P>
+
+<H2><A NAME="SECTION00032000000000000000">
+2.2 Platform-specific notes</A>
+</H2>
+
+<P>
+These installation documents assume a relatively modern GNU/Linux
+scenario. mod_log_sql has been ported to other platforms; following
+are notes on compiling the module for those platforms.
+
+<P>
+
+<H3><A NAME="SECTION00032100000000000000">
+2.2.1 Solaris</A>
+</H3>
+
+<P>
+The nanosleep() function used in mod_log_sql relies on linking aginst
+the librt library. Make the following alterations before proceeding:
+
+<P>
+
+<OL>
+<LI>In Makefile, search for the string ``-lmysqlclient -lz'' and change
+it to read ``-lmysqlclient -lz -lrt''
+</LI>
+<LI>In part <A HREF="node3.html#step:Linking">8a</A> of section <A HREF="node3.html#sec:Static">2.5</A> below, change
+``-lmysqlclient -lm -lz'' to read ``-lmysqlclient -lm -lz -lrt''
+</LI>
+</OL>
+
+<P>
+
+<H3><A NAME="SECTION00032200000000000000">
+2.2.2 BSD</A>
+</H3>
+
+<P>
+No notes are available at present, but they are desired. If you have
+successfully ported mod_log_sql to BSD, <I>please</I> contact the maintaniner, Chris Powell (chris@grubbybaby.com)
+and help fill in this section.
+
+<P>
+
+<H3><A NAME="SECTION00032300000000000000">
+2.2.3 Win32</A>
+</H3>
+
+<P>
+No notes are available at present, but they are desired. If you have
+successfully ported mod_log_sql to Win32, <I>please</I> contact
+the maintaniner, Chris Powell (chris@grubbybaby.com) and help
+fill in this section.
+
+<P>
+
+<H2><A NAME="SECTION00033000000000000000">
+2.3 Do I want a DSO or a static module?</A>
+</H2>
+
+<P>
+You need to know the answer to this question before you proceed. The
+answer is pretty straightforward: what have you done in the past?
+If you like all your Apache modules to be dynamic, then you should
+keep doing that. If you're more of an old-school type and prefer to
+compile the modules right into apache, do that. Both methods work
+equally well.
+
+<P>
+FWIW, the DSO method is more modern and increasing in popularity because
+apxs takes care of a lot of dirty little details for you. As you'll
+see below, the static-module method is a little more complex.
+
+<P>
+
+<H2><A NAME="SECTION00034000000000000000">
+2.4 Installation as an Apache DSO (Preferred) </A>
+</H2>
+
+<P>
+
+<OL>
+<LI>Perform all the following steps as root so that you have install privs,
+etc. Unpack the archive into a working directory.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;tar&nbsp;zxf&nbsp;mod_log_sql.tar.gz&nbsp;-C&nbsp;/usr/local/src&nbsp;
+
+<P>
+#&nbsp;cd&nbsp;/usr/local/src/mod_log_sql
+</DD>
+</DL>
+</LI>
+<LI>Edit Makefile and change the values of the variables in the first
+section. 
+
+<P>
+
+<OL>
+<LI>These paths are <B>necessary:</B>
+
+<P>
+<DL>
+<DT><STRONG>APACHEINSTALLED:</STRONG></DT>
+<DD>the location where you installed Apache - usually
+/usr/local/apache, 'locate apxs' can help you find it.
+</DD>
+<DT><STRONG>APACHEHEADERS:</STRONG></DT>
+<DD>The location of your Apache header files, find using
+'locate httpd.h'
+</DD>
+<DT><STRONG>MYSQLLIBRARIES:</STRONG></DT>
+<DD>The location of your MySQL libraries, find using
+'locate libmysqlclient.so'
+</DD>
+<DT><STRONG>MYSQLHEADERS:</STRONG></DT>
+<DD>The location of your MySQL header files, find using
+'locate mysql.h'
+</DD>
+</DL>
+</LI>
+<LI><B>Optional</B>: if you compiled mod_ssl for Apache and want to
+log SSL data such as 'keysize' and 'cipher type': 
+
+<P>
+<DL>
+<DT><STRONG>MODSSLHEADERS:</STRONG></DT>
+<DD>the location of your mod_ssl header files, find
+using 'locate mod_ssl.h'
+</DD>
+<DT><STRONG>DB1HEADERS:</STRONG></DT>
+<DD>the location of your db1 header files, find using 'locate
+ndbm.h'
+</DD>
+</DL>
+</LI>
+</OL>
+You do <B>not</B> need to compile SSL support into mod_log_sql
+in order to simply use it with a secure site. You only need to compile
+SSL support into mod_log_sql <B>if you want to log SSL-specific
+data</B> such as the cipher type.
+
+<P>
+</LI>
+<LI>IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS
+by putting a # character in front of it:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#MODSSLHDRS=/usr/include/...
+</DD>
+</DL>
+</LI>
+<LI>Instruct apxs to compile the module as a DSO.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;make&nbsp;dso
+</DD>
+</DL>You should see output similar to the following:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>/usr/local/Apache/bin/apxs&nbsp;-Wc,-O2&nbsp;-Wc,-Wall&nbsp;-Wc,-DEAPI&nbsp;-c&nbsp;-I/usr/...
+
+<P>
+gcc&nbsp;-DLINUX=22&nbsp;-DNO_DBM_REWRITEMAP&nbsp;-DMOD_SSL=208111&nbsp;-DUSE_HS...&nbsp;
+
+<P>
+gcc&nbsp;-shared&nbsp;-o&nbsp;mod_log_sql.so&nbsp;mod_log_sql.o&nbsp;-Wc,-O2&nbsp;-Wc,-Wall&nbsp;-Wc...
+</DD>
+</DL>You should see no errors and have a new file called &#34;mod_log_sql.so&#34;
+in your directory.
+
+<P>
+</LI>
+<LI>Instruct apxs to install the DSO.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;make&nbsp;dsoinstall
+</DD>
+</DL>You should see output similar to the following:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>/usr/local/Apache/bin/apxs&nbsp;-i&nbsp;mod_log_sql.so&nbsp;
+
+<P>
+cp&nbsp;mod_log_sql.so&nbsp;/usr/local/Apache/libexec/mod_log_sql.so&nbsp;
+
+<P>
+chmod&nbsp;755&nbsp;/usr/local/Apache/libexec/mod_log_sql.so&nbsp;
+</DD>
+</DL>
+</LI>
+<LI>Load and activate the module in httpd.conf:
+
+<P>
+
+<OL>
+<LI>Insert this line in the same area as other logging modules, e.g. near
+``LoadModule config_log_module'':
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LoadModule&nbsp;sql_log_module&nbsp;libexec/mod_log_sql.so
+</DD>
+</DL>
+</LI>
+<LI>Insert this line in the same area as other logging modules, e.g. near
+``AddModule mod_log_config.c'':
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>AddModule&nbsp;mod_log_sql.c
+</DD>
+</DL>
+</LI>
+</OL>
+</LI>
+<LI>Module ordering within httpd.conf is important if you are logging
+SSL information. Please ensure that
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LoadModule&nbsp;ssl_module&nbsp;libexec/libssl.so
+</DD>
+</DL>comes before
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>LoadModule&nbsp;sql_log_module&nbsp;libexec/mod_log_sql.so
+</DD>
+</DL>in your httpd.conf file. If they are out of order, simply cut-and-paste
+the ``ssl_module'' section so that it is at the top. If you do
+not, you will get this error when you start Apache:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>/usr/local/apache/libexec/mod_log_mysql.so:&nbsp;undefined&nbsp;symbol:&nbsp;ssl_var_lookup
+
+<P>
+/usr/local/apache/bin/apachectl&nbsp;startssl:&nbsp;httpd&nbsp;could&nbsp;not&nbsp;be&nbsp;started
+</DD>
+</DL>(mod_log_sql has a dependency on mod_ssl for SSL symbols. If the
+statements are out of order, mod_log_sql cannot recognize those
+symbols.)
+
+<P>
+Now skip below to section <A HREF="node4.html#sec:Configuration">3</A>, <B>Configuration</B>.
+
+<P>
+</LI>
+</OL>
+
+<P>
+
+<H2><A NAME="SECTION00035000000000000000"></A><A NAME="sec:Static"></A>
+<BR>
+2.5 Installation as a static module compiled into
+httpd
+</H2>
+
+<P>
+
+<OL>
+<LI>Perform all the following steps as root so that you have install privs,
+etc.
+</LI>
+<LI>Unpack the archive into a working directory.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;tar&nbsp;zxf&nbsp;mod_log_sql.tar.gz&nbsp;-C&nbsp;/usr/local/src&nbsp;
+
+<P>
+#&nbsp;cd&nbsp;/usr/local/src/mod_log_sql
+</DD>
+</DL>
+</LI>
+<LI><A NAME="step:editMF"></A>Edit Makefile and change the values of the variables
+in the first section. 
+
+<P>
+
+<OL>
+<LI>These are <B>necessary:</B>
+
+<P>
+<DL>
+<DT><STRONG>APACHEINSTALLED:</STRONG></DT>
+<DD>the location where you installed Apache - usually
+/usr/local/apache, 'locate apxs' can help you find it.
+</DD>
+<DT><STRONG>APACHESOURCE:</STRONG></DT>
+<DD>the location of your Apache <B>sources</B>, find
+using 'locate ABOUT_APACHE' 
+</DD>
+<DT><STRONG>APACHEHEADERS:</STRONG></DT>
+<DD>the location of your Apache header files, find using
+'locate httpd.h'
+</DD>
+<DT><STRONG>MYSQLLIBRARIES:</STRONG></DT>
+<DD>the location of your MySQL libraries, find using
+'locate libmysqlclient.so'
+</DD>
+<DT><STRONG>MYSQLHEADERS:</STRONG></DT>
+<DD>the location of your MySQL header files, find using
+'locate mysql.h'
+</DD>
+</DL>
+</LI>
+<LI><B>Optional</B>: if you compiled mod_ssl for Apache and want to
+log SSL data such as 'keysize' and 'cipher type': 
+
+<P>
+<DL>
+<DT><STRONG>MODSSLHEADERS:</STRONG></DT>
+<DD>the location of your mod_ssl header files, find
+using 'locate mod_ssl.h'
+</DD>
+<DT><STRONG>DB1HEADERS:</STRONG></DT>
+<DD>the location of your db1 header files, find using 'locate
+ndbm.h'
+</DD>
+</DL>
+</LI>
+</OL>
+You do <B>not</B> need to compile SSL support into mod_log_sql
+in order to simply use it with a secure site. You only need to compile
+SSL support into mod_log_sql <B>if you want to log SSL-specific
+data</B> such as the cipher type.
+
+<P>
+</LI>
+<LI>IMPORTANT: If you are not logging SSL info, comment out MODSSLHDRS
+by putting a # character in front of it:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#MODSSLHDRS=/usr/include/...
+</DD>
+</DL>
+</LI>
+<LI>Compile the module.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;make&nbsp;static
+</DD>
+</DL>You should see output similar to the following:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>gcc&nbsp;-fpic&nbsp;-O2&nbsp;-Wall&nbsp;-I/usr/local/Apache/include&nbsp;-I/usr/include/mysql&nbsp;-I/usr/lo...
+</DD>
+</DL>You should see no errors and have a new file called &#34;mod_log_sql.o&#34;
+in your directory.
+
+<P>
+</LI>
+<LI>Install the module.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;make&nbsp;statinstall
+</DD>
+</DL>
+</LI>
+<LI>Change to your Apache source directory.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;cd&nbsp;/usr/local/src/apache-1.3.22/src
+</DD>
+</DL>
+</LI>
+<LI>Re-compile your httpd binary as follows.
+
+<P>
+
+<OL>
+<LI><A NAME="step:Linking"></A>Make these changes to Configuration.apaci:
+
+<P>
+
+<UL>
+<LI>Append the following string to the EXTRA_LIBS= line. (&#34;/usr/lib/mysql&#34;
+is from step <A HREF="node3.html#step:editMF">3</A>, and is where your MySQL libraries
+live):
+</LI>
+</UL>
+
+<DL COMPACT>
+<DT>
+<DD>-L/usr/lib/mysql&nbsp;-lmysqlclient&nbsp;-lm&nbsp;-lz
+</DD>
+</DL>
+<UL>
+<LI>Find the mod_log_config.o line, and insert this line immediately
+after it:
+</LI>
+</UL>
+
+<DL COMPACT>
+<DT>
+<DD>AddModule&nbsp;modules/sql/mod_log_sql.o
+</DD>
+</DL>
+</LI>
+<LI># cp Configuration.apaci Configuration
+</LI>
+<LI># ./Configure
+</LI>
+<LI># make
+</LI>
+<LI># strip httpd
+</LI>
+</OL>
+</LI>
+<LI>Test your new apache binary:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;./httpd&nbsp;-l
+</DD>
+</DL>You should see something like:
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>Compiled-in&nbsp;modules:&nbsp;
+
+<P>
+http_core.c
+
+<P>
+mod_log_sql.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;-&nbsp;That's&nbsp;the&nbsp;line&nbsp;you're&nbsp;looking&nbsp;for.
+
+<P>
+mod_env.c&nbsp;
+
+<P>
+mod_log_config.c&nbsp;
+
+<P>
+mod_mime.c&nbsp;
+
+<P>
+mod_negotiation.c
+
+<P>
+etc...
+</DD>
+</DL>
+</LI>
+<LI>Install your httpd binary. Copy it over your old httpd binary, wherever
+it lives. You can and should rename your old httpd first so that you
+can easily revert to that working version in case of bugs with the
+new version.
+
+<P>
+
+<DL COMPACT>
+<DT>
+<DD>#&nbsp;/etc/rc.d/init.d/httpd&nbsp;stop&nbsp;
+
+<P>
+#&nbsp;mv&nbsp;/usr/local/Apache/bin/httpd&nbsp;~/httpd-save&nbsp;
+
+<P>
+#&nbsp;cp&nbsp;-f&nbsp;./httpd&nbsp;/usr/local/Apache/bin/
+</DD>
+</DL>
+</LI>
+</OL>
+
+<P>
+<HR>
+<!--Navigation Panel-->
+<A NAME="tex2html152"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html148"
+  HREF="documentation.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html142"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html150"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html153"
+  HREF="node4.html">3 Configuration</A>
+<B> Up:</B> <A NAME="tex2html149"
+  HREF="documentation.html">Installing and Running mod_log_sql</A>
+<B> Previous:</B> <A NAME="tex2html143"
+  HREF="node2.html">1 Introduction</A>
+ &nbsp; <B>  <A NAME="tex2html151"
+  HREF="node1.html">Contents</A></B> 
+<!--End of Navigation Panel-->
+<ADDRESS>
+Chris Powell
+2002-12-18
+</ADDRESS>
+</BODY>
+</HTML>

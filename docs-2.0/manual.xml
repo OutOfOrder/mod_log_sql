@@ -1,0 +1,3927 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="file://localhost/home/urkle/Documents/DocBook/docbook.css" type="text/css"?>
+<!DOCTYPE article PUBLIC "-//OOOCC//DTD Simplified DocBook XML V1.1 Variant V1.0//EN" "http://outoforder.cc/dtds/odocbook/1.1/odocbook.dtd" [
+<!ENTITY EmailContact "<email>urkle &lt;at&gt; outoforder &lt;dot&gt; cc</email>">
+]>
+<article>
+  <articleinfo>
+    <title>mod_log_sql Manual</title>
+    <author>
+      <firstname>Edward</firstname>
+      <surname>Rudd</surname>
+      <contrib>Conversion from Lyx to DocBook</contrib>
+      <contrib>Current Maintainer</contrib>
+      <authorblurb>
+        <simpara>
+          &EmailContact;
+        </simpara>
+      </authorblurb>
+    </author>
+    <author>
+      <firstname>Christopher</firstname>
+      <othername>B.</othername>
+      <surname>Powell</surname>
+      <contrib>Original documentation author.</contrib>
+      <authorblurb>
+        <simpara>
+          <email>chris &lt;at&gt; grubbybaby &lt;dot&gt; com</email>
+        </simpara>
+      </authorblurb>
+    </author>
+    <copyright>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder>Christopher B. Powell</holder>
+    </copyright>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <year>2006</year>
+      <holder>Edward Rudd</holder>
+    </copyright>
+    <revhistory>
+      <revision>
+        <revnumber>1.5</revnumber>
+        <date>2006-11-04</date>
+        <revremark>Added documentation about logio parameters and added DBParam Mysql driver parameters (including tabletype)</revremark>
+      </revision>
+      <revision>
+        <revnumber>1.4</revnumber>
+        <date>2006-02-13</date>
+        <revremark>Added missing logformat types, switched to simplified docbook 1.1</revremark>
+      </revision>
+      <revision>
+        <revnumber>1.3</revnumber>
+        <date>2005-01-11</date>
+        <revremark>Updated for mod_log_sql v1.100</revremark>
+      </revision>
+      <revision>
+        <revnumber>1.2</revnumber>
+        <date>2004-04-08</date>
+        <revremark>Updated for mod_log_sql v1.97</revremark>
+      </revision>
+      <revision>
+        <revnumber>1.1</revnumber>
+        <date>2004-03-02</date>
+        <revremark>Updated for mod_log_sql v1.96</revremark>
+      </revision>
+      <revision>
+        <revnumber>1.0</revnumber>
+        <date>2004-01-22</date>
+        <revremark>Initial Conversion from Lyx to Docbook</revremark>
+      </revision>
+    </revhistory>
+  </articleinfo>
+  <section>
+    <title>Introduction</title>
+    <section tocstyle="fragment">
+      <title>Summary</title>
+      <para>
+        This Apache module will permit you to log to a SQL database; it
+        can log each access request as well as data associated with each
+        request: cookies, notes, and inbound/outbound headers. Unlike
+        logging to a flat text file -- which is standard in Apache -- a
+        SQL-based log exhibits tremendous flexibility and power of data
+        extraction. (See FAQ entry
+        <xref linkend="FAQ.WhyLogToSQL" />
+        for further discussion and examples of the advantages to SQL.)
+      </para>
+      <para>
+        This module can either replace or happily coexist with
+        mod_log_config, Apache's text file logging facility. In addition
+        to being more configurable than the standard module, mod_log_sql
+        is much more flexible.
+      </para>
+    </section>
+    <section tocstyle="fragment">
+      <title>Approach</title>
+      <para>
+        This project was formerly known as "mod_log_mysql." It was
+        renamed "mod_log_sql" in order to reflect the project goal of
+        database in-specificity. The module currently supports MySQL,
+        but support for other database back-ends is underway.
+      </para>
+      <para>
+        In order to save speed and overhead, links are kept alive in
+        between queries. This module uses one dedicated SQL link per
+        httpd child, opened by each child process when it is born. Among
+        other things, this means that this module supports logging into
+        only one MySQL server, and for now, also, only one SQL database.
+        But that's a small tradeoff compared to the blinding speed of
+        this module. Error reporting is robust throughout the module and
+        will inform the administrator of database issues in the Apache
+        ErrorLog for the server/virtual server.
+      </para>
+      <para>
+        Virtual hosts are supported in the same manner they are in the
+        regular logging modules. The administrator defines some basic
+        'global' directives in the main server config, then defines more
+        specific 'local' directives inside each VirtualHost stanza.
+      </para>
+      <para>
+        A robust "preserve" capability has now been implemented. This
+        permits the module to preserve any failed INSERT commands to a
+        local file on its machine. In any situation that the database is
+        unavailable -- e.g. the network fails or the database host is
+        rebooted -- mod_log_sql will note this in the error log and
+        begin appending its log entries to the preserve file (which is
+        created with the user and group ID of the running Apache
+        process, e.g. "nobody/nobody" on many Linux installations). When
+        database availability returns, mod_log_sql seamlessly resumes
+        logging to it. When convenient for the sysadmin, he/she can
+        easily import the preserve file into the database because it is
+        simply a series of SQL insert statements.
+      </para>
+    </section>
+    <section tocstyle="fragment">
+      <title>What gets logged by default?</title>
+      <para>
+        All the data that would be contained in the "Combined Log
+        Format" is logged by default, plus a little extra. Your best bet
+        is to begin by accepting this default, then later customize the
+        log configuration based on your needs. The documentation of the
+        run-time directives includes a full explanation of what you can
+        log, including examples -- see section
+        <xref endterm="Sect.ConfigReference.title"
+          linkend="Sect.ConfigReference" />
+        .
+      </para>
+    </section>
+    <section tocstyle="fragment">
+      <title>Miscellaneous Notes</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            Note which directives go in the 'main server config' and
+            which directives apply to the 'virtual host config'. This is
+            made clear in the directive documentation.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The 'time_stamp' field is stored in an UNSIGNED INTEGER
+            format, in the standard unix "seconds since the epoch"
+            format. This is superior to storing the access time as a
+            string due to size requirements: an UNSIGNED INT requires 4
+            bytes, whereas an Apache date string (e.g.
+            "18/Nov/2001:13:59:52 -0800") requires 26 bytes: those extra
+            22 bytes become significant when multiplied by thousands of
+            accesses on a busy server. Besides, an INT type is far more
+            flexible for comparisons, etc.
+          </para>
+          <para>
+            In MySQL 3.21 and above you can easily convert this to a
+            human readable format using from_unixtime(), e.g.:
+          </para>
+          <programlisting>SELECT remote_host,request_uri,from_unixtime(time_stamp)
+FROM access_log;</programlisting>
+          <para>
+            The enclosed perl program "make_combined_log.pl" extracts
+            your access log in a format that is completely compatible
+            with the Combined Log Format. You can then feed this to your
+            favorite web log analysis tool.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The table's string values can be CHAR or VARCHAR, at a
+            length of your choice. VARCHAR is superior because it
+            truncates long strings; CHAR types are fixed-length and will
+            be padded with spaces, resulting in waste. Just like the
+            time_stamp issue described above, that kind of space waste
+            multiplies over thousands of records.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Be careful not to go overboard setting fields to NOT NULL.
+            If a field is marked NOT NULL then it must contain data in
+            the INSERT statement, or the INSERT will fail. These
+            mysterious failures can be quite frustrating and difficult
+            to debug.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            When Apache logs a numeric field, it uses a '-' character to
+            mean "not applicable," e.g. the number of bytes returned on
+            a 304 (unchanged) request. Since '-' is an illegal character
+            in an SQL numeric field, such fields are assigned the value
+            0 instead of '-' which, of course, makes perfect sense
+            anyway.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </section>
+    <section tocstyle="fragment">
+      <title>Author / Maintainer</title>
+      <para>
+        The actual logging code was taken from the already existing flat
+        file text modules, so all that credit goes to the Apache
+        Software Foundation.
+      </para>
+      <para>
+        The MySQL routines and directives were added by Zeev Suraski
+        &lt;bourbon@netvision.net.il&gt;.
+      </para>
+      <para>
+        All changes from 1.06+ and the new documentation were added by
+        Chris Powell
+        <email>chris &lt;at&gt; grubbybaby &lt;dot&gt; com</email>
+        . It seems that the module had fallen into the "un-maintained"
+        category -- it had not been updated since 1998 -- so Chris
+        adopted it as the new maintainer.
+      </para>
+      <para>
+        In December of 2003, Edward Rudd
+        &EmailContact;
+        porting the module to Apache 2.0, cleaning up the code,
+        converting the documentation to DocBook, optimizing the main
+        logging loop, and added the much anticipated database
+        abstraction layer.
+      </para>
+      <para>
+        As of February 2004, Chris Powell handed over maintenance of the
+        module over to Edward Rudd. So you should contact Edward Rudd
+        about the module from now on.
+      </para>
+    </section>
+    <section id="Sect.MailingLists" tocstyle="fragment">
+      <title id="Sect.MailingLists.title">Mailing Lists</title>
+      <para>
+        A general discussion and support mailing list is provided for
+        mod_log_sq at lists.outoforder.cc. To subscribe to the mailing
+        list send a blank e-mail to
+        mod_log_sql-subscribe@lists.outoforder.cc. The list archives can
+        be accessed via Gmane.org's mailng list gateway via any new
+        reader
+        <ulink
+          url="news://news.gmane.org/gmane.comp.apache.mod-log-sql">
+          news://news.gmane.org/gmane.comp.apache.mod-log-sql
+        </ulink>
+        , or via a web browser at
+        <ulink
+          url="http://news.gmane.org/gmane.comp.apache.mod-log-sql">
+          http://news.gmane.org/gmane.comp.apache.mod-log-sql
+        </ulink>
+        .
+      </para>
+    </section>
+  </section>
+  <section>
+    <title>Installation</title>
+    <section tocstyle="fragment">
+      <title>Requirements</title>
+      <itemizedlist>
+        <listitem>
+          <para>
+            A compatible system. mod_log_sql was authored and tested on
+            systems based on Red Hat Linux (Red Hat, Mandrake), but the
+            module should easily adapt to any modern distribution.
+            mod_log_sql has also been ported successfully to Solaris and
+            FreeBSD.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Apache 1.3 or 2.0, 1.2 is no longer supported, but may still
+            compile. Ideally you should already have successfully
+            compiled Apache and understand the process, but this
+            document tries to make it simple for beginners.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            The MySQL development headers. This package is called
+            different things on different distributions. For example,
+            Red Hat 6.x calls this RPM "MySQL-devel" whereas Mandrake
+            calls it "libmysql10-devel." Both MySQL 3.23.x and 4.x are
+            supported.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            MySQL &gt;= 3.23.15 configured, installed and running on
+            either localhost or an accessible networked machine. You
+            should already have a basic understanding of MySQL and how
+            it functions.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            Optionally, if you want to be able to log SSL information
+            such as keysize or cipher, you need OpenSSL and mod_ssl
+            installed.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </section>
+    <section>
+      <title>Compiling and Installing</title>
+      <orderedlist>
+        <listitem>
+          <para>Unpack the archive into a working directory.</para>
+          <programlisting>$ tar -xzf mod_log_sql-1.94.tar.gz
+$ cd mod_log_sql-1.94</programlisting>
+        </listitem>
+        <listitem>
+          <para>run configure to configure the source directory.</para>
+          <programlisting>$ ./configure</programlisting>
+          <para>
+            The
+            <filename>configure</filename>
+            script should automatically detect all the required
+            libraries and program if the are installed in standard
+            locations.. If it returns an error, here is a description of
+            the arguments you can specify when you run
+            <filename>configure</filename>
+            .
+          </para>
+          <variablelist>
+            <varlistentry>
+              <term>--with-apxs=/usr/sbin/apxs</term>
+              <listitem>
+                <para>
+                  This is the full path to the apxs binary, or the
+                  directory which contains the program. This program is
+                  part of the Apache 1.3 and 2.0 installation.
+                </para>
+                <para>
+                  The default is to search
+                  <filename>/usr/bin/apxs</filename>
+                  and
+                  <filename>/usr/sbin/apxs</filename>
+                  .
+                </para>
+                <para>
+                  Specifying a directory here will search
+                  $directory/apxs, $directory/bin/apxs, and
+                  $directory/sbin/apxs
+                </para>
+                <para>
+                  If you have more than one version of Apache installed,
+                  you need to specify the correct apxs binary for the
+                  one you wish to compile for.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--with-mysql=/path/to/mysql</term>
+              <listitem>
+                <para>
+                  This is the directory to search for the
+                  <filename>libmysqlclient</filename>
+                  library and the
+                  <application>MySQL</application>
+                  headers.
+                </para>
+                <para>
+                  The default is to search
+                  <filename>/usr/include</filename>
+                  ,
+                  <filename>/usr/include/mysql</filename>
+                  ,
+                  <filename>/usr/local/include</filename>
+                  , and
+                  <filename>/usr/local/include/mysql</filename>
+                  for
+                  <application>MySQL</application>
+                  headers.. And
+                  <filename>/usr/lib</filename>
+                  .
+                  <filename>/usr/lib/mysql</filename>
+                  ,
+                  <filename>/usr/local/lib</filename>
+                  , and
+                  <filename>/usr/local/lin/mysql</filename>
+                  for the
+                  <application>MySQL</application>
+                  libraries.
+                </para>
+                <para>
+                  Specifying this testargument will search
+                  $directory/include and $directory/mysql for
+                  <application>MySQL</application>
+                  headers. And $directory/lib and $directory/lib/mysql
+                  for
+                  <application>MySQL</application>
+                  libraries.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--enable-ssl</term>
+              <listitem>
+                <para>
+                  Specifying this argument will enable the search for
+                  mod_ssl and SSL headers, and if found will enable
+                  compilation of SSL support into mod_log_sql. SSL
+                  support is compiled into a separate module that can be
+                  loaded after the main mod_log_sql.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--with-ssl-inc=/usr/include/openssl</term>
+              <listitem>
+                <para>
+                  This is the path to the SSL toolkit header files that
+                  were used to compile mod_ssl. If you want SSL support
+                  you most likely need to specify this.
+                </para>
+                <para>
+                  The default is to search
+                  <filename>/usr/include</filename>
+                  and
+                  <filename>/usr/include/openssl</filename>
+                  .
+                </para>
+                <para>
+                  Specifying this argument will search that directory
+                  for the SSL headers.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--with-db-inc=/usr/include/db1</term>
+              <listitem>
+                <para>
+                  This argument is only needed when compiling SSL
+                  support for Apache 1.3, and needs to be the directory
+                  which contains the ndbm.h header file. You can find
+                  this by using
+                </para>
+                <programlisting>$ locate ndbm.h
+/usr/include/db1/ndbm.h
+/usr/include/gdbm/ndbm.h</programlisting>
+                <para>
+                  As far as I can tell, there is no difference as to
+                  which you specify, but it should be the one that you
+                  compiled mod_ssl with.
+                </para>
+                <para>
+                  The default is
+                  <filename>/usr/include/db1</filename>
+                  , which should work on most systems.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--disable-apachetest</term>
+              <listitem>
+                <para>
+                  This will disable the apache version test. However
+                  there is a side affect if you specify this where I
+                  will not be able to determine which version of Apache
+                  you are compiling for. So don't specify this.. If you
+                  are having troubles with the script detecting your
+                  Apache version, then send a bug report along with your
+                  system OS version and versions of related packages.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>--disable-mysqltest</term>
+              <listitem>
+                <para>
+                  This will disable the MySQL compile test. Specify this
+                  if for some reason the test fail but you know you have
+                  specified the correct directories. If mod_los_sql also
+                  fails to compile report a bug along with your system
+                  OS version and versions of related packages.
+                </para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+        <listitem>
+          <para>
+            Now compile the module with GNU make. You may have to
+            specify gmake on some systems like FreeBSD.
+          </para>
+          <programlisting>$ gmake</programlisting>
+        </listitem>
+        <listitem>
+          <para>
+            If there were no errors, you can now install the module(s).
+            If you compiled as a non-root user you may need to switch
+            users with
+            <application>su</application>
+            or
+            <application>sudo</application>
+            .
+          </para>
+          <programlisting>$ su -c "gmake install"
+Password:</programlisting>
+        </listitem>
+        <listitem>
+          <para>
+            Now edit your Apache configuration and load the modules.
+          </para>
+          <note>
+            <itemizedlist>
+              <listitem>
+                <para>
+                  If you are loading the SSL logging module, you need to
+                  make sure it is loaded after mod_ssl and mod_log_sql.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  If you have previously used mod_log_sql version 1.18,
+                  the name of the module has changed from sql_log_module
+                  to log_sql_module (the first parameter to LoadModule)
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  If you are upgrading from any release earlier than
+                  1.97 you need to add an extra LoadModule directive to
+                  load the database driver (ie mysql).
+                </para>
+              </listitem>
+            </itemizedlist>
+          </note>
+          <orderedlist>
+            <listitem>
+              <para>
+                Insert these lines to either the main
+                <filename>httpd.conf</filename>
+                or a file included via an include directive.
+              </para>
+              <programlisting>LoadModule log_sql_module modules/mod_log_sql.so
+LoadModule log_sql_mysql_module modules/mod_log_sql_mysql.so
+&lt;IfModule mod_ssl.c&gt;
+LoadModule log_sql_ssl_module moduels/mod_log_sql_ssl.so
+&lt;/IfModule&gt;</programlisting>
+              <note>
+                <para>
+                  If you did not compile SSL support in mod_log_sql, do
+                  not include the lines between the &lt;IfModule&gt;
+                  directives.
+                </para>
+              </note>
+            </listitem>
+            <listitem>
+              <para>
+                If you are using Apache 1.3 you may need add these lines
+                later in the configuration.
+              </para>
+              <programlisting>AddModule mod_log_sql.c
+AddModule mod_log_sql_mysql.c
+&lt;IfModule mod_ssl.c&gt;
+AddModule mod_log_sql_ssl.c
+&lt;/IfModule&gt;</programlisting>
+              <note>
+                <para>
+                  If you did not compile SSL support in mod_log_sql, do
+                  not include the lines between the &lt;IfModule&gt;
+                  directives.
+                </para>
+              </note>
+            </listitem>
+          </orderedlist>
+        </listitem>
+      </orderedlist>
+    </section>
+  </section>
+  <section id="Sect.Configuration">
+    <title id="Sect.Configuration.title">Configuration</title>
+    <section id="Sect.Preperation">
+      <title id="Sect.Preperation.title">
+        Preparing MySQL for logging
+      </title>
+      <para>
+        You have to prepare the database to receive data from
+        <application>mod_log_sql</application>
+        , and set up run-time directives in
+        <filename>httpd.conf</filename>
+        to control how and what
+        <application>mod_log_sql</application>
+        logs.
+      </para>
+      <para>
+        This section will discuss how to get started with a basic
+        configuration. Full documentation of all available run-time
+        directives is available in section
+        <xref endterm="Sect.ConfigReference.title"
+          linkend="Sect.ConfigReference" />
+        .
+      </para>
+      <orderedlist>
+        <listitem>
+          <para>
+            mod_log_sql can make its own tables on-the-fly, or you can
+            pre-make the tables by hand. The advantage of letting the
+            module make the tables is ease-of-use, but for raw
+            performance you will want to pre-make the tables in order to
+            save some overhead. In this basic setup we'll just let the
+            module create tables for us.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            We still need to have a logging database created and ready,
+            so run the MySQL command line client and create a database:
+          </para>
+          <programlisting># mysql -uadmin -p
+Enter password:
+mysql&gt; create database apachelogs;</programlisting>
+        </listitem>
+        <listitem id="Item.CreateTable">
+          <para>
+            If you want to hand-create the tables, run the enclosed
+            'create-tables' SQL script as follows ("create_tables.sql"
+            needs to be in your current working directory).
+          </para>
+          <programlisting>mysql&gt; use apachelogs
+Database changed
+mysql&gt; source create_tables.sql</programlisting>
+        </listitem>
+        <listitem>
+          <para>
+            Create a specific
+            <application>MySQL</application>
+            userid that
+            <application>httpd</application>
+            will use to authenticate and enter data. This userid need
+            not be an actual Unix user. It is a userid internal to
+            <application>MySQL</application>
+            with specific privileges. In the following example command,
+            "apachelogs" is the database, "loguser" is the userid to
+            create, "my.apachemachine.com" is the name of the Apache
+            machine, and "l0gger" is the password to assign. Choose
+            values that are different from these examples.
+          </para>
+          <programlisting>mysql&gt; grant insert,create on apachelogs.* to loguser@my.apachemachine.com identified by 'l0gger';</programlisting>
+        </listitem>
+        <listitem>
+          <para>
+            You may be especially security-paranoid and want "loguser"
+            to not have "create" capability within the "apachelogs"
+            database. You can disable that privilege, but the cost is
+            that you will not be able to use the module's on-the-fly
+            table creation feature. If that cost is acceptable,
+            hand-create the tables as described in step
+            <xref linkend="Item.CreateTable" />
+            and use the following GRANT statement instead of the one
+            above:
+          </para>
+          <programlisting>mysql&gt; grant insert on apachelogs.* to loguser@my.apachemachine.com identified by 'l0gger';</programlisting>
+        </listitem>
+        <listitem id="Item.EnableLogging">
+          <para>
+            Enable full logging of your
+            <application>MySQL</application>
+            daemon (at least temporarily for debugging purposes) if you
+            don't do this already. Edit /etc/my.cnf and add the
+            following line to your [mysqld] section:
+          </para>
+          <programlisting>log=/var/log/mysql-messages</programlisting>
+          <para>
+            Then restart
+            <application>MySQL</application>
+          </para>
+          <programlisting># /etc/rc.d/init.d/mysql restart</programlisting>
+        </listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>A very basic logging setup in Apache</title>
+      <orderedlist>
+        <listitem>
+          <para>
+            Tell the module what database to use and the appropriate
+            authentication information.
+          </para>
+          <para>
+            So, edit httpd.conf and insert the following lines somewhere
+            after any LoadModule / AddModule statements. Make sure these
+            statements are "global," i.e. not inside any VirtualHost
+            stanza. You will also note that you are embedding a password
+            in the file. Therefore you are advised to "chmod 660
+            httpd.conf" to prevent unauthorized regular users from
+            viewing your database user and password.
+          </para>
+          <para>
+            Use the
+            <application>MySQL</application>
+            database called "apachelogs" running on "dbmachine.foo.com".
+            Use username "loguser" and password "l0gg3r" to authenticate
+            to the database. Permit the module create tables for us.
+          </para>
+          <example>
+            <title>Basic Example</title>
+            <programlisting>LogSQLLoginInfo mysql://loguser:l0gg3r@dbmachine.foo.com/apachelogs
+LogSQLCreateTables on</programlisting>
+          </example>
+          <para>
+            If your database resides on localhost instead of another
+            host, specify the MySQL server's socket file as follows:
+          </para>
+          <programlisting>LogSQLDBParam socketfile /your/path/to/mysql.sock</programlisting>
+          <para>
+            If your database is listening on a port other than 3306,
+            specify the correct TCP port as follows:
+          </para>
+          <programlisting>LogSQLDBParam port 1234</programlisting>
+        </listitem>
+        <listitem>
+          <para>
+            The actual logging is set up on a virtual-host-by-host
+            basis. So, skip down to the virtual host you want to set up.
+            Instruct this virtual host to log entries to the table
+            "access_log" by inserting a LogSQLTransferLogTable
+            directive. (The LogSQLTransferLogTable directive is the
+            minimum required to log -- other directives that you will
+            learn about later simply tune the module's behavior.)
+          </para>
+          <programlisting>&lt;VirtualHost 1.2.3.4&gt;
+ [snip]
+ LogSQLTransferLogTable access_log
+ [snip]
+&lt;/VirtualHost&gt;</programlisting>
+        </listitem>
+        <listitem>
+          <para>Restart apache.</para>
+          <programlisting># /etc/rc.d/init.d/httpd stop
+# /etc/rc.d/init.d/httpd start</programlisting>
+        </listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>Testing the basic setup</title>
+      <orderedlist>
+        <listitem>
+          <para>
+            Visit your web site in a browser to trigger some hits, then
+            confirm that the entries are being successfully logged:
+          </para>
+          <programlisting># mysql -hdbmachine.foo.com -umysqladmin -p -e "SELECT * FROM access_log" apachelogs
+Enter password:</programlisting>
+          <para>
+            Several lines of output should follow, corresponding to your
+            hits on the site. You now have basic functionality. Don't
+            disable your regular Apache logs until you feel comfortable
+            that the database is behaving as you'd like and that things
+            are going well. If you do not see any entries in the
+            access_log, please consult section
+            <xref linkend="FAQ.NothingLogged" />
+            of the FAQ on how to debug and fix the situation.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            You can now activate the advanced features of mod_log_sql,
+            which are described in the next section.
+          </para>
+        </listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>How to tune logging with run-time directives</title>
+      <section tocstyle="fragment">
+        <title>Instructing the module what to log</title>
+        <para>
+          The most basic directive for the module is
+          LogSQLTransferLogFormat, which tells the module which
+          information to send to the database; logging to the database
+          will not take place without it. Place a
+          LogSQLTransferLogFormat directive in the VirtualHost stanza of
+          each virtual host that you want to activate.
+        </para>
+        <para>
+          After LogSQLTransferLogFormat you supply a string of
+          characters that tell the module what information to log. In
+          the configuration directive reference (section
+          <xref linkend="Conf.LogSQLTransferLogFormat" />
+          ) there is a table which clearly defines all the possible
+          things to log. Let's say you want to log only the "request
+          time," the "remote host," and the "request"; you'd use:
+        </para>
+        <programlisting>LogSQLTransferLogFormat hUS</programlisting>
+        <para>But a more appropriate string to use is</para>
+        <programlisting>LogSQLTransferLogFormat AbHhmRSsTUuv</programlisting>
+        <para>
+          which logs all the information required to be compatible with
+          the Combined Log Format (CLF).
+        </para>
+        <para>
+          If you don't choose to log everything that is available,
+          that's fine. Fields in the unused columns in your table will
+          simply contain NULL.
+        </para>
+        <para>
+          Some of the LogSQLTransferLogFormat characters require a
+          little extra configuration:
+        </para>
+        <itemizedlist>
+          <listitem>
+            <para>
+              If you specify 'c' to indicate that you want to log the
+              cookie value, you must also tell the module which cookie
+              you mean by using LogSQLWhichCookie -- after all, there
+              could be many cookies associated with a given request.
+              Fail to specify LogSQLWhichCookie, and no cookie
+              information at all will be logged.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              If you specify 'M' to indicate that you want to log the
+              machine ID, you must also tell the module this machine's
+              identity using the LogSQLMachineID directive. Fail to
+              specify LogSQLMachineID, and a simple '-' character will
+              be logged in the machine_id column.
+            </para>
+          </listitem>
+        </itemizedlist>
+      </section>
+      <section id="Sect.Ignore">
+        <title id="Sect.Ignore.title">
+          Instructing the module what NOT to log using filtering
+          directives
+        </title>
+        <para>
+          One "accept" and two "ignore" directives allow you to
+          fine-tune what the module should not log. These are very handy
+          for keeping your database as uncluttered as possible and
+          keeping your statistics free of unneeded numbers. Think of
+          each one as a gatekeeper.
+        </para>
+        <para>
+          <emphasis>
+            It is important to remember that each of these three
+            directives is purely optional. mod_log_sql's default is to
+            log everything.
+          </emphasis>
+        </para>
+        <para>
+          When a request comes in, the contents of LogSQLRequestAccept
+          are evaluated first. This optional, "blanket" directive lets
+          you specify that only certain things are to be accepted for
+          logging, and everything else discarded. Because it is
+          evaluated before LogSQLRequestIgnore and LogSQLRemhostIgnore
+          it can halt logging before those two filtering directives "get
+          their chance."
+        </para>
+        <para>
+          Once a request makes it past LogSQLRequestAccept, it still can
+          be excluded based on LogSQLRemhostIgnore and
+          LogSQLRequestIgnore. A good way to use LogSQLRemhostIgnore is
+          to prevent the module from logging the traffic that your
+          internal hosts generate. LogSQLRequestIgnore is great for
+          preventing things like requests for "favicon.ico" from
+          cluttering up your database, as well as excluding the various
+          requests that worms make, etc.
+        </para>
+        <para>
+          You can specify a series of strings after each directive. Do
+          not use any type of globbing or regular-expression syntax --
+          each string is considered a match
+          <emphasis>
+            if it is a substring of the larger request or remote-host;
+            the comarison is case-sensitive
+          </emphasis>
+          . This means that "LogSQLRemhostIgnore micro" will ignore
+          requests from "microsoft.com," "microworld.net,"
+          "mymicroscope.org," etc. "LogSQLRequestIgnore gif" will
+          instruct the module to ignore requests for "leftbar.gif,"
+          "bluedot.gif" and even "giftwrap.jpg" -- but "RED.GIF" and
+          "Tree.Gif" would still get logged because of case sensitivity.
+        </para>
+        <para>A summary of the decision flow:</para>
+        <orderedlist>
+          <listitem>
+            <para>
+              If LogSQLRequestAccept exists and a request does not match
+              anything in that list, it is discarded.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              If a request matches anything in the LogSQLRequestIgnore
+              list, it is discarded.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              If a reqiest matches anything in the LogSQLRemhostIgnore
+              list, it is discarded.
+            </para>
+          </listitem>
+          <listitem>
+            <para>Otherwise the request is logged.</para>
+          </listitem>
+        </orderedlist>
+        <para>
+          This means that you can have a series of directives similar to
+          the following:
+        </para>
+        <programlisting>LogSQLRequestAccept .html .gif .jpg
+LogSQLRequestIgnore statistics.html bluedot.jpg</programlisting>
+        <para>
+          So the first line instructs the module to only log files with
+          html, gif and jpg suffixes; requests for "formail.cgi" and
+          "shopping-cart.pl" will never be considered for logging.
+          ("LeftArrow.JPG" will also never be considered for logging --
+          remember, the comparison is case sensitive.) The second line
+          prunes the list further -- you never want to log requests for
+          those two objects.
+        </para>
+        <note role="tip">
+          <itemizedlist>
+            <listitem>
+              <para>
+                If you want to match all the hosts in your domain such
+                as "host1.corp.foo.com" and "server.dmz.foo.com", simply
+                specify:
+              </para>
+              <programlisting>LogSQLRemhostIgnore foo.com</programlisting>
+            </listitem>
+            <listitem>
+              <para>
+                A great way to catch the vast majority of worm-attack
+                requests and prevent them from being logged is to
+                specify:
+              </para>
+              <programlisting>LogSQLRequestIgnore root.exe cmd.exe default.ida</programlisting>
+            </listitem>
+            <listitem>
+              <para>
+                To prevent the logging of requests for common graphic
+                types, make sure to put a '.' before the suffix to avoid
+                matches that you didn't intend:
+              </para>
+              <programlisting>LogSQLRequestIgnore .gif .jpg</programlisting>
+            </listitem>
+          </itemizedlist>
+        </note>
+      </section>
+    </section>
+    <section>
+      <title>Advanced logging scenarios</title>
+      <section tocstyle="fragment">
+        <title>Using the module in an ISP environment</title>
+        <para>mod_log_sql has three basic tiers of operation:</para>
+        <orderedlist>
+          <listitem>
+            <para>
+              The administrator creates all necessary tables by hand and
+              configures each Apache VirtualHost by hand.
+              (LogSQLCreateTables Off)
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              The module is permitted to create necessary tables
+              on-the-fly, but the administrator configures each Apache
+              VirtualHost by hand. (LogSQLCreateTables On)
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              The module is permitted to create all necessary tables and
+              to make intelligent, on-the-fly configuration of each
+              VirtualHost. (LogSQLMassVirtualHosting On)
+            </para>
+          </listitem>
+        </orderedlist>
+        <para>
+          Many users are happy to use the module in its most minimal
+          form: they hand-create any necessary tables (using
+          "create_tables.sql"), and they configure each VirtualHost by
+          hand to suit their needs. However, some administrators need
+          extra features due to a large and growing number of
+          VirtualHosts. The LogSQLMassVirtualHosting directive activates
+          module capabilities that make it far easier to manage an ISP
+          environment, or any situation characterized by a large and
+          varying number of virtual servers.
+        </para>
+        <itemizedlist>
+          <listitem>
+            <para>
+              the on-the-fly table creation feature is activated
+              automatically
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              the transfer log table name is dynamically set from the
+              virtual host's name (example: a virtual host
+              "www.grubbybaby.com" gets logged to table
+              "access_www_grubbybaby_com")
+            </para>
+          </listitem>
+        </itemizedlist>
+        <para>
+          There are numerous benefits. The admin will not need to create
+          new tables for every new VirtualHost. (Although the admin will
+          still need to drop the tables of virtual hosts that are
+          removed.) The admin will not need to set
+          LogSQLTransferLogTable for each virtual host -- it will be
+          configured automatically based on the host's name. Because
+          each virtual host will log to its own segregated table, data
+          about one virtual server will segregate from others; an admin
+          can grant users access to the tables they need, and they will
+          be unable to view data about another user's virtual host.
+        </para>
+        <para>
+          In an ISP scenario the admin is likely to have a cluster of
+          many front-end webservers logging to a back-end database.
+          mod_log_sql has a feature that permits analysis of how well
+          the web servers are loadbalancing: the LogSQLMachineID
+          directive. The administrator uses this directive to assign a
+          unique identifier to each machine in the web cluster, e.g.
+          "LogSQLMachineID web01," "LogSQLMachineID web02," etc. Used in
+          conjunction with the 'M' character in LogSQLTransferLogFormat,
+          each entry in the SQL log will include the machine ID of the
+          machine that created the entry. This permits the administrator
+          to count the entries made by each particular machine and
+          thereby analyze the front-end loadbalancing algorithm.
+        </para>
+      </section>
+      <section id="Sect.MultiTable">
+        <title id="Sect.MultiTable.title">
+          Logging many-to-one data in separate tables
+        </title>
+        <para>
+          A given HTTP request can have a one-to-many relationship with
+          certain kinds of data. For example, a single HTTP request can
+          have 4 cookies, 3 headers and 5 "mod_gzip" notes associated
+          with it. mod_log_sql is capable of logging these relationships
+          due to the elegance of SQL relational data.
+        </para>
+        <para>
+          You already have a single table containing access requests.
+          One of the columns in that table is 'id' which is intended to
+          contain the unique request ID supplied by the standard Apache
+          module mod_unique_id -- all you need to do is compile in that
+          module and employ the LogSQLTransferLogFormat character 'I'.
+          Thereafter, each request gets a unique ID that can be thought
+          of as a primary key within the database, useful for joining
+          multiple tables. So let's envision several new tables: a notes
+          table, a cookies table, and a table for inbound and outbound
+          headers.
+        </para>
+        <table>
+          <title>&lt;tblAcc&gt;access_log</title>
+          <tgroup cols="6">
+            <colspec colname="1" />
+            <colspec colname="2" />
+            <colspec colname="3" />
+            <colspec colname="4" />
+            <colspec colname="5" colwidth="40" />
+            <colspec colname="6" colwidth="70" />
+            <thead>
+              <row>
+                <entry colname="1">id</entry>
+                <entry colname="2">remote_host</entry>
+                <entry colname="3">request_uri</entry>
+                <entry colname="4">time_stamp</entry>
+                <entry colname="5">status</entry>
+                <entry colname="6">bytes_sent</entry>
+              </row>
+            </thead>
+            <tbody>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">zerberus.aiacs.net</entry>
+                <entry colname="3">/mod_log_sql/index.html</entry>
+                <entry colname="4">1022493617</entry>
+                <entry colname="5">200</entry>
+                <entry colname="6">2215</entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </table>
+        <table>
+          <title>&lt;tblNotes&gt;notes_log</title>
+          <tgroup cols="3">
+            <colspec colname="1" />
+            <colspec colname="2" />
+            <colspec colname="3" colwidth="30" />
+            <thead>
+              <row>
+                <entry colname="1">id</entry>
+                <entry colname="2">item</entry>
+                <entry colname="3">val</entry>
+              </row>
+            </thead>
+            <tbody>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">mod_gzip_result</entry>
+                <entry colname="3">OK</entry>
+              </row>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">mod_gzip_compression_ratio</entry>
+                <entry colname="3">69</entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </table>
+        <table>
+          <title>&lt;tblHdr&gt;headers_log</title>
+          <tgroup cols="3">
+            <colspec colname="1" colnum="1" />
+            <colspec colname="2" colnum="2" />
+            <colspec colname="3" colnum="3" />
+            <thead>
+              <row>
+                <entry colname="1">id</entry>
+                <entry colname="2">item</entry>
+                <entry colname="3">val</entry>
+              </row>
+            </thead>
+            <tbody>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">Content-Type</entry>
+                <entry colname="3">text/html</entry>
+              </row>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">Accept-Encoding</entry>
+                <entry colname="3">gzip, deflate</entry>
+              </row>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">Expires</entry>
+                <entry colname="3">Tue, 28 May 2002 10:00:18 GMT</entry>
+              </row>
+              <row>
+                <entry colname="1">PPIDskBRH30AAGPtAsg</entry>
+                <entry colname="2">Cache-Control</entry>
+                <entry colname="3">max-age=86400</entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </table>
+        <para>
+          We have a certain request, and its unique ID is
+          "PPIDskBRH30AAGPtAsg". Within each separate table will be
+          multiple entries with that request ID: several cookie entries,
+          several header entries, etc. As you can see in tables
+          [tblAcc], [tblNotes] and [tblHdr], you have a one-to-many
+          relationship for request PPIDskBRH30AAGPtAsg: that one access
+          has two associated notes and four associated headers. You can
+          extract this data easily using the power of SQL's "select"
+          statement and table joins. To see the notes associated with a
+          particular request:
+        </para>
+        <programlisting>SELECT a.remote_host, a.request_uri, n.item, n.val
+FROM access_log a JOIN notes_log n ON a.id=n.id
+WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
+        <table>
+          <title>access_log joined to notes_log</title>
+          <tgroup cols="4">
+            <colspec colname="1" />
+            <colspec colname="2" />
+            <colspec colname="3" />
+            <colspec colname="4" colwidth="30" />
+            <thead>
+              <row>
+                <entry colname="1">remote_host</entry>
+                <entry colname="2">request_uri</entry>
+                <entry colname="3">item</entry>
+                <entry colname="4">val</entry>
+              </row>
+            </thead>
+            <tbody>
+              <row>
+                <entry colname="1">zerberus.aiacs.net</entry>
+                <entry colname="2">/mod_log_sql/index.html</entry>
+                <entry colname="3">mod_gzip_result</entry>
+                <entry colname="4">OK</entry>
+              </row>
+              <row>
+                <entry colname="1">zerberus.aiacs.net</entry>
+                <entry colname="2">/mod_log_sql/index.html</entry>
+                <entry colname="3">mod_gzip_compression_ratio</entry>
+                <entry colname="4">69</entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </table>
+        <para>
+          Naturally you can craft similar statements for the outboud
+          headers, inbound headers and cookies, all of which can live in
+          separate tables. Your statements are limited in power only by
+          your skill with SQL.
+        </para>
+        <para>
+          In order to use this capability of mod_log_sql, you must do
+          several things.
+        </para>
+        <itemizedlist>
+          <listitem>
+            <para>
+              Compile mod_unique_id into Apache (statically or as a
+              DSO). mod_log_sql employs the unique request ID that
+              mod_unique_id provides in order to key between the
+              separate tables. You can still log the data without
+              mod_unqiue_id, but it will be completely uncorrelated and
+              you will have no way to discern any meaning.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              Create the appropriate tables. This will be done for you
+              if you permit mod_log_sql to create its own tables using
+              LogSQLCreateTables On, or if you use the enclosed
+              "create_tables.sql" script.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              Create a SQL index on the "id" column. Without this index,
+              table joins will be deathly slow. I recommend you consult
+              the MySQL documentation on the proper way to create a
+              column index if you are not familiar with this operation.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              Within each appropriate VirtualHost stanza, use the
+              LogSQLWhich* and LogSQL*LogTable directives to tell the
+              module what and where to log the data. In the following
+              example, I have overridden the name for the notes table
+              whereas I have left the other table names at their
+              defaults. I have then specified the cookies, headers and
+              notes that interest me. (And as you can see, these
+              directives do not require me to add any characters to
+              LogSQLTransferLogTable.)
+            </para>
+            <programlisting>&lt;VirtualHost 216.231.36.128&gt;
+ (snip)
+ LogSQLNotesLogTable notestable
+ LogSQLWhichCookies bluecookie redcookie greencookie
+ LogSQLWhichNotes mod_gzip_result mod_gzip_compression_ratio
+ LogSQLWhichHeadersOut Expires Content-Type Cache-Control
+ LogSQLWhichHeadersIn User-Agent Accept-Encoding Host
+ (snip)
+&lt;/VirtualHost&gt;</programlisting>
+          </listitem>
+        </itemizedlist>
+      </section>
+      <section>
+        <title>Using the same database for production and test</title>
+        <para>
+          Although sub-optimal, it is not uncommon to use the same
+          back-end database for the "production" webservers as well as
+          the "test" webservers (budgetary constraints, rack-space
+          limits, etc.). Furthermore, an administrator in this situation
+          may be unable to use LogSQLRemhostIgnore to exclude requests
+          from the test servers -- perhaps the generated entries are
+          genuinely useful for analytical or QA purposes, but their
+          value after analysis is minimal.
+        </para>
+        <para>
+          It is wasteful and potentially confusing to permit this
+          internal test data to clutter the database, and a solution to
+          the problem is the proper use of the LogSQLMachineID
+          directive. Assume a scenario where the production webservers
+          have IDs like "web01," "web02," and so on -- and the test
+          webservers have IDs like "test01," "test02," etc. Because
+          entries in the log database are distinguished by their source
+          machine, an administrator may purge unneeded test data from
+          the access log as follows:
+        </para>
+        <programlisting>DELETE FROM access_log WHERE machine_id like 'test%';</programlisting>
+      </section>
+      <section id="Sect.DelayedInsert">
+        <title id="Sect.DelayedInsert.title">
+          Optimizing for a busy database
+        </title>
+        <para>
+          A busy MySQL database will have SELECT statements running
+          concurrently with INSERT and UPDATE statements. A long-running
+          SELECT can in certain circumstances block INSERTs and
+          therefore block mod_log_sql. A workaround is to enable
+          mod_log_sql for "delayed inserts," which are described as
+          follows in the MySQL documentation.
+        </para>
+        <para>
+          The DELAYED option for the INSERT statement is a
+          MySQL-specific option that is very useful if you have clients
+          that can't wait for the INSERT to complete. This is a common
+          problem when you use MySQL for logging and you also
+          periodically run SELECT and UPDATE statements that take a long
+          time to complete. DELAYED was introduced in MySQL Version
+          3.22.15. It is a MySQL extension to ANSI SQL92.
+        </para>
+        <para>
+          INSERT DELAYED only works with ISAM and MyISAM tables. Note
+          that as MyISAM tables supports concurrent SELECT and INSERT,
+          if there is no free blocks in the middle of the data file, you
+          very seldom need to use INSERT DELAYED with MyISAM.
+        </para>
+        <para>
+          When you use INSERT DELAYED, the client will get an OK at once
+          and the row will be inserted when the table is not in use by
+          any other thread.
+        </para>
+        <para>
+          Another major benefit of using INSERT DELAYED is that inserts
+          from many clients are bundled together and written in one
+          block. This is much faster than doing many separate inserts.
+        </para>
+        <para>The general disadvantages of delayed inserts are</para>
+        <orderedlist>
+          <listitem>
+            <para>
+              The queued rows are only stored in memory until they are
+              inserted into the table. If mysqld dies unexpectedly, any
+              queued rows that were not written to disk are lost.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              There is additional overhead for the server to handle a
+              separate thread for each table on which you use INSERT
+              DELAYED.
+            </para>
+          </listitem>
+        </orderedlist>
+        <note role="warning">
+          <para>
+            The MySQL documentation concludes, "This means that you
+            should only use INSERT DELAYED when you are really sure you
+            need it!" Furthermore, the current state of error return
+            from a failed INSERT DELAYED seems to be in flux, and may
+            behave in unpredictable ways between different MySQL
+            versions. See FAQ entry
+            <xref linkend="FAQ.DelayedInsert" />
+            -- you have been warned.
+          </para>
+        </note>
+        <para>
+          If you are experiencing issues which could be solved by
+          delayed inserts, then set LogSqlDelayedInserts On in the
+          <filename>httpd.conf</filename>
+          . All regular INSERT statements are now INSERT DELAYED, and
+          you should see no more blocking of the module.
+        </para>
+      </section>
+    </section>
+    <section id="Sect.ConfigReference">
+      <title id="Sect.ConfigReference.title">
+        Configuration Directive Reference
+      </title>
+      <para>
+        It is imperative that you understand which directives are used
+        only once in the main server config, and which are used inside
+        VirtualHost stanzas and therefore multiple times within
+        httpd.conf. The "context" listed with each entry informs you of
+        this.
+      </para>
+      <section tocstyle="fragment">
+        <title>DataBase Configuration</title>
+        <variablelist>
+          <varlistentry>
+            <term>LogSQLLoginInfo</term>
+            <listitem>
+              <cmdsynopsis>
+                <command>LogSQLLoginInfo</command>
+                <arg choice="req">
+                  <replaceable>connection URI</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLLoginInfo
+                mysql://logwriter:passw0rd@foobar.baz.com/Apache_log
+              </simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                Defines the basic connection URI to connect to the
+                database with. The format of the connection URI is
+              </para>
+              <simpara>
+                driver://username[:password]@hostname[:port]/database
+              </simpara>
+              <variablelist>
+                <varlistentry>
+                  <term>driver</term>
+                  <listitem>
+                    <simpara>
+                      The database driver to use (mysql, pgsql, etc..)
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term>username</term>
+                  <listitem>
+                    <simpara>
+                      The database username to login with INSERT
+                      privileges on the logging table defined in
+                      LogSQLtransferLogTable.
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term>password</term>
+                  <listitem>
+                    <simpara>
+                      The password to use for username, and can be
+                      omitted if there is no password.
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term>hostname</term>
+                  <listitem>
+                    <simpara>
+                      The hostname or Ip address of the Database
+                      machine, ans is simple "localhost" if the database
+                      lives on the same machine as Apache.
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term>port</term>
+                  <listitem>
+                    <simpara>
+                      Port on hostname to connect to the Database, if
+                      not specified use the default port for the
+                      database.
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term>database</term>
+                  <listitem>
+                    <simpara>
+                      The database to connect to on the server.
+                    </simpara>
+                  </listitem>
+                </varlistentry>
+              </variablelist>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+                <para>
+                  This directive Must be defined for logging to be
+                  enabled.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLDBParam</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLDBParam</command>
+                <arg choice="req">
+                  <replaceable>parameter-name</replaceable>
+                </arg>
+                <arg choice="req">
+                  <replaceable>value</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLDBParam socketfile
+                /var/lib/mysql/mysql.socket
+              </simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                This is the new method of specifying Database connection
+                credentials and settings. This is used to define
+                database driver specific options. For a list of options
+                read the documentation for each specific database
+                driver.
+              </para>
+              <table>
+                <title>MySQL Driver parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1" />
+                  <colspec colname="2" colnum="2" />
+                  <colspec colname="3" colnum="3" />
+                  <thead>
+                    <row>
+                      <entry colname="1">Parameter</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">Default</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">hostname</entry>
+                      <entry colname="2">MySQL Server hostname</entry>
+                      <entry colname="3">none (use LogSQLLoginInfo to set)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">username</entry>
+                      <entry colname="2">The username to log in with</entry>
+                      <entry colname="3">none (use LogSQLLoginInfo to set)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">password</entry>
+                      <entry colname="2">The password to use</entry>
+                      <entry colname="3">none (use LogSQLLoginInfo to set)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">database</entry>
+                      <entry colname="2">Which database to connect to</entry>
+                      <entry colname="3">none (use LogSQLLoginInfo to set)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">port</entry>
+                      <entry colname="2">The TCP port to connect to the MySQL server over</entry>
+                      <entry colname="3">3306 (use LogSQLLoginInfo to set)</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">socketfile</entry>
+                      <entry colname="2">The MySQL Unix socket file to use</entry>
+                      <entry colname="3">none</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">tabletype</entry>
+                      <entry colname="2">MySQL Table Engine to use</entry>
+                      <entry colname="3">MySQL server default</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
+              <note>
+                <para>
+                  Each parameter-name may only be defined once.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLCreateTables</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLCreateTables</command>
+                <arg choice="req">flag</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLCreateTables On</simpara>
+              <simpara>Default: Off</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                mod_log_sql has the ability to create its tables
+                on-the-fly. The advantage to this is convenience: you
+                don't have to execute any SQL by hand to prepare the
+                table. This is especially helpful for people with lots
+                of virtual hosts (who should also see the
+                LogSQLMassVirtualHosting directive).
+              </para>
+              <para>
+                There is a slight disadvantage: if you wish to activate
+                this feature, then the userid specified in
+                LogSQLLoginInfo must have CREATE privileges on the
+                database. In an absolutely paranoid, locked-down
+                situation you may only want to grant your mod_log_sql
+                user INSERT privileges on the database; in that
+                situation you are unable to take advantage of
+                LogSQLCreateTables. But most people -- even the very
+                security-conscious -- will find that granting CREATE on
+                the logging database is reasonable.
+              </para>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLForcePreserve</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLForcePreserve</command>
+                <arg choice="req">flag</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogForcePreserve On</simpara>
+              <simpara>Default: Off</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                You may need to perform debugging on your database and
+                specifically want mod_log_sql to make no attempts to log
+                to it. This directive instructs the module to send all
+                its log entries directly to the preserve file and to
+                make no database INSERT attempts.
+              </para>
+              <para>
+                This is presumably a directive for temporary use only;
+                it could be dangerous if you set it and forget it, as
+                all your entries will simply pile up in the preserve
+                file.
+              </para>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLDisablePreserve</term>
+            <listitem>
+              <cmdsynopsis>
+                <command>LogSQLDisablePreserve</command>
+                <arg choice="req">flag</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogDisablePreserve On</simpara>
+              <simpara>Default: Off</simpara>
+              <simpara>Context; main server config</simpara>
+              <para>
+                This option can be enabled to completely disable the
+                preserve file fail back. This may be useful for servers
+                where the file-system is read-only.
+              </para>
+              <para>
+                If the database is not available those log entries will
+                be lost.
+              </para>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLMachineID</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLMachineID</command>
+                <arg choice="req">machineID</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLMachineID web01</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                If you have a farm of webservers then you may wish to
+                know which particular machine made each entry; this is
+                useful for analyzing your load-balancing methodology.
+                LogSQLMachineID permits you to distinguish each
+                machine's entries if you assign each machine its own
+                LogSQLMachineID: for example, the first webserver gets
+                ``LogSQLMachineID web01,'' the second gets
+                ``LogSQLMachineID web02,'' etc.
+              </para>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQlPreserveFile</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLPreserveFile</command>
+                <arg choice="req">
+                  <replaceable>filename</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLPreserveFile offline-preserve
+              </simpara>
+              <simpara>Default: /tmp/sql-preserve</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                mod_log_sql writes queries to this local preserve file
+                in the event that it cannot reach the database, and thus
+                ensures that your high-availability web frontend does
+                not lose logs during a temporary database outage. This
+                could happen for a number of reasons: the database goes
+                offline, the network breaks, etc. You will not lose
+                entries since the module has this backup. The file
+                consists of a series of SQL statements that can be
+                imported into your database at your convenience;
+                furthermore, because the SQL queries contain the access
+                timestamps you do not need to worry about out-of-order
+                data after the import, which is done in a simple manner:
+              </para>
+              <programlisting format="linespecific"># mysql -uadminuser -p mydbname &lt; /tmp/sql-preserve</programlisting>
+              <para>
+                If you do not define LogSQLPreserveFile then all virtual
+                servers will log to the same default preserve file (
+                <filename>/tmp/sql-preserve</filename>
+                ). You can redefine this on a virtual-host basis in
+                order to segregate your preserve files if you desire.
+                Note that segregation is not usually necessary, as the
+                SQL statements that are written to the preserve file
+                already distinguish between different virtual hosts if
+                you include the 'v' character in your
+                LogSQLTransferLogFormat directive. It is only necessary
+                to segregate preserve-files by virualhost if you also
+                segregate access logs by virtualhost.
+              </para>
+              <para>
+                The module will log to Apache's ErrorLog when it notices
+                a database outage, and upon database return. You will
+                therefore know when the preserve file is being used,
+                although it is your responsibility to import the file.
+              </para>
+              <para>
+                The file does not need to be created in advance. It is
+                safe to remove or rename the file without interrupting
+                Apache, as the module closes the filehandle immediately
+                after completing the write. The file is created with the
+                user &amp; group ID of the running Apache process (e.g.
+                'nobody' on many Linux distributions).
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </section>
+      <section>
+        <title>Table Names</title>
+        <variablelist>
+          <varlistentry>
+            <term>LogSQLTransferLogTable</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLTransferLogTable</command>
+                <arg choice="req">
+                  <replaceable>table-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLTransferLogTable access_log_table
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines which table is used for logging of Apache's
+                transfers; this is analogous to Apache's TransferLog
+                directive. table-name must be a valid table within the
+                database defined in the LogSQLLoginInfo connection URI.
+              </para>
+              <para>
+                This directive is
+                <emphasis>not</emphasis>
+                necessary if you declare LogSQLMassVirtualHosting On,
+                since that directive activates dynamically-named tables.
+                If you attempt to use LogSqlTransferlogTable at the same
+                time a warning will be logged and it will be ignored,
+                since LogSQLMassVirtualHosting takes priority.
+              </para>
+              <note>
+                <para>
+                  Requires unless LogSQLMassVirtualHosting is set to On
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLCookieLogTable</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLCookieLogTable</command>
+                <arg choice="req">
+                  <replaceable></replaceable>
+                  table-name
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLCookieLogTable cookie_log
+              </simpara>
+              <simpara>Default: cookies</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines which table is used for logging of cookies.
+                Working in conjunction with LogSQLWhichCookies, you can
+                log many of each request's associated cookies to a
+                separate table. For meaningful data retrieval the cookie
+                table is keyed to the access table by the unique request
+                ID supplied by the standard Apache module mod_unique_id.
+              </para>
+              <note>
+                <para>
+                  You must create the table (see create-tables.sql,
+                  included in the package), or LogSQLCreateTables must
+                  be set to "on".
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLHeadersInLogTable</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLHeadersInLogTable</command>
+                <arg choice="req">
+                  <replaceable>table-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLHeadersInLogTable headers
+              </simpara>
+              <simpara>Default: headers_in</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines which table is used for logging of inbound
+                headers. Working in conjunction with
+                LogSQLWhichHeadersIn, you can log many of each request's
+                associated headers to a separate table. For meaningful
+                data retrieval the headers table is keyed to the access
+                table by the unique request ID supplied by the standard
+                Apache module mod_unique_id.
+              </para>
+              <note>
+                <para>
+                  Note that you must create the table (see
+                  create-tables.sql, included in the package), or
+                  LogSQLCreateTables must be set to "on".
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLHeadersOutLogTable</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLHeadersOutLogTable</command>
+                <arg choice="req">
+                  <replaceable>table-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLHeadersOutLogTable headers
+              </simpara>
+              <simpara>Default: headers_out</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines which table is used for logging of outbound
+                headers. Working in conjunction with
+                LogSQLWhichHeadersOut, you can log many of each
+                request's associated headers to a separate table. For
+                meaningful data retrieval the headers table is keyed to
+                the access table by the unique request ID supplied by
+                the standard Apache module mod_unique_id.
+              </para>
+              <note>
+                <para>
+                  Note that you must create the table (see
+                  create-tables.sql, included in the package), or
+                  LogSQLCreateTables must be set to "on".
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLNotesLogTable</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLNotesLogTable</command>
+                <arg choice="req">
+                  <replaceable>table-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLNotesLogTable notes-log</simpara>
+              <simpara>Default: notes</simpara>
+              <simpara>Context: virtual_host</simpara>
+              <para>
+                Defines which table is used for logging of notes.
+                Working in conjunction with LogSQLWhichNotes, you can
+                log many of each request's associated notes to a
+                separate table. For meaningful data retrieval the notes
+                table is keyed to the access table by the unique request
+                ID supplied by the standard Apache module mod_unique_id.
+              </para>
+              <note>
+                <para>
+                  This table must be created (see create-tables.sql
+                  included in the package), or LogSQLCreateTables must
+                  be set to 'On'.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLMassVirtualHosting</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLMassVirtualHosting</command>
+                <arg choice="req">flag</arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLMassVirtualHosting On</simpara>
+              <simpara>Default: Off</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                If you administer a site hosting many, many virtual
+                hosts then this option will appeal to you. If you turn
+                on LogSQLMassVirtualHosting then several things happen:
+              </para>
+              <itemizedlist>
+                <listitem>
+                  <para>
+                    the on-the-fly table creation feature is activated
+                    automatically
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    the transfer log table name is dynamically set from
+                    the virtual host's name after stripping out
+                    SQL-unfriendly characters (example: a virtual host
+                    www.grubbybaby.com gets logged to table
+                    access_www_grubbybaby_com)
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    which, in turn, means that each virtual host logs to
+                    its own segregated table. Because there is no data
+                    shared between virtual servers you can grant your
+                    users access to the tables they need; they will be
+                    unable to view others' data.
+                  </para>
+                </listitem>
+              </itemizedlist>
+              <para>
+                This is a huge boost in convenience for sites with many
+                virtual servers. Activating LogSQLMassVirtualHosting
+                obviates the need to create every virtual server's table
+                and provides more granular security possibilities.
+              </para>
+              <note>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </section>
+      <section>
+        <title>Configuring What Is logged</title>
+        <variablelist>
+          <varlistentry id="Conf.LogSQLTransferLogFormat">
+            <term>LogSQLTransferLogFormat</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLTransferLogFormat</command>
+                <arg choice="req">
+                  <replaceable>format-string</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLTransferLogFormat huSUTv</simpara>
+              <simpara>Default: AbHhmRSsTUuv</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Each character in the format-string defines an attribute
+                of the request that you wish to log. The default logs
+                the information required to create Combined Log Format
+                logs, plus several extras. Here is the full list of
+                allowable keys, which sometimes resemble their Apache
+                counterparts, but do not always:
+              </para>
+              <table>
+                <title>Core LogFormat parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1" />
+                  <colspec colname="2" colnum="2" />
+                  <colspec colname="3" colnum="3" />
+                  <colspec colname="4" colnum="4" />
+                  <colspec colname="5" colnum="5" />
+                  <thead>
+                    <row>
+                      <entry colname="1">Symbol</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">DB Field</entry>
+                      <entry colname="4">Data Type</entry>
+                      <entry colname="5">Example</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">A</entry>
+                      <entry colname="2">User Agent</entry>
+                      <entry colname="3">agent</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">
+                        Mozilla/4.0 (compat; MSIE 6.0; Windows)
+                      </entry>
+                    </row>
+                    <row>
+                      <entry colname="1">a</entry>
+                      <entry colname="2">CGi request arguments</entry>
+                      <entry colname="3">request_args</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">
+                        user=Smith&amp;cart=1231&amp;item=532
+                      </entry>
+                    </row>
+                    <row>
+                      <entry colname="1">b</entry>
+                      <entry colname="2">Bytes transfered</entry>
+                      <entry colname="3">bytes_sent</entry>
+                      <entry colname="4">int unsigned</entry>
+                      <entry colname="5">32561</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">
+                        c
+                        <xref linkend="Foot.LogCookie" xrefstyle="footer" />
+                      </entry>
+                      <entry colname="2">Text of cookie</entry>
+                      <entry colname="3">cookie</entry>
+                      <entry colname="4">varchar(255)</entry>
+                      <entry colname="5">
+                        Apache=sdyn.fooonline.net 1300102700823
+                      </entry>
+                    </row>
+                    <row>
+                      <entry>f</entry>
+                      <entry>Local filename requested</entry>
+                      <entry>request_file</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>/var/www/html/books-cycroad.html</entry>
+                    </row>
+                    <row>
+                      <entry>H</entry>
+                      <entry>HTTP request_protocol</entry>
+                      <entry>request_protocol</entry>
+                      <entry>varchar(10)</entry>
+                      <entry>HTTP/1.1</entry>
+                    </row>
+                    <row>
+                      <entry>h</entry>
+                      <entry>Name of remote host</entry>
+                      <entry>remote_host</entry>
+                      <entry>varchar(50)</entry>
+                      <entry>blah.foobar.com</entry>
+                    </row>
+                    <row>
+                      <entry>I</entry>
+                      <entry>Request ID (from modd_unique_id)</entry>
+                      <entry>id</entry>
+                      <entry>char(19)</entry>
+                      <entry>POlFcUBRH30AAALdBG8</entry>
+                    </row>
+                    <row>
+                      <entry>l</entry>
+                      <entry>Ident user info</entry>
+                      <entry>remote_logname</entry>
+                      <entry>varcgar(50)</entry>
+                      <entry>bobby</entry>
+                    </row>
+                    <row>
+                      <entry>M</entry>
+                      <entry>
+                        Machine ID
+                        <xref linkend="Foot.MachineID" xrefstyle="footer" />
+                      </entry>
+                      <entry>machine_id</entry>
+                      <entry>varchar(25)</entry>
+                      <entry>web01</entry>
+                    </row>
+                    <row>
+                      <entry>m</entry>
+                      <entry>HTTP request method</entry>
+                      <entry>request_method</entry>
+                      <entry>varchar(10)</entry>
+                      <entry>GET</entry>
+                    </row>
+                    <row>
+                      <entry>P</entry>
+                      <entry>httpd cchild PID</entry>
+                      <entry>child_pid</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>3215</entry>
+                    </row>
+                    <row>
+                      <entry>p</entry>
+                      <entry>http port</entry>
+                      <entry>server_port</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>80</entry>
+                    </row>
+                    <row>
+                      <entry>R</entry>
+                      <entry>Referer</entry>
+                      <entry>referer</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>
+                        http://www.biglinks4u.com/linkpage.html
+                      </entry>
+                    </row>
+                    <row>
+                      <entry>r</entry>
+                      <entry>Request in full form</entry>
+                      <entry>request_line</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>GET /books-cycroad.html HTTP/1.1</entry>
+                    </row>
+                    <row>
+                      <entry>S</entry>
+                      <entry>
+                        Time of request in UNIX time_t format
+                      </entry>
+                      <entry>time_stamp</entry>
+                      <entry>int unsigned</entry>
+                      <entry>1005598029</entry>
+                    </row>
+                    <row>
+                      <entry>s</entry>
+                      <entry>HTTP Response Code Status</entry>
+                      <entry>status</entry>
+                      <entry>smallint</entry>
+                      <entry>200</entry>
+                    </row>
+                    <row>
+                      <entry>T</entry>
+                      <entry>Seconds to service request</entry>
+                      <entry>request_duration</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>2</entry>
+                    </row>
+                    <row>
+                      <entry>t</entry>
+                      <entry>Time of request in human format</entry>
+                      <entry>request_time</entry>
+                      <entry>char(28)</entry>
+                      <entry>[02/Dec/2001:15:01:26 -0800]</entry>
+                    </row>
+                    <row>
+                      <entry>U</entry>
+                      <entry>Request in simple form</entry>
+                      <entry>request_uri</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>/books-cycroad.html</entry>
+                    </row>
+                    <row>
+                      <entry>u</entry>
+                      <entry>User info from HTTP auth</entry>
+                      <entry>remote_user</entry>
+                      <entry>varchar(50)</entry>
+                      <entry>bobby</entry>
+                    </row>
+                    <row>
+                      <entry>v</entry>
+                      <entry>Virtual host servicing the request</entry>
+                      <entry>virtual_host</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>www.foobar.com</entry>
+                    </row>
+                    <row>
+                      <entry>V</entry>
+                      <entry>
+                        requested Virtual host name (mass
+                        virtualhosting)
+                      </entry>
+                      <entry>virtual_host</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>www.foobar.org</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
+              <note>
+                <simpara id="Foot.LogCookie">
+                  [1] You must also specify LogSQLWhichCookie for this
+                  to take effect.
+                </simpara>
+                <simpara id="Foot.MachineID">
+                  [2] You must also specify LogSQLmachineID for this to
+                  take effect.
+                </simpara>
+              </note>
+              <table>
+                <title>SSL LogFormat Parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1" />
+                  <colspec colname="2" colnum="2" />
+                  <colspec colname="3" colnum="3" />
+                  <colspec colname="4" colnum="4" />
+                  <colspec colname="5" colnum="5" />
+                  <thead>
+                    <row>
+                      <entry colname="1">Symbol</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">DB Field</entry>
+                      <entry colname="4">Data Type</entry>
+                      <entry colname="5">Example</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">z</entry>
+                      <entry colname="2">SSL cipher used</entry>
+                      <entry colname="3">ssl_cipher</entry>
+                      <entry colname="4">varchar(25)</entry>
+                      <entry colname="5">RC4-MD5</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">q</entry>
+                      <entry colname="2">
+                        Keysize of the SSL connection
+                      </entry>
+                      <entry colname="3">ssl_keysize</entry>
+                      <entry colname="4">smallint unsigned</entry>
+                      <entry colname="5">56</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">Q</entry>
+                      <entry colname="2">
+                        maximum keysize supported
+                      </entry>
+                      <entry colname="3">ssl_maxkeysize</entry>
+                      <entry colname="4">smallint unsigned</entry>
+                      <entry colname="5">128</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
+              <table>
+                <title>LogIO LogFormat Parameters</title>
+                <tgroup cols="5">
+                  <colspec colname="1" colnum="1" />
+                  <colspec colname="2" colnum="2" />
+                  <colspec colname="3" colnum="3" />
+                  <colspec colname="4" colnum="4" />
+                  <colspec colname="5" colnum="5" />
+                  <thead>
+                    <row>
+                      <entry colname="1">Symbol</entry>
+                      <entry colname="2">Meaning</entry>
+                      <entry colname="3">DB Field</entry>
+                      <entry colname="4">Data Type</entry>
+                      <entry colname="5">Example</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry colname="1">i</entry>
+                      <entry colname="2">Number of actual Bytes transfered in with the request</entry>
+                      <entry colname="3">bytes_in</entry>
+                      <entry colname="4">int unsigned</entry>
+                      <entry colname="5">505</entry>
+                    </row>
+                    <row>
+                      <entry colname="1">o</entry>
+                      <entry colname="2">Number of actual Bytes transfered out with the request</entry>
+                      <entry colname="3">bytes_out</entry>
+                      <entry colname="4">int unsigned</entry>
+                      <entry colname="5">4168</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLRemhostIgnore</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLRemhostIgnore</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>hostname</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLRemhostIgnore localnet.com
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Lists a series of smortrings that, if present in the
+                REMOTE_HOST, will cause that request to
+                <emphasis>not</emphasis>
+                be logged. This directive is useful for cutting down on
+                log clutter when you are certain that you want to ignore
+                requests from certain hosts, such as your own internal
+                network machines. See section
+                <xref endterm="Sect.Ignore.title" linkend="Sect.Ignore" />
+                for some tips for using this directive.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <para>
+                Each string is separated by a space, and no regular
+                expressions or globbing are allowed. Each string is
+                evaluated as a substring of the REMOTE_HOST using
+                strstr(). The comparison is case sensitive.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLRequestAccept</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLRequestAccept</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>substring</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLRequestAccept .html .php .jpg
+              </simpara>
+              <simpara>
+                Default: if not specified, all requests are 'accepted'
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Lists a series of strings that, if present in the URI,
+                will permit that request to be considered for logging
+                (depending on additional filtering by the "ignore"
+                directives). Any request that fails to match one of the
+                LogSQLRequestAccept entries will be discarded.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <para>
+                This directive is useful for cutting down on log clutter
+                when you are certain that you only want to log certain
+                kinds of requests, and just blanket-ignore everything
+                else. See section
+                <xref endterm="Sect.Ignore.title" linkend="Sect.Ignore" />
+                for some tips for using this directive.
+              </para>
+              <para>
+                Each string is separated by a space, and no regular
+                expressions or globbing are allowed. Each string is
+                evaluated as a substring of the URI using strstr(). The
+                comparison is case sensitive.
+              </para>
+              <para>
+                This directive is completely optional. It is more
+                general than LogSQLRequestIgnore and is evaluated before
+                LogSQLRequestIgnore . If this directive is not used,
+                <emphasis>all</emphasis>
+                requests are accepted and passed on to the other
+                filtering directives. Therefore, only use this directive
+                if you have a specific reason to do so.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLRequestIgnore</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLRequestIgnore</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>substring</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLRequestIgnore root.exe cmd.exe
+                default.ida favicon.ico
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Lists a series of strings that, if present in the URI,
+                will cause that request to
+                <emphasis>NOT</emphasis>
+                be logged. This directive is useful for cutting down on
+                log clutter when you are certain that you want to ignore
+                requests for certain objects. See section
+                <xref endterm="Sect.Ignore.title" linkend="Sect.Ignore" />
+                for some tips for using this directive.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <para>
+                Each string is separated by a space, and no regular
+                expressions or globbing are allowed. Each string is
+                evaluated as a substring of the URI using strstr(). The
+                comparison is case sensitive.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLWhichCookie</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLWhichCookie</command>
+                <arg choice="req">
+                  <replaceable>cookiename</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>Example; LogSQLWhichCookie Clicks</simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                In HTTP, cookies have names to distinguish them from
+                each other. Using mod_usertrack, for example, you can
+                give your user-tracking cookies a name with the
+                CookieName directive.
+              </para>
+              <para>
+                mod_log_sql allows you to log cookie information.
+                LogSQL_WhichCookie tells mod_log_sql which cookie to
+                log. This is necessary because you will usually be
+                setting and receiving more than one cookie from a
+                client.
+              </para>
+              <note>
+                <para>
+                  You must include a 'c' character in
+                  LogSQLTransferLogFormat for this directive to take
+                  effect.
+                </para>
+                <para>
+                  although this was origintally intended for people
+                  using mod_usertrack to create user-tracking cookies,
+                  you are not restricted in any way. You can choose
+                  which cookie you wish to log to the database - any
+                  cookie at all - and it does not necessarily have to
+                  have anything to do with mod_usertrack.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLWhichCookies</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLWhichCookies</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>cookie-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: logSQLWhichCookies userlogin cookie1 cookie2
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines the list of cookies you would like logged. This
+                works in conjunction with LogSQLCookieLogTable. This
+                directive does
+                <emphasis>not</emphasis>
+                require any additional characters to be added to the
+                LogSQLTransferLogFormat string. The feature is activated
+                simply by including this directive, upon which you will
+                begin populating the separate cookie table with data.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <note>
+                <para>
+                  The table must be created (see create-tables.sql,
+                  included in the package), or LogSQLCreateTables must
+                  be set to 'On'.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLWhichHeadersIn</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLWhichHeadersIn</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>header-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLWhichHeadersIn User-Agent Accept-Encoding
+                Host
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines the list of inbound headers you would like
+                logged. This works in conjunction with
+                LogSQLHeadersInLogTable. This directive does not require
+                any additional characters to be added to the
+                LogSQLTransferLogFormat string. The feature is activated
+                simply by including this directive, upon which you will
+                begin populating the separate inbound-headers table with
+                data.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <note>
+                <para>
+                  The table must be created (see create-tables.sql,
+                  included in the package), or LogSQLCreateTables must
+                  be set to 'On'.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLWhichHeadersOut</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLWhichHeadersOut</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>header-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLWhichHeadersOut Expires Content-Type
+                Cache-Control
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines the list of outbound headers you would like
+                logged. This works in conjunction with
+                LogSQLHeadersOutLogTable. This directive does not
+                require any additional characters to be added to the
+                LogSQLTransferLogFormat string. The feature is activated
+                simply by including this directive, upon which you will
+                begin populating the separate outbound-headers table
+                with data.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <note>
+                <para>
+                  The table must be created (see create-tables.sql,
+                  included in the package), or LogSQLCreateTables must
+                  be set to 'On'.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLWhichNotes</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLWhichNotes</command>
+                <arg choice="req" rep="repeat">
+                  <replaceable>note-name</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLWhichNotes mod_gzip_result
+                mod_gzip_ompression_ratio
+              </simpara>
+              <simpara>Context: virtual host</simpara>
+              <para>
+                Defines the list of notes you would like logged. This
+                works in conjunction with LogSQLNotesLogTable. This
+                directive does not require any additional characters to
+                be added to the LogSQLTransferLogFormat string. The
+                feature is activated simply by including this directive,
+                upon which you will begin populating the separate notes
+                table with data.
+              </para>
+              <para>
+                Each string may contain a + or - prefix in a
+                &lt;VirtualHost&gt; context and will cause those strings
+                to be added (+) or removed (-) from the global
+                configuration. Otherwise the global is completely
+                ignored and overridden if defined in a
+                &lt;VirtualHost&gt;
+              </para>
+              <note>
+                <para>
+                  The table must be created (see create-tables.sql,
+                  included in the package), or LogSQLCreateTables must
+                  be set to 'On'.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </section>
+      <section>
+        <title>Deprecated Commands</title>
+        <variablelist>
+          <varlistentry>
+            <term>LogSQLSocketFile [Deprecated]</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLSocketFile</command>
+                <arg choice="req">
+                  <replaceable>filename</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>
+                Example: LogSQLSocketFile /tmp/mysql.sock
+              </simpara>
+              <simpara>Default: (database specific)</simpara>
+              <simpara>
+                Default (MySQL): /var/lib/mysql/mysql.sock
+              </simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                At Apache runtime you can specify the MySQL socket file
+                to use. Set this once in your main server config to
+                override the default value. This value is irrelevant if
+                your database resides on a separate machine.
+              </para>
+              <para>
+                mod_log_sql will automatically employ the socket for db
+                communications if the database resides on the local
+                host. If the db resides on a separate host the module
+                will automatically use TCP/IP. This is a function of the
+                MySQL API and is not user-configurable.
+              </para>
+              <note>
+                <para>
+                  This directive is deprecated in favor of LogSQLDBParam
+                  socketfile [socketfilename]
+                </para>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLTCPPort [Deprecated]</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLTCPPort</command>
+                <arg choice="req">
+                  <replaceable>port-number</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLTCPPort 3309</simpara>
+              <simpara>Default: (database specific)</simpara>
+              <simpara>Default (MySQL): 3306</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                Your database may listen on a different port than the
+                default. If so, use this directive to instruct the
+                module which port to use. This directive only applies if
+                the database is on a different machine connected via
+                TCP/IP.
+              </para>
+              <note>
+                <para>
+                  This directive is deprecated in favor of LogSQLDBParam
+                  tcpport [port-number]
+                </para>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>LogSQLDatabase [Deprecated]</term>
+            <listitem>
+              <cmdsynopsis sepchar=" ">
+                <command>LogSQLDatabase</command>
+                <arg choice="req">
+                  <replaceable>database</replaceable>
+                </arg>
+              </cmdsynopsis>
+              <simpara>Example: LogSQLDatabase loggingdb</simpara>
+              <simpara>Context: main server config</simpara>
+              <para>
+                Defines the database that is used for logging.
+                "database" must be a valid db on the MySQL host defined
+                in LogSQLLoginInfo
+              </para>
+              <note>
+                <para>
+                  This directive is deprecated in favor of the URI form
+                  of LogSQLLoginInfo.
+                </para>
+                <para>
+                  This is defined only once in the
+                  <filename>httpd.conf</filename>
+                  file.
+                </para>
+              </note>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </section>
+    </section>
+  </section>
+  <section id="Sect.FAQ">
+    <title>FAQ</title>
+    <qandaset>
+      <qandadiv>
+        <title>General module questions</title>
+        <qandaentry id="FAQ.WhyLogToSQL">
+          <question>
+            <para>Why log to an SQL database?</para>
+          </question>
+          <answer>
+            <para>
+              To begin with, let's get it out of the way: logging to a
+              database is not a panacea. But while there are
+              complexities with this solution, the benefit can be
+              substantial for certain classes of administrator or people
+              with advanced requirements:
+            </para>
+            <itemizedlist>
+              <listitem>
+                <para>
+                  Chores like log rotation go away, as you can DELETE
+                  records from the SQL database once they are no longer
+                  useful. For example, the excellent and popular
+                  log-analysis tool Webalizer (http://www.webalizer.com)
+                  does not need historic logs after it has processed
+                  them, enabling you to delete older logs.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  People with clusters of web servers (for high
+                  availability) will benefit the most - all their
+                  webservers can log to a single SQL database. This
+                  obviates the need to collate/interleave the many
+                  separate logfiles, which can be / highly/ problematic.
+                </para>
+              </listitem>
+              <listitem>
+                <para>
+                  People acquainted with the power of SQL SELECT
+                  statements will know the flexibility of the extraction
+                  possibilities at their fingertips.
+                </para>
+              </listitem>
+            </itemizedlist>
+            <para>
+              For example, do you want to see all your 404's? Do this:
+            </para>
+            <programlisting>SELECT remote_host, status, request_uri, bytes_sent, from_unixtime(time_stamp)
+FROM acc_log_tbl WHERE status=404 ORDER BY time_stamp;</programlisting>
+            <table>
+              <title></title>
+              <tgroup cols="5">
+                <colspec colname="1" />
+                <colspec colname="2" />
+                <colspec colname="3" />
+                <colspec colname="4" />
+                <colspec colname="5" />
+                <thead>
+                  <row>
+                    <entry colname="1">remote_host</entry>
+                    <entry colname="2">status</entry>
+                    <entry colname="3">request_uri</entry>
+                    <entry colname="4">bytes_sent</entry>
+                    <entry colname="5">from_unixtime(time_stamp)</entry>
+                  </row>
+                </thead>
+                <tbody>
+                  <row>
+                    <entry colname="1">marge.mmm.co.uk</entry>
+                    <entry colname="2">404</entry>
+                    <entry colname="3">/favicon.ico</entry>
+                    <entry colname="4">321</entry>
+                    <entry colname="5">2001-11-20 02:30:56</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">62.180.239.251</entry>
+                    <entry colname="2">404</entry>
+                    <entry colname="3">/favicon.ico</entry>
+                    <entry colname="4">333</entry>
+                    <entry colname="5">2001-11-20 02:45:25</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">212.234.12.66</entry>
+                    <entry colname="2">404</entry>
+                    <entry colname="3">/favicon.ico</entry>
+                    <entry colname="4">321</entry>
+                    <entry colname="5">2001-11-20 03:01:00</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">212.210.78.254</entry>
+                    <entry colname="2">404</entry>
+                    <entry colname="3">/favicon.ico</entry>
+                    <entry colname="4">333</entry>
+                    <entry colname="5">2001-11-20 03:26:05</entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+            <para>
+              Or do you want to see how many bytes you've sent within a
+              certain directory or site? Do this:
+            </para>
+            <programlisting>SELECT request_uri,sum(bytes_sent) AS bytes, count(request_uri) AS howmany
+FROM acc_log_tbl
+WHERE request_uri LIKE '%mod_log_sql%'
+GROUP BY request_uri ORDER BY howmany DESC;</programlisting>
+            <table>
+              <title></title>
+              <tgroup cols="3">
+                <colspec colname="1" />
+                <colspec colname="2" />
+                <colspec colname="3" />
+                <thead>
+                  <row>
+                    <entry colname="1">request_uri</entry>
+                    <entry colname="2">bytes</entry>
+                    <entry colname="3">howmany</entry>
+                  </row>
+                </thead>
+                <tbody>
+                  <row>
+                    <entry colname="1">/mod_log_sql/style_1.css</entry>
+                    <entry colname="2">157396</entry>
+                    <entry colname="3">1288</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">/mod_log_sql/</entry>
+                    <entry colname="2">2514337</entry>
+                    <entry colname="3">801</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">
+                      /mod_log_sql/mod_log_sql.tar.gz
+                    </entry>
+                    <entry colname="2">9769312</entry>
+                    <entry colname="3">456</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">/mod_log_sql/faq.html</entry>
+                    <entry colname="2">5038728</entry>
+                    <entry colname="3">436</entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+            <para>
+              Or maybe you want to see who's linking to you? Do this:
+            </para>
+            <programlisting>SELECT count(referer) AS num,referer
+FROM acc_log_tbl
+WHERE request_uri='/mod_log_sql/'
+GROUP BY referer ORDER BY num DESC;</programlisting>
+            <table>
+              <title></title>
+              <tgroup cols="2">
+                <colspec colname="1" />
+                <colspec colname="2" />
+                <thead>
+                  <row>
+                    <entry colname="1">num</entry>
+                    <entry colname="2">referer</entry>
+                  </row>
+                </thead>
+                <tbody>
+                  <row>
+                    <entry colname="1">271</entry>
+                    <entry colname="2">
+                      http://freshmeat.net/projects/mod_log_sql/
+                    </entry>
+                  </row>
+                  <row>
+                    <entry colname="1">96</entry>
+                    <entry colname="2">
+                      http://modules.apache.org/search?id=339
+                    </entry>
+                  </row>
+                  <row>
+                    <entry colname="1">48</entry>
+                    <entry colname="2">http://freshmeat.net/</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">8</entry>
+                    <entry colname="2">http://freshmeat.net</entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+            <para>
+              As you can see, there are myriad possibilities that can be
+              constructed with the wonderful SQL SELECT statement.
+              Logging to an SQL database can be really quite useful!
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>Why use MySQL? Are there alternatives?</para>
+          </question>
+          <answer>
+            <para>
+              MySQL is a robust, free, and very powerful
+              production-quality database engine. It is well supported
+              and comes with detailed documentation. Many 3rd-party
+              software pacakges (e.g. Slashcode, the engine that powers
+              Slashdot) run exclusively with MySQL. In other words, you
+              will belong to a very robust and well-supported community
+              by choosing MySQL.
+            </para>
+            <para>
+              That being said, there are alternatives. PostgreSQL is
+              probably MySQL's leading "competitor" in the free database
+              world. There is also an excellent module available for
+              Apache to permit logging to a PostgreSQL database, called
+              <ulink url="http://www.digitalstratum.com/pglogd/">
+                pgLOGd
+              </ulink>
+            </para>
+          </answer>
+          <answer>
+            <note>
+              <para>
+                Currently a database abstraction system is in the works
+                to allow any database to be used with mod_log_sql.
+              </para>
+            </note>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>Is this code production-ready?</para>
+          </question>
+          <answer>
+            <para>
+              By all accounts it is. It is known to work without a
+              problem on many-thousands-of-hits-per-day webservers. Does
+              that mean it is 100% bug free? Well, no software is, but
+              it is well-tested and believed to be fully compatible with
+              production environments. (The usual disclaimers apply.
+              This software is provided without warranty of any kind.)
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>Who's using mod_log_sql?</para>
+          </question>
+          <answer>
+            <para>
+              Good question! It would be great to find out! If you are a
+              production-level mod_log_sql user, please contact eddie at
+              &EmailContact;
+              so that you can be mentioned here.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Why doesn't the module also replace the Apache ErrorLog?
+            </para>
+          </question>
+          <answer>
+            <para>
+              There are circumstances when that would be quite unwise --
+              for example, if Apache could not reach the MySQL server
+              for some reason and needed to log that fact. Without a
+              text-based error log you'd never know anything was wrong,
+              because Apache would be trying to log a database
+              connection error to the database... you get the point.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Error logs are usually not very high-traffic and are
+              really best left as text files on a web server machine.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              The Error log is free format text.. (no specified
+              formatting what, so ever) which is rather difficult to
+              nicely format for storing in a database.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>Does mod_log_sql work with Apache 2.x?</para>
+          </question>
+          <answer>
+            <para>
+              Yes. A port of mod_log_sql is available for Apache 2.x as
+              of mod_log_sql 1.90
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Does mod_log_sql connect to MySQL via TCP/IP or a socket?
+            </para>
+          </question>
+          <answer>
+            <para>Quick answer, Yes.</para>
+          </answer>
+          <answer>
+            <para>
+              It depends! This is not determined by mod_log_sql.
+              mod_log_sql relies on a connection command that is
+              supplied in the MySQL API, and that command is somewhat
+              intelligent. How it works:
+            </para>
+            <itemizedlist>
+              <listitem>
+                <simpara>
+                  if the specified MySQL database is on the same
+                  machine, the connection command uses a socket to
+                  communicate with MySQL
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  if the specified MySQL database is on a different
+                  machine, mod_log_sql connects using TCP/IP.
+                </simpara>
+              </listitem>
+            </itemizedlist>
+            <para>
+              You don't have any control of which methodology is used.
+              You can fine-tune some of the configuration, however. The
+              LogSQLSocketFile runtime configuration directive overrides
+              the default of "/var/lib/mysql/mysql.sock" for
+              socket-based connections, whereas the LogSQLTCPPort
+              command allows to you override the default TCP port of
+              3306 for TCP/IP connections.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>I have discovered a bug. Who can I contact?</para>
+          </question>
+          <answer>
+            <para>
+              Please contact Edward Rudd at
+              &EmailContact;
+              , or post a message to the mod_log_sql
+              <xref endterm="Sect.MailingLists.title"
+                linkend="Sect.MailingLists" />
+              . Your comments, suggestions, bugfixes, bug catches, and
+              usage testimonials are always welcome. As free software,
+              mod_log_sql is intended to be a community effort -- any
+              code contributions or other ideas will be fully and openly
+              credited, of course.
+            </para>
+          </answer>
+        </qandaentry>
+      </qandadiv>
+      <qandadiv>
+        <title>Problems</title>
+        <qandaentry>
+          <question>
+            <para>
+              Apache segfaults or has other problems when using PHP and
+              mod_log_sql
+            </para>
+          </question>
+          <answer>
+            <para>
+              This occurs if you compiled PHP with MySQL database
+              support. PHP utilizes its internal, bundled MySQL
+              libraries by default. These conflict with the "real" MySQL
+              libraries linked by mod_log_sql, causing the segmentation
+              fault.
+            </para>
+            <para>
+              PHP and mod_log_sql can be configured to happily coexist.
+              The solution is to configure PHP to link against the real
+              MySQL libraries: recompile PHP using
+              --with-mysql=/your/path. Apache will run properly once the
+              modules are all using the same version of the MySQL
+              libraries.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry id="FAQ.NothingLogged">
+          <question>
+            <para>
+              Apache appears to start up fine, but nothing is getting
+              logged in the database
+            </para>
+          </question>
+          <answer>
+            <para>
+              If you do not see any entries in the access_log, then
+              something is preventing the inserts from happening. This
+              could be caused by several things:
+            </para>
+            <itemizedlist>
+              <listitem>
+                <simpara>
+                  Improper privileges set up in the MySQL database
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  You are not hitting a VirtualHost that has a
+                  LogSQLTransferLogTable entry
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  You did not specify the right database host or login
+                  information
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  Another factor is preventing a connection to the
+                  database
+                </simpara>
+              </listitem>
+            </itemizedlist>
+            <note>
+              <para>
+                It is improper to ask for help before you have followed
+                these steps.
+              </para>
+            </note>
+            <para>
+              First examine the MySQL log that you established in step
+              <xref linkend="Item.EnableLogging" />
+              of section
+              <xref endterm="Sect.Preperation.title"
+                linkend="Sect.Preperation" />
+              . Ensure that the INSERT statements are not being rejected
+              because of a malformed table name or other typographical
+              error. By enabling that log, you instructed MySQL to log
+              every connection and command it receives -- if you see no
+              INSERT attempts in the log, the module isn't successfully
+              connecting to the database. If you see nothing at all in
+              the log -- not even a record of your administrative
+              connection attempts, then you did not enable the log
+              correctly. If you do see INSERT attempts but they are
+              failing, the log should tell you why.
+            </para>
+            <para>
+              Second, confirm that your LogSQL* directives are all
+              correct.
+            </para>
+            <para>
+              Third, examine the Apache error logs for messages from
+              mod_log_sql; the module will offer hints as to why it
+              cannot connect, etc.
+            </para>
+            <para>
+              The next thing to do is to change the LogLevel directive
+              <emphasis>
+                in the main server config as well as in each VirtualHost
+                config:
+              </emphasis>
+            </para>
+            <programlisting>LogLevel debug
+ErrorLog /var/log/httpd/server-messages</programlisting>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Why do I get the message "insufficient configuration info
+              to establish database link" in my Apache error log?
+            </para>
+          </question>
+          <answer>
+            <para>
+              At a minimum, LogSQLLoginInfo in the URl form and either
+              LogSQLTableName or LogSQLMassVirtualHosting must be
+              defined in order for the module to be able to establish a
+              database link. If these are not defined or are incomplete
+              you will receive this error message.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              My database cannot handle all the open connections from
+              mod_log_sql, is there anything I can do?
+            </para>
+          </question>
+          <answer>
+            <para>
+              The rule of thumb: if you have n webservers each
+              configured to support y MaxClients, then your database
+              must be able to handle n times y simultaneous connections
+              in the worst case. Certainly you must use common sense,
+              consider reasonable traffic expectations and structure
+              things accordingly.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Tweaking my.cnf to scale to high connection loads is
+              imperative. But if hardware limitations prevent your MySQL
+              server from gracefully handling the number of incoming
+              connections, it would be beneficial to upgrade the memory
+              or CPU on that server in order to handle the load.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Jeremy Zawodny, a highly respected MySQL user and
+              contributor to Linux Magazine, has this very helpful and
+              highly appropriate article on tuning MySQL:
+              <ulink
+                url="http://jeremy.zawodny.com/blog/archives/000173.html">
+                MySQL, Linux, and Thread Caching
+              </ulink>
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Please remember that mod_log_sql's overriding principle is
+              performance -- that is what the target audience demands
+              and expects. Other database logging solutions do not open
+              and maintain many database connections, but their
+              performance suffers drastically. For example, pgLOGd
+              funnels all log connections through a separate daemon that
+              connects to the database, but that bottlenecks the entire
+              process. mod_log_sql achieves performance numbers an order
+              of magnitude greater than the alternatives because it
+              dispenses with the overhead associated with rapid
+              connection cycling, and it does not attempt to shoehorn
+              all the database traffic through a single extra daemon or
+              proxy process.
+            </para>
+          </answer>
+          <answer>
+            <note>
+              <para>
+                Currently connection pooling is being implemented as
+                part of the Database Abstraction layer to allow multiple
+                httpd processes to share connections.
+              </para>
+            </note>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Why do I occasionally see a "lost connection to MySQL
+              server" message in my Apache error log?
+            </para>
+          </question>
+          <answer>
+            <para>
+              This message may appear every now and then in your Apache
+              error log, especially on very lightly loaded servers. This
+              does not mean that anything is necessarily wrong. Within
+              each httpd child process, mod_log_sql will open (and keep
+              open) a connection to the MySQL server. MySQL, however,
+              will close connections that have not been used in a while;
+              the default timeout is 8 hours. When this occurs,
+              mod_log_sql will notice and re-open the connection. That
+              event is what is being logged, and looks like this:
+            </para>
+            <programlisting>[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: first attempt failed,
+  API said: error 2013, Lost connection to MySQL server during query
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: reconnect successful
+[Tue Nov 12 19:04:10 2002] [error] mod_log_sql: second attempt successful</programlisting>
+            <para>
+              Reference:
+              <ulink
+                url="http://dev.mysql.com/doc/mysql/en/Gone_away.html">
+                MySQL documentation
+              </ulink>
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Sometimes a single VirtualHost gets logged to two
+              different tables (e.g. access_foo_com,
+              access_www_foo_com). Or, accesses to an unqualified
+              hostname (e.g. "http://intranet/index.html") get logged in
+              separate tables.
+            </para>
+          </question>
+          <answer>
+            <para>
+              Proper usage of the Apache runtime ServerName directive
+              and the directive UseCanonicalName On (or DNS) are
+              necessary to prevent this problem. "On" is the default for
+              UseCanonicalName, and specifies that self-referential URLs
+              are generated from the ServerName part of your
+              VirtualHost:
+            </para>
+            <para>
+              With UseCanonicalName on (and in all versions prior to
+              1.3) Apache will use the ServerName and Port directives to
+              construct the canonical name for the server. With
+              UseCanonicalName off Apache will form self-referential
+              URLs using the hostname and port supplied by the client if
+              any are supplied (otherwise it will use the canonical
+              name, as defined above). [From
+              <ulink
+                url="http://httpd.apache.org/docs/mod/core.html#usecanonicalname">
+                the Apache documentation
+              </ulink>
+              ]
+            </para>
+            <para>
+              The module inherits Apache's "knowledge" about the server
+              name being accessed. As long as those two directives are
+              properly configured, mod_log_sql will log to only one
+              table per virtual host while using
+              LogSQLMassVirtualHosting.
+            </para>
+          </answer>
+        </qandaentry>
+      </qandadiv>
+      <qandadiv>
+        <title>Performance and Tuning</title>
+        <qandaentry>
+          <question>
+            <para>How well does it perform?</para>
+          </question>
+          <answer>
+            <para>
+              mod_log_sql scales to very high loads. Apache 1.3.22 +
+              mod_log_sql was benchmarked using the "ab" (Apache Bench)
+              program that comes with the Apache distribution; here are
+              the results.
+            </para>
+            <itemizedlist>
+              <title>Overall configuration</title>
+              <listitem>
+                <simpara>Machine A: Apache webserver</simpara>
+              </listitem>
+              <listitem>
+                <simpara>Machine B: MySQL server</simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  Machines A and B connected with 100Mbps Ethernet
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  Webserver: Celeron 400, 128MB RAM, IDE storage
+                </simpara>
+              </listitem>
+            </itemizedlist>
+            <example>
+              <title>Apache configuration</title>
+              <programlisting>Timeout 300
+KeepAlive On
+MaxKeepAliveRequests 100
+KeepAliveTimeout 15
+MinSpareServers 5
+StartServers 10
+MaxSpareServers 15
+MaxClients 256
+MaxRequestsPerChild 5000
+LogSQLTransferLogFormat AbHhmRSsTUuvc
+LogSQLWhichCookie Clicks
+CookieTracking on
+CookieName Clicks</programlisting>
+            </example>
+            <example>
+              <title>"ab" commandline</title>
+              <programlisting>./ab -c 10 -t 20 -v 2 -C Clicks=ab_run http://www.hostname.com/target</programlisting>
+            </example>
+            <para>
+              ( 10 concurrent requests; 20 second test; setting a cookie
+              "Clicks=ab_run"; target = the mod_log_sql homepage. )
+            </para>
+            <para>
+              Ten total ab runs were conducted: five with MySQL logging
+              enabled, and five with all MySQL directives commented out
+              of httpd.conf. Then each five were averaged. The results:
+            </para>
+            <itemizedlist>
+              <listitem>
+                <simpara>
+                  Average of five runs employing MySQL and standard text
+                  logging:
+                  <emphasis>
+                    139.01 requests per second, zero errors.
+                  </emphasis>
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  Average of five runs employing only standard text
+                  logging:
+                  <emphasis>
+                    139.96 requests per second, zero errors.
+                  </emphasis>
+                </simpara>
+              </listitem>
+            </itemizedlist>
+            <para>
+              In other words, any rate-limiting effects on this
+              particular hardware setup are not caused by MySQL. Note
+              that although this very simple webserver setup is hardly
+              cutting-edge -- it is, after all, a fairly small machine
+              -- 139 requests per second equal over twelve million hits
+              per day.
+            </para>
+            <orderedlist>
+              <title>
+                If you run this benchmark yourself, take note of three
+                things:
+              </title>
+              <listitem>
+                <simpara>
+                  Use a target URL that is on your own webserver :-).
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  Wait until all your connections are closed out between
+                  runs; after several thousand requests your TCP/IP
+                  stack will be filled with hundreds of connections in
+                  TIME_WAIT that need to close. Do a "netstat -t|wc -l"
+                  on the webserver to see. If you don't wait, you can
+                  expect to see a lot of messages like "ip_conntrack:
+                  table full, dropping packet" in your logs. (This has
+                  nothing to do with mod_log_sql, this is simply the
+                  nature of the TCP/IP stack in the Linux kernel.)
+                </simpara>
+              </listitem>
+              <listitem>
+                <simpara>
+                  When done with your runs, clean these many thousands
+                  of requests out of your database:
+                </simpara>
+                <programlisting>mysql&gt; delete from access_log where agent like 'ApacheBench%';
+mysql&gt; optimize table access_log;</programlisting>
+              </listitem>
+            </orderedlist>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              Do I need to be worried about all the running MySQL
+              children? Will holding open n Apache-to-MySQL connections
+              consume a lot of memory?
+            </para>
+          </question>
+          <answer>
+            <para>Short answer: you shouldn't be worried.</para>
+          </answer>
+          <answer>
+            <para>
+              Long answer: you might be evaluating at the output of "ps
+              -aufxw" and becoming alarmed at all the 7MB httpd
+              processes or 22MB mysqld children that you see. Don't be
+              alarmed. It's true that mod_log_sql opens and holds open
+              many MySQL connections: each httpd child maintains one
+              open database connection (and holds it open for
+              performance reasons). Four webservers, each running 20
+              Apache children, will hold open 80 MySQL connections,
+              which means that your MySQL server needs to handle 80
+              simultaneous connections. In truth, your MySQL server
+              needs to handle far more than that if traffic to your
+              website spikes and the Apache webservers spawn off an
+              additional 30 children each...
+            </para>
+            <para>
+              Fortunately the cost reported by 'ps -aufxw' is deceptive.
+              This is due to an OS memory-management feature called
+              "copy-on-write." When you have a number of identical child
+              processes (e.g. Apache, MySQL), it would appear in "ps" as
+              though each one occupies a great deal of RAM -- as much as
+              7MB per httpd child! In actuality each additional child
+              only occupies a small bit of extra memory -- most of the
+              memory pages are common to each child and therefore shared
+              in a "read-only" fashion. The OS can get away with this
+              because the majority of memory pages for one child are
+              identical across all children. Instead of thinking of each
+              child as a rubber stamp of the others, think of each child
+              as a basket of links to a common memory area.
+            </para>
+            <para>
+              A memory page is only duplicated when it needs to be
+              written to, hence "copy-on-write." The result is
+              efficiency and decreased memory consumption. "ps" may
+              report 7MB per child, but it might really only "cost" 900K
+              of extra memory to add one more child. It is not correct
+              to assume that 20 Apache children with a VSZ of 7MB each
+              equals (2 x 7MB) of memory consumption -- the real answer
+              is much, much lower. The same "copy-on-write" rules apply
+              to all your MySQL children: 40 mysqld children @ 22MB each
+              do not occupy 880MB of RAM.
+            </para>
+            <para>
+              The bottom line: although there is a cost to spawn extra
+              httpd or mysqld children, that cost is not as great as
+              "ps" would lead you to believe.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              My webserver cannot handle all the traffic that my site
+              receives, is there anything I can do?
+            </para>
+          </question>
+          <answer>
+            <para>
+              If you have exhausted all the tuning possibilities on your
+              existing server, it is probably time you evaluated the
+              benefits of clustering two or more webservers together in
+              a load-balanced fashion. In fact, users of such a setup
+              are mod_log_sql's target audience!
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry id="FAQ.DelayedInsert">
+          <question>
+            <para>
+              What is the issue with activating delayed inserts?
+            </para>
+          </question>
+          <answer>
+            <para>
+              INSERT DELAYED is a specific syntax to MySQL and is not
+              supported by any other database. Ergo, why is it needed,
+              and what MySQL deficiency is it working around? INSERT
+              DELAYED is a kluge.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              The MySQL documentation is unclear whether INSERT DELAYED
+              is even necessary for an optimized database. It says, "The
+              DELAYED option for the INSERT statement is a
+              MySQL-specific option that is very useful if you have
+              clients that can't wait for the INSERT to complete." But
+              then it goes on to say, "Note that as MyISAM tables
+              supports concurrent SELECT and INSERT, if there is no free
+              blocks in the middle of the data file, you very seldom
+              need to use INSERT DELAYED with MyISAM."
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Because INSERT DELAYED returns without waiting for the
+              data to be written, a hard kill of your MySQL database at
+              the right (wrong?) moment could lose those logfile
+              entries.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              As of MySQL version 3.23.52, the error return functions
+              disagree after a failed INSERT DELAYED: mysql_errno()
+              always returns 0, even if mysql_error() returns a textual
+              error. I have reported this bug to the MySQL folks.
+              However, we have no way of knowing what solution they will
+              adopt to fix this, and with the worst case solution
+              mod_log_sql would not be able to tell if anything went
+              wrong with a delayed insert.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              Instead of delayed inserts, you may wish to utilize InnoDB
+              tables (instead of the standard MyISAM tables). InnoDB
+              tables suppot row-level locking and are recommended for
+              high-volume databases.
+            </para>
+          </answer>
+          <answer>
+            <para>
+              If after understanding these problems you still wish to
+              enable delayed inserts, section
+              <xref endterm="Sect.DelayedInsert.title"
+                linkend="Sect.DelayedInsert" />
+              discusses how.
+            </para>
+          </answer>
+        </qandaentry>
+      </qandadiv>
+      <qandadiv>
+        <title>"How do I...?" -- accomplishing certain tasks</title>
+        <qandaentry>
+          <question>
+            <para>
+              How do I extract the data in a format that my analysis
+              tool can understand?
+            </para>
+          </question>
+          <answer>
+            <para>
+              mod_log_sql would be virtually useless if there weren't a
+              way for you to extract the data from your database in a
+              somewhat meaningful fashion. To that end there's a Perl
+              script enclosed with the distribution. That script
+              (make_combined_log.pl) is designed to extract N-many days
+              worth of access logs and provide them in a Combined Log
+              Format output. You can use this very tool right in
+              /etc/crontab to extract logs on a regular basis so that
+              your favorite web analysis tool can read them. Or you can
+              examine the Perl code to construct your own custom tool.
+            </para>
+            <para>
+              For example, let's say that you want your web statistics
+              updated once per day in the wee hours of the morning. A
+              good way to accomplish that could be the following entries
+              in /etc/crontab:
+            </para>
+            <programlisting># Generate the temporary apache logs from the MySQL database (for webalizer)
+05 04 * * * root make_combined_log.pl 1 www.grubbybaby.com &gt; /var/log/temp01
+# Run webalizer on httpd log
+30 04 * * * root webalizer -c /etc/webalizer.conf; rm -f /var/log/temp01</programlisting>
+            <para>
+              Or if you have a newer system that puts files in
+              /etc/cron.daily etc., create a file called "webalizer" in
+              the cron.daily subdirectory. Use the following as the
+              contents of your file, and make sure to chmod 755 it when
+              done.
+            </para>
+            <programlisting>#!/bin/sh
+/usr/local/sbin/make_combined_log.pl 1 www.yourdomain.com &gt; /var/log/httpd/templog
+/usr/local/bin/webalizer -q -c /etc/webalizer.conf
+rm -f /var/log/httpd/templog</programlisting>
+            <para>See? Easy.</para>
+          </answer>
+        </qandaentry>
+        <qandaentry id="FAQ.Cookie">
+          <question>
+            <para>How can I log mod_usertrack cookies?</para>
+          </question>
+          <answer>
+            <para>
+              A number of people like to log mod_usertrack cookies in
+              their Apache TransferLog to aid in understanding their
+              visitors' clickstreams. This is accomplished, for example,
+              with a statement as follows:
+            </para>
+            <programlisting>LogFormat "%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\"" \"%{cookie}n\""</programlisting>
+            <para>
+              Naturally it would be nice for mod_log_sql to permit the
+              admin to log the cookie data as well, so as of version
+              1.10 you can do this. You need to have already compiled
+              mod_usertrack into httpd -- it's one of the standard
+              Apache modules.
+            </para>
+            <para>
+              First make sure you have a column called "cookie" in the
+              MySQL database to hold the cookies, which can be done as
+              follows if you already have a working database:
+            </para>
+            <programlisting>mysql&gt; alter table acc_log_tbl add column cookie varchar(255);</programlisting>
+            <para>
+              Next configure your server to set usertracking cookies as
+              follows, and make sure you include the new 'c' directive
+              in your LogSQLTransferLogFormat, which activates cookie
+              logging. Here's an example:
+            </para>
+            <programlisting>&lt;VirtualHost 1.2.3.4&gt;
+ CookieTracking on
+ CookieStyle Cookie
+ CookieName Foobar
+ LogSQLTransferLogFormat huSUsbTvRAc
+ LogSQLWhichCookie Foobar
+&lt;/VirtualHost&gt;</programlisting>
+            <para>
+              The first three lines configure mod_usertrack to create a
+              COOKIE (RFC 2109) format cookie called Foobar. The last
+              two lines tell mod_log_sql to log cookies named Foobar.
+              You have to choose which cookie to log because more than
+              one cookie can/will be sent to the server by the client.
+            </para>
+            <para>
+              Recap: the 'c' character activates cookie logging, and the
+              LogSQLWhichCookie directive chooses which cookie to log.
+            </para>
+            <para>
+              FYI, you are advised NOT to use CookieStyle Cookie2 -- it
+              seems that even newer browsers (IE 5.5, etc.) have trouble
+              with the new COOKIE2 (RFC 2965) format. Just stick with
+              the standard COOKIE format and you'll be fine.
+            </para>
+            <para>
+              Perform some hits on your server and run a select
+            </para>
+            <programlisting>SELECT request_uri,cookie
+FROM access_log
+WHERE cookie IS NOT NULL;</programlisting>
+            <table>
+              <title></title>
+              <tgroup cols="2">
+                <colspec colname="1" />
+                <colspec colname="2" />
+                <thead>
+                  <row>
+                    <entry colname="1">request_uri</entry>
+                    <entry colname="2">cookie</entry>
+                  </row>
+                </thead>
+                <tbody>
+                  <row>
+                    <entry colname="1">/mod_log_sql/</entry>
+                    <entry colname="2">
+                      ool-18e4.dyn.optonline.net.130051007102700823
+                    </entry>
+                  </row>
+                  <row>
+                    <entry colname="1">/mod_log_sql/usa.gif</entry>
+                    <entry colname="2">
+                      ool-18e4.dyn.optonline.net.130051007102700823
+                    </entry>
+                  </row>
+                  <row>
+                    <entry colname="1">/mod_log_sql/style_1.css</entry>
+                    <entry colname="2">
+                      ool-18e4.dyn.optonline.net.130051007102700823
+                    </entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              What if I want to log more than one cookie? What is the
+              difference between LogSQLWhichCookie and
+              LogSQLWhichCookies?
+            </para>
+          </question>
+          <answer>
+            <para>
+              As of version 1.17, you have a choice in how you want
+              cookie logging handled.
+            </para>
+            <para>
+              If you are interested in logging only one cookie per
+              request, follow the instructions in FAQ entry
+              <xref linkend="FAQ.Cookie" />
+              above. That cookie will be logged to a column in the
+              regular access_log table, and the actual cookie you want
+              to log is specified with LogSQLWhichCookie. Don't forget
+              to specify the 'c' character in LogSQLTransferLogFormat.
+            </para>
+            <para>
+              If, however, you need to log multiple cookies per request,
+              you must employ the LogSQLWhichCookies (note the plural)
+              directive. The cookies you specify will be logged to a
+              separate table (as discussed in section
+              <xref endterm="Sect.MultiTable.title"
+                linkend="Sect.MultiTable" />
+              ), and entries in that table will be linked to the regular
+              access_log entries via the unique ID that is supplied by
+              mod_unique_id. Without mod_unique_id the information will
+              still be logged but you will be unable to correlate which
+              cookies go with which access-requests. Furthermore, with
+              LogSQLWhichCookies, you do not need to include the 'c'
+              character in LogSQLTransferLogFormat.
+            </para>
+            <para>
+              LogSQLWhichCookie and LogSQLWhichCookies can coexist
+              without conflict because they operate on entireley
+              different tables, but you're better off choosing the one
+              you need.
+            </para>
+          </answer>
+        </qandaentry>
+        <qandaentry>
+          <question>
+            <para>
+              What are the SSL logging features, and how do I activate
+              them?
+            </para>
+          </question>
+          <answer>
+            <note>
+              <para>
+                You do not need to compile SSL support into mod_log_sql
+                in order to simply use it with a secure site. You only
+                need to compile SSL support into mod_log_sql if you want
+                to log SSL-specific data such as the cipher type used,
+                or the keysize that was negotiated. If that information
+                is unimportant to you, you can ignore this FAQ.
+              </para>
+            </note>
+            <para>
+              By adding certain characters to your
+              LogSQLTransferLogFormat string you can tell mod_log_sql to
+              log the SSL cipher, the SSL keysize of the connection, and
+              the maximum keysize that was available. This would let you
+              tell, for example, which clients were using only
+              export-grade security to access your secure software area.
+            </para>
+            <para>
+              You can compile mod_log_sql with SSL logging support if
+              you have the right packages installed. If you already have
+              an SSL-enabled Apache then you by definition have the
+              correct packages already installed: OpenSSL and mod_ssl.
+            </para>
+            <para>
+              You need to ensure that your database is set up to log the
+              SSL data. Issue the following commands to MySQL if your
+              access table does not already have them:
+            </para>
+            <programlisting>mysql&gt; alter table access_log add column ssl_cipher varchar(25);
+mysql&gt; alter table access_log add column ssl_keysize smallint unsigned;
+mysql&gt; alter table access_log add column ssl_maxkeysize smallint unsigned;</programlisting>
+            <para>
+              Finally configure httpd.conf to activate the SSL fields.
+              Note that this is only meaningful in a VirtualHost that is
+              set up for SSL.
+            </para>
+            <programlisting>&lt;VirtualHost 1.2.3.4:443&gt;
+ LogSQLTransferLogFormat AbHhmRSsTUuvcQqz
+&lt;/VirtualHost&gt;</programlisting>
+            <para>
+              You also need to make sure you have the mod_log_sql_ssl
+              module loaded as well.
+            </para>
+            <para>
+              The last three characters (Qqz) in the directive are the
+              SSL ones; see section
+              <xref linkend="Conf.LogSQLTransferLogFormat" />
+              in the directives documentation for details of the
+              LogSQLTransferLogFormat directive.
+            </para>
+            <para>
+              Restart Apache, then perform some hits on your server.
+              Then run the following select statement:
+            </para>
+            <programlisting>SELECT remote_host,request_uri,ssl_cipher,ssl_keysize,ssl_maxkeysize
+FROM access_log
+WHERE ssl_cipher IS NOT NULL;</programlisting>
+            <table>
+              <title></title>
+              <tgroup cols="5">
+                <colspec colname="1" />
+                <colspec colname="2" />
+                <colspec colname="3" />
+                <colspec colname="4" />
+                <colspec colname="5" />
+                <thead>
+                  <row>
+                    <entry colname="1">remote_host</entry>
+                    <entry colname="2">request_uri</entry>
+                    <entry colname="3">ssl_cipher</entry>
+                    <entry colname="4">ssl_keysize</entry>
+                    <entry colname="5">ssl_maxkeysize</entry>
+                  </row>
+                </thead>
+                <tbody>
+                  <row>
+                    <entry colname="1">216.192.52.4</entry>
+                    <entry colname="2">/dir/somefile.html</entry>
+                    <entry colname="3">RC4-MD5</entry>
+                    <entry colname="4">128</entry>
+                    <entry colname="5">128</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">216.192.52.4</entry>
+                    <entry colname="2">/dir/somefile.gif</entry>
+                    <entry colname="3">RC4-MD5</entry>
+                    <entry colname="4">128</entry>
+                    <entry colname="5">128</entry>
+                  </row>
+                  <row>
+                    <entry colname="1">216.192.52.4</entry>
+                    <entry colname="2">/dir/somefile.jpg</entry>
+                    <entry colname="3">RC4-MD5</entry>
+                    <entry colname="4">128</entry>
+                    <entry colname="5">128</entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+          </answer>
+        </qandaentry>
+      </qandadiv>
+    </qandaset>
+  </section>
+</article>

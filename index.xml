@@ -1,0 +1,260 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="../../../../xsl/projects.xsl"?>
+<ooo title="mod_log_sql" path="/projects/apache/mod_log_sql/" osi="on">
+ <section title="Abstract">
+    <content>
+     <div xmlns="http://www.w3.org/1999/xhtml">
+  <p>mod_log_sql is a logging module for Apache 1.3 and 2.0 which logs  all requests to a database. This began a port of the Apache 1.3 version of the  module by Chris Powell, and as of February 6th, 2004 Chris Powell and I have decided to  switch maintainer-ship of the module over to me. <br/>
+This module now compiles under Apache 1.3 and Apache 2.0 from the same source.</p>
+<p>The 1.9x versions are to be considered beta quality, as they contain new features 
+	and some major code cleanups. If you are using Apache 1.3 it is recommended that you use
+	mod_log_sql version 1.18.  Only use the 1.9x releases if you need the new features they provide.</p>
+    </div>
+    </content>
+ </section>
+
+ <changelog>
+  <entry version="1.101">
+    <content type="docbook">
+      <para>
+        This release adds more documentation of the all the log formats and also adds documentation
+        of the tabletype DBParam for the mysql driver. Using LogSQLDBParam tabletype ARCHIVE will
+        set the tabletype for autocreated tables to ARCHIVE (and save TONS of space too)
+      </para>
+      <para>
+        Segfaulting due to not loading a driver module no longer occurs and an error message is
+        logged to the log file stating that you didn't load the driver module.
+      </para>
+      <para>
+        This release also adds another sub-module that will log incoming and outgoing bytes (logio)
+        This modules is EXCLUSIVE to the mod_logio module. Meaning if you use the mod_log_sql version
+        you must NOT load the standard apache version.  Currenlty due to how logging of outgoing bytes
+        is done in the apache core there is NO workaround for this, you either log outgoing bytes
+        in the text access logs OR mod_log_sql.
+      </para>
+      <para>
+        To actually USE the new logging fields you just need to add the "i" and "o" LogSQLLogFormat options.
+        Please note that these are lowercase instead of uppercase like they are in mod_logio.
+      </para>
+      <note>
+      <para>
+        Due to the addition of the logio two new fields are added to the log tables. If you wish to use
+        logging if IO then you MUST alter your existing tables adding fields bytes_in and bytes out of type int unsigned.
+      </para>
+      <programlisting>ALTER TABLE mylogingtable ADD COLUMN bytes_in INT UNSIGNED, ADD COLUMN bytes_out INT UNSIGNED</programlisting>
+      </note>
+    </content>
+  </entry>
+  <entry version="1.100">
+    <content type="docbook">
+      <para>
+        This release adds a new "V" log format which logs the requested hostname into
+        virtual_host instead of the ServerName. This is exclusive to "v", Only one or the other 
+        can be used.
+      </para>
+      <para>
+       There are several fixes in the configure system to not error out if an optional library
+       or file is not found.  And there are several fixes to the SQL generation code fixing 
+       escaping, table names, and NULL values.
+      </para>
+    </content>
+  </entry>
+  <entry version="1.99">
+    <content type="docbook">
+      <para>
+        This release fixes segmentation faults of apache that occured when the preserve file
+        was used. The errors printed to the error log are also more informative. And several
+        autoconf detection routines were fixed.
+      </para>
+      <para>
+        It also adds the dbi provider which works for adding SQL content to postgresql and mysql servers, 
+        but does not support the auto creation of tables in either database. 
+        The pgsql driver stub is also included, which is no where near completed.
+      </para>
+      <para>
+        For win32 users, the build scripts are included in the distribution now, read the
+        changelog for the 1.98 release for more information. If anyone wishes to contribute a
+        MSVC project file they will be welcomed.
+      </para>
+    </content>
+  </entry>
+  <entry version="1.98">
+    <content type="docbook">
+      <para>
+        Contains a new configuration directives to control the Preserve file,
+        LogSQLDisablePreserve. This option completely disables the preserve
+        file, so if the Database cannot be contacted, those records will be
+        lost and not logged. Also the LogSQLPreserveFile is now relative, if
+        it does not begin with a &quot;/&quot;, to the ServerRoot and defaults
+        to logs/mod_log_sql-preserve. It will appear with your log files now.
+      </para>
+	  <para>
+        Also in this release is the much requested Win32 support. I have added 2
+        batch scripts to compile mod_log_sql for apache 1.3 and apache 2.0. You
+        will need to edit the files to setup the include and library paths for
+        compiling. I compiled this with the free Command line compiler provided
+        by Microsoft, Apache 2.0.49 and 1.3.29, Mysql 4.0, and the MS SDK from
+        Microsoft's website.  I had to obtain the msvcrt.lib file from a MS VS
+        installation to get the dlls to compile, however. If anybody can
+        contribute a MSVC 6 project or nmake Makefiles I would greatly 
+        appreciate it.
+      </para>
+	  <note role="important">
+        <simpara>
+          Unfortunately due to the license that the free compiler from Microsoft
+          has I can not distribute binaries for Win32.
+        </simpara>
+      </note>
+    </content>
+  </entry>
+  <entry version="1.97">
+    <content type="docbook">
+      <para>
+        This release has several changes so be sure to read the
+        documentation and Changelog. Changes are a new LogSQLLoginInfo syntax which
+        better allows configuring mod_log_sql with multiple databases.. basic example.
+      </para>
+	  <programlisting>mysql://loguser:Mypass@dbhost/apache_log</programlisting>
+	  <para>
+        Also the mysql code is not in a separate module that must be loaded after
+  	    the core mod_log_sql.so, so you will NEED to add this to your httpd.conf
+        file.
+      </para>
+	  <programlisting>LoadModule log_sql_mysql_module modules/mod_log_sql_mysql.so</programlisting>
+    </content>
+  </entry>
+  <entry version="1.9.6">
+    <content type="docbook">
+	  <para>
+        This release offers a new configuration directive to configure Database
+        configuration options. LogSQLDBParam should be used over LogSQLTcpPort,
+        LogSQLDatabase, and LogSQLSocketFile. as they are deprecated, and will
+        most likely be removed in future versions.
+      </para>
+    </content>
+  </entry>
+ </changelog>
+
+ <section title="Documentation">
+    <content>
+     <div xmlns="http://www.w3.org/1999/xhtml">
+        <a href="docs/">mod_log_sql 1.18 documentation</a><br/>
+        <a href="docs-2.0/">mod_log_sql 2.0 documentation</a>
+     </div>
+    </content>
+ </section>
+
+ <requirements>
+  <title>Prerequisites</title>
+  <software name="MySQL" url="http://www.mysql.com/">
+    <requirement version="3.23.30" type="minimum"/>
+  </software>
+  <software name="libDBI" url="http://libdbi.sourceforge.net/" optional="1">
+    <requirement version="0.7.0" type="minimum"/>
+  </software>
+  <software name="Apache HTTPd" url="http://httpd.apache.org/">
+    <requirement version="2.0.40" type="minimum"/>
+    <requirement version="1.3.20" type="minimum"/>
+  </software>
+ </requirements>
+
+ <downloads
+      name="mod_log_sql"
+      baseref="/downloads/mod_log_sql/">
+  <category branch="development" latest="1.99" extension="tar.gz">
+    <download version="1.101" extension="tar.bz2" md5sum="16157f311eba364d8ee467078e7cc086"/>
+    <download version="1.100" extension="tar.bz2" md5sum="b54657ad270cffc34dfab12302c53306"/>
+    <download version="1.99" md5sum="e246a3d8e96d2d62715eb34f75c7c11d">
+      <patch shortname="config Patch" version="1.99" extension="diff">
+        This patch stops configure from erroring out if libdbi is not detected
+        on the system.
+      </patch>
+      <patch shortname="config Patch" version="1.99-2" extension="diff">
+        This patch fixes loggin request_args(a) and fixes the MySQL reconnect segfault.
+      </patch>
+    </download>
+    <download version="1.98" md5sum="122a7f8a42876ff8ab0d1369dfe4d201"/>
+    <download version="1.97" md5sum="6e5616dbb6eec5e1acd2d3fd8b42e5be">
+      <patch shortname="config Patch" version="1.97" extension="diff">
+        This patch fixes a compile issues with certain builds of Apache 2 which
+        generate the &quot;PACKAGE_NAME&quot; redefined error.
+      </patch>
+    </download>
+    <download version="1.96" md5sum="3212f333fc29d013d0b6d9f7dd477fa2"/>
+    <download version="1.95" md5sum="fcbacbac6e180e9ec46631b181ba12d9"/>
+    <download version="1.94" md5sum="0a6d403f29ec00cf10dbeb282b85c49c"/>
+    <download version="1.93" md5sum="5314a79fd78b9014cc1952b873168e8f"/>
+    <download version="1.92" md5sum="5f8c17fd6f7bda1c2dc8513b747e7468"/>
+    <download name="mod-log-sql" version="1.91" md5sum="a5da1e34368e74848a9464cb45094bcc"/>
+    <download name="mod-log-sql" version="1.90" md5sum="f9dc3814f375f6a36a32cb2ebc69c11e"/>
+  </category>
+  <category branch="stable">
+    <title>Historic version 1.18 (Last stable release for Apache 1.3 only)</title>
+    <download extension="tar.bz2" version="1.18" md5sum="27a83f0555a53353ab1a7adf8c4b25ad"/>
+  </category>
+  <category>
+    <title>Repositories</title>
+    <repository
+        type="svn"
+        name="mod_log_sql"
+        baseref="http://svn.outoforder.cc/"
+        view="chora"/>
+  </category>
+ </downloads>
+ 
+  <section title="Unofficial Binaries" position="bottom">
+    <content>
+     <div xmlns="http://www.w3.org/1999/xhtml">
+        <h4>Debian</h4>
+     <p>
+   Thanks to Thomas Goirand, Debian users can add the following repository to
+  their /etc/apt/sources.list if using stable branch of Debian (mod_log_sql 1.18 only):</p>
+
+  <p><code>deb ftp://ftp.gplhost.com/debian stable main</code></p>
+  <p>This repository also includes the following packages: dtc, qmail, ucspi-tcp,mysqmail
+	    and checklocalpasswd.</p>
+  <p>The packages can also be downloaded separately for version 1.18 and 1.9x on the 
+  <a href="http://www.gplhost.com/?rub=softwares&amp;sousrub=logsql">GPLHost website.</a>
+  <p><b>NOTE:</b> Please direct any issues with these binary releases to Thomas Goirand (links on
+  the his website), or to the mod_log_sql mailing list.</p>
+  </p>
+     </div>
+     <div xmlns="http://www.w3.org/1999/xhtml">
+        <h4>Win32</h4>
+        <p>There are no win32 binaries provided by anyone at this time. If you wish to build them
+        there is a build.bat provided in the source distribution to build with MySQL and Apache 1.3.x and 
+        Apache 2.0.x.  However, remember that win32 is an unsupported platform for running mod_log_sql.</p>
+     </div>
+    </content>
+ </section>
+
+ <mailinglists spam="warning">
+    <content type="docbook">
+      <para>
+        There are two mailing lists for mod_log_sql. The first is the generic announcement mailing list which 
+        provides announcements for all software releases on OutOfOrder.cc, but can be filtered by
+        choosing topics in the mailing list options page. The second is the user mailing list specific to
+        mod_log_sql only. Release announcements will be cross posted to both lists.
+      </para>
+    </content>
+    <list>
+      <mailinglist name="announce" type="mailman" host="lists.outoforder.cc"/>
+      <mailinglist name="mod_log_sql" type="mailman" host="lists.outoforder.cc"/>
+    </list>
+ </mailinglists>
+
+  <section position="bottom">
+    <title>Contact &amp; Help</title>
+    <content type="docbook">
+      <para>
+        E-Mail me, <ulink url="/email/?Alias=Edward+Rudd&amp;Subject=mod_log_sql">Edward Rudd</ulink>, about mod_log_sql.
+      </para>
+      <para>
+        Send an e-mail to the <link linkend="mailinglist">mod_log_sql mailing list</link>.
+      </para>
+      <para>
+        Bugs should be reported to the <ulink url="http://bugs.outoforder.cc">OutOfOrder.cc Bug Tracker</ulink>.
+      </para>
+    </content>
+  </section>
+</ooo>
