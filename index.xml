@@ -170,7 +170,7 @@ This module now compiles under Apache 1.3 and Apache 2.0 from the same source.</
         on the system.
       </patch>
       <patch shortname="config Patch" version="1.99-2" extension="diff">
-        This patch fixes loggin request_args(a) and fixes the MySQL reconnect segfault.
+        This patch fixes logging request_args(a) and fixes the MySQL reconnect segfault.
       </patch>
     </download>
     <download version="1.98" md5sum="122a7f8a42876ff8ab0d1369dfe4d201"/>
@@ -195,10 +195,10 @@ This module now compiles under Apache 1.3 and Apache 2.0 from the same source.</
   <category>
     <title>Repositories</title>
     <repository
-        type="svn"
-        name="mod_log_sql"
-        baseref="http://svn.outoforder.cc/"
-        view="chora"/>
+        type="git"
+        name="httpd/mod_log_sql"
+        baseref="http://git.outoforder.cc/"
+        view="cgit"/>
   </category>
  </downloads>
  
