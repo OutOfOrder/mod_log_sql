@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="../../../../xsl/projects.xsl"?>
-<ooo title="mod_log_sql" path="/projects/apache/mod_log_sql/" osi="on">
+<ooo title="mod_log_sql" path="/projects/httpd/mod_log_sql/" osi="on">
  <section title="Abstract">
     <content>
      <div xmlns="http://www.w3.org/1999/xhtml">
