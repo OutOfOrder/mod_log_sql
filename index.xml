@@ -161,7 +161,7 @@ This module now compiles under Apache 1.3 and Apache 2.0 from the same source.</
  <downloads
       name="mod_log_sql"
       baseref="/downloads/mod_log_sql/">
-  <category branch="development" latest="1.99" extension="tar.gz">
+  <category branch="development" latest="1.101" extension="tar.gz">
     <download version="1.101" extension="tar.bz2" md5sum="16157f311eba364d8ee467078e7cc086"/>
     <download version="1.100" extension="tar.bz2" md5sum="b54657ad270cffc34dfab12302c53306"/>
     <download version="1.99" md5sum="e246a3d8e96d2d62715eb34f75c7c11d">
@@ -169,13 +169,13 @@ This module now compiles under Apache 1.3 and Apache 2.0 from the same source.</
         This patch stops configure from erroring out if libdbi is not detected
         on the system.
       </patch>
-      <patch shortname="config Patch" version="1.99-2" extension="diff">
+      <patch shortname="mysql reconnect Patch" version="1.99-2" extension="diff">
         This patch fixes logging request_args(a) and fixes the MySQL reconnect segfault.
       </patch>
     </download>
     <download version="1.98" md5sum="122a7f8a42876ff8ab0d1369dfe4d201"/>
     <download version="1.97" md5sum="6e5616dbb6eec5e1acd2d3fd8b42e5be">
-      <patch shortname="config Patch" version="1.97" extension="diff">
+      <patch shortname="compile Patch" version="1.97" extension="diff">
         This patch fixes a compile issues with certain builds of Apache 2 which
         generate the &quot;PACKAGE_NAME&quot; redefined error.
       </patch>
