@@ -4,23 +4,28 @@ top_srcdir = @top_srcdir@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-HEADERS = ../include/mod_log_sql.h \
-		functions.h \
-		functions13.h \
-		functions20.h \
-		../include/apache13.h \
-		../include/apache20.h \
-		../include/winconfig.h
+STD_DIST = Makefile.in
+
+EXTRA_DIST = functions.h \
+	functions20.h \
+	../include/mod_log_sql.h \
+	../include/apache20.h \
+	../include/winconfig.h
+
+HEADERS = \
+	functions.h \
+	functions20.h \
+	../include/mod_log_sql.h \
+	../include/apache20.h \
+	../include/winconfig.h \
+	../include/autoconfig.h
 
 CFLAGS = -Wc,-Wall -Wc,-fno-strict-aliasing -I$(top_srcdir)/include
 
-ifeq (@OOO_MAINTAIN@,1)
-CFLAGS += -Wc,-Werror
-endif
 
 coreSOURCES = @PACKAGE_NAME@.c
 coreTARGET = @PACKAGE_NAME@@APXS_EXTENSION@
-coreLDADD = @RT_LIBS@
+coreLDADD = 
 coreCFLAGS =
 coreNAME = log_sql
 TARGETS = $(coreTARGET)
@@ -57,8 +62,8 @@ endif
 
 pgsqlSOURCES = @PACKAGE_NAME@_pgsql.c
 pgsqlTARGET = @PACKAGE_NAME@_pgsql@APXS_EXTENSION@
-pgsqlLDADD = @PGSQL_LDFLAGS@ @PGSQL_LIBS@
-pgsqlCFLAGS = @PGSQL_CFLAGS@
+pgsqlLDADD = -lpq
+pgsqlCFLAGS = 
 pgsqlNAME = log_sql_pgsql
 
 ifeq (@WANT_PGSQL_MOD@,1)
@@ -94,9 +99,7 @@ LO = $(coreSOURCES:.c=.lo) $(logioSOURCES:.c=.lo) $(sslSOURCES:.c=.lo) $(mysqlSO
 SLO = $(coreSOURCES:.c=.slo) $(logioSOURCES:.c=.slo) $(sslSOURCES:.c=.slo) $(mysqlSOURCES:.c=.slo) \
 	$(dbiSOURCES:.c=.slo) $(pgsqlSOURCES:.c=.slo) $(dbdSOURCES:.c=.slo)
 
-STD_DIST = Makefile.in
-
-DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) $(HEADERS) \
+DISTFILES = $(STD_DIST) $(EXTRA_DIST) $(coreSOURCES) \
     $(sslSOURCES) $(logioSOURCES) $(mysqlSOURCES) $(pgsqlSOURCES) $(dbiSOURCES) $(dbdSOURCES)
 
 all: $(TARGETS)
@@ -159,6 +162,9 @@ activate:
 clean:
 	$(RM) $(OBJ) $(SLO) $(LO) $(TARGETS)
 	$(RM) -r .libs
+
+distclean: clean
+	$(RM) Makefile
 
 local-dist: $(DISTFILES)
 	mkdir -p $(DESTDIR)

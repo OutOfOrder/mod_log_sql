@@ -2,8 +2,6 @@
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
 #else
 #	error Unsupported Apache version
 #endif
@@ -25,13 +23,8 @@
 
 #include "mod_ssl.h"
 
-#if defined(WITH_APACHE20)
 static APR_OPTIONAL_FN_TYPE(ssl_var_lookup) *header_ssl_lookup = NULL;
-#	define TEST_SSL(r) header_ssl_lookup
-#elif defined(WITH_APACHE13)
-#	define TEST_SSL(r) ap_ctx_get(r->connection->client->ctx, "ssl")
-#   define header_ssl_lookup ssl_var_lookup
-#endif
+#define TEST_SSL(r) header_ssl_lookup
 
 static const char *extract_ssl_keysize(request_rec *r, char *a)
 {
@@ -99,8 +92,6 @@ LOGSQL_REGISTER(ssl)
 	log_sql_register_field(p, "ssl_cipher",		"ssl_cipher", NULL,
 			"ssl_cipher", LOGSQL_DATATYPE_VARCHAR, 0);
 
-#if defined(WITH_APACHE20)
-    header_ssl_lookup = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
-#endif
+	header_ssl_lookup = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
 	LOGSQL_REGISTER_RETURN;
 }

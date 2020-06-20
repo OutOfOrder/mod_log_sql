@@ -1,11 +1,13 @@
 dnl Required initializer
-AC_INIT([mod_log_sql],[1.102])
-OOO_CONFIG_NICE(config.nice)
-AC_PREREQ(2.59)
+AC_INIT(mod_log_sql, 2.0.15)
+AC_CONFIG_MACRO_DIRS([m4])
+m4_include([m4/acinclude.m4])
+
+AC_PREREQ(2.53)
 AC_CONFIG_HEADERS(include/autoconfig.h)
 AC_CONFIG_SRCDIR(src/mod_log_sql.c)
 
-OOO_MAINTAIN_MODE
+LT_INIT
 
 dnl Add a test for a compiler.
 AC_PROG_CC
@@ -13,85 +15,68 @@ AC_PROG_LIBTOOL
 
 PKG_CHECK_MODULES(PCRE,libpcre)
 
-APACHE20_VERSION=2.0.40
-APACHE13_VERSION=1.3.20
-CHECK_APACHE($APACHE13_VERSION,$APACHE20_VERSION,
+APACHE_VERSION=2.4.41
+CHECK_APACHE($APACHE_VERSION,
         :,
-        :,
-        AC_MSG_ERROR([*** The correct version Apache was not found!])
-        AC_MSG_ERROR([*** You need either Apache 1.3 version $APACHE13_VERSION or greater])
-        AC_MSG_ERROR([*** or Apache 2.0/2.2 version $APACHE20_VERSION or greater!])
+        AC_MSG_ERROR([*** You need Apache version $APACHE_VERSION or greater!])
         )
 
-if test $AP_VERSION = "2.0"; then
-    WANT_LOGIO_MOD=1
-else
-    WANT_LOGIO_MOD=0
-fi
+WANT_LOGIO_MOD=1
+AC_ARG_ENABLE(
+        [logio],
+        AC_HELP_STRING([--disable-logio],[Disable logIO module])
+)
+AS_IF([test "x$enable_logio" = "xno"], [
+  WANT_LOGIO_MOD=0
+])
 
+AS_IF([test "x$WANT_LOGIO_MOD" = "x1"], [
+  AC_DEFINE(WITH_LOGIO_MOD,1,[Define to 1 if we are including the logio module])
+])
 AC_SUBST(WANT_LOGIO_MOD)
 
-CHECK_APU_HEADERS([apr_dbd.h],
-	WANT_DBD_MOD=1,
-	WANT_DBD_MOD=0)
-
-AC_SUBST(WANT_DBD_MOD)
-CHECK_APU_FUNCS(apr_dbd_transaction_mode_get)
-
-CHECK_MYSQL(
-        WANT_MYSQL_MOD=1,
-        AC_MSG_WARN([*** Mysql client libraries not found!])
-        WANT_MYSQL_MOD=0
-        )
-
-AC_SUBST(WANT_MYSQL_MOD)
-
-CHECK_LIBDBI(WANT_DBI_MOD=1,
-        AC_MSG_WARN([** libDBI client libraries not found!])
-        WANT_DBI_MOD=0
-        )
-AC_SUBST(WANT_DBI_MOD)
-
-dnl to write, checking for pgsql libs
-WANT_PGSQL_MOD=0
-AC_SUBST(WANT_PGSQL_MOD)
-
-
 CHECK_MOD_SSL(
-        WANT_SSL_MOD=1,
-        AC_MSG_WARN([** mod_ssl.h not found or missing SSL headers!])
-        WANT_SSL_MOD=0
-        )
-
+    WANT_SSL_MOD=1
+    AC_DEFINE(WITH_SSL_MOD,1,[Define to 1 if we are including the ssl module]),
+    WANT_SSL_MOD=0
+)
 AC_SUBST(WANT_SSL_MOD)
 
-case "$target" in
-    *-*-solaris* | *-*-osf* )
-        if test $AP_VERSION = "1.3"; then
-            RT_LIBS=-lrt
-        fi
-        ;;
-    *)
-        RT_LIBS=""
-        ;;
-esac
+CHECK_MYSQL(
+    WANT_MYSQL_MOD=1,
+    WANT_MYSQL_MOD=0
+)
+AC_SUBST(WANT_MYSQL_MOD)
 
-AC_SUBST(RT_LIBS)
+CHECK_PGSQL(
+    WANT_PGSQL_MOD=1,
+    WANT_PGSQL_MOD=0
+)
+AC_SUBST(WANT_PGSQL_MOD)
 
+CHECK_LIBDBI(
+    WANT_DBI_MOD=1,
+    WANT_DBI_MOD=0
+)
+AC_SUBST(WANT_DBI_MOD)
+
+WANT_DBD_MOD=1
+AC_ARG_WITH(
+        [dbd],
+        AC_HELP_STRING([--without-dbd],[Disable DBD driver])
+)
+AS_IF([test "x$with_dbd" = "xno"], [
+  WANT_DBD_MOD=0
+])
+AC_SUBST(WANT_DBD_MOD)
 
 AC_CHECK_HEADERS(limits.h)
 
-AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
-
-dnl Write config.status and the Makefile
-
 AC_CONFIG_FILES([Makefile
-src/Makefile
 docs/Makefile
-utility/Makefile
-contrib/Makefile])
+contrib/Makefile
+src/Makefile])
 AC_OUTPUT
-
 
 AC_MSG_RESULT([------------------------------------])
 AC_MSG_RESULT([Apache version  : $AP_VERSION])
@@ -101,12 +86,13 @@ else
     AC_MSG_RESULT([SSL Support     : no])
     AC_MSG_RESULT([*** Make sure OpenSSL headers, and mod_ssl.h are installed.])
 fi
+
 if test $WANT_LOGIO_MOD -eq 1; then
     AC_MSG_RESULT([LogIO Module    : yes])
 else
     AC_MSG_RESULT([LogIO Module    : no])
-    AC_MSG_RESULT([*** Logio does not work with Apache 1.3.])
 fi
+
 
 AC_MSG_RESULT([Enabled drivers :])
 if test $WANT_MYSQL_MOD -eq 1; then
@@ -119,9 +105,6 @@ if test $WANT_DBI_MOD -eq 1; then
     AC_MSG_RESULT([      libDBI Driver])
 fi
 if test $WANT_DBD_MOD -eq 1; then
-    AC_MSG_RESULT([      APR DBD Driver])
-fi
-if test $OOO_MAINTAIN -eq 1; then
-    AC_MSG_RESULT([Maintainer mode is on. -Werror is in effect])
+    AC_MSG_RESULT([      DBD Driver])
 fi
 AC_MSG_RESULT([------------------------------------])
