@@ -1,5 +1,5 @@
 dnl Required initializer
-AC_INIT(mod_log_sql, 2.0.15)
+AC_INIT(mod_log_sql, 2.0.1)
 AC_CONFIG_MACRO_DIRS([m4])
 m4_include([m4/acinclude.m4])
 
@@ -15,7 +15,7 @@ AC_PROG_LIBTOOL
 
 PKG_CHECK_MODULES(PCRE,libpcre)
 
-APACHE_VERSION=2.4.41
+APACHE_VERSION=2.4.1
 CHECK_APACHE($APACHE_VERSION,
         :,
         AC_MSG_ERROR([*** You need Apache version $APACHE_VERSION or greater!])
