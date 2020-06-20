@@ -1,10 +1,9 @@
 # @configure_input@
 
 # Modify these top variables.
-SUBDIRS = docs contrib src utility
+SUBDIRS = docs contrib src
 
-EXTRA_DIST = AUTHORS INSTALL TODO LICENSE CHANGELOG \
-	build-apache13.bat build-apache2.bat \
+EXTRA_DIST = AUTHORS INSTALL LICENSE CHANGELOG
 
 #Don't modify anything below here
 
@@ -12,15 +11,11 @@ top_srcdir = @top_srcdir@
 srcdir = @abs_srcdir@
 builddir = @abs_builddir@
 
-STD_DIST = install-sh \
-	config.sub \
-	config.guess \
-	aclocal.m4 \
-	Makefile.in \
+STD_DIST = Makefile.in \
 	configure.ac \
-	configure \
-	stamp-h.in \
-	include/config.h.in
+	autogen.sh \
+	m4/acinclude.m4 \
+	m4/acpkgconf.m4
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST)
 
@@ -40,9 +35,6 @@ all-subdirs install-subdirs activate-subdirs clean-subdirs distclean-subdirs:
 			(cd $$i && $(MAKE) $$target) || exit 1; \
 		fi; \
 	done;
-
-TODO: TODO.in
-	@./m4/scripts/gen_todo.pl
 
 install: install-subdirs
 	echo "*************************************************************************"; \
@@ -65,9 +57,10 @@ activate: activate-subdirs
 clean: clean-subdirs
 
 distclean: clean distclean-subdirs
-	$(RM) config.status config.log include/config.h include/config.h.in \
-	configure stamp-h stamp-h.in Makefile aclocal.m4
-	$(RM) -r autom4te-2.53.cache
+	$(RM) config.status config.log include/autoconfig.h include/autoconfig.h.in \
+	configure stamp-h stamp-h.in Makefile aclocal.m4 ltmain.sh libtool install-sh \
+	config.sub config.guess m4/libtool.m4 m4/ltoptions.m4 m4/ltsugar.m4 m4/ltversion.m4 m4/lt~obsolete.m4
+	$(RM) -r autom4te.cache
 
 DESTDIR = @PACKAGE_NAME@-@PACKAGE_VERSION@
 DESTTGZ = $(DESTDIR).tar.gz

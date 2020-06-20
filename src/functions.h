@@ -14,7 +14,7 @@ static const char *extract_remote_address(request_rec *r, char *a) __attribute__
 
 static const char *extract_remote_address(request_rec *r, char *a)
 {
-    return r->connection->remote_ip;
+    return r->connection->client_ip;
 }
 
 static const char *extract_local_address(request_rec *r, char *a) __attribute__((unused));
@@ -31,11 +31,7 @@ static const char *extract_remote_logname(request_rec *r, char *a)
 
 static const char *extract_remote_user(request_rec *r, char *a)
 {
-	#ifdef WITH_APACHE13
-	char *rvalue = r->connection->user;
-	#else
 	char *rvalue = r->user;
-	#endif
 	if (rvalue == NULL) {
 		rvalue = "-";
 	} else if (strlen(rvalue) == 0) {

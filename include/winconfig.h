@@ -53,13 +53,13 @@
 #define PACKAGE_NAME "mod_log_sql"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "mod_log_sql 1.100"
+#define PACKAGE_STRING "mod_log_sql 2.0.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "mod-log-sql"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.100"
+#define PACKAGE_VERSION "2.0.1"
 
 /* Define to 1 if you have the ANSI C header files. */
 /* #undef STDC_HEADERS */
@@ -67,11 +67,8 @@
 /* Define if we want to compile in SSL support. */
 /* #undef WANT_SSL_LOGGING */
 
-/* Define to 1 if we are compiling with Apache 1.3.x */
-/* #undef WITH_APACHE13 */
-
 /* Define to 1 if we are compiling with Apache 2.0.x */
-/* #undef WITH_APACHE20 */
+#define WITH_APACHE20 1
 
 /* Define to 1 if we are compiling with mysql */
 #define WITH_MYSQL 1

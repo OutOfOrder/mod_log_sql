@@ -130,9 +130,8 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 
 /* Module initialization Macros */
 #define LOGSQL_MODULE(driver)  log_sql_##driver##_module
-#if defined(WITH_APACHE20)
-#	define LOGSQL_MODULE_FORWARD(driver) module AP_MODULE_DECLARE_DATA LOGSQL_MODULE(driver)
-#	define LOGSQL_REGISTER(driver) \
+#define LOGSQL_MODULE_FORWARD(driver) module AP_MODULE_DECLARE_DATA LOGSQL_MODULE(driver)
+#define LOGSQL_REGISTER(driver) \
 	static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s); \
 	static void register_hooks(apr_pool_t *p) { \
 		ap_hook_post_config(post_config, NULL, NULL, APR_HOOK_REALLY_FIRST); \
@@ -142,25 +141,8 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 		STANDARD20_MODULE_STUFF, \
 		NULL, NULL,  NULL, NULL,  NULL, register_hooks }; \
 	static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
-#elif defined(WITH_APACHE13)
-#	define LOGSQL_MODULE_FORWARD(driver) module MODULE_VAR_EXPORT LOGSQL_MODULE(driver)
-#	define LOGSQL_REGISTER(driver) \
-	static void module_init(server_rec *s, apr_pool_t *p); \
-	LOGSQL_MODULE_FORWARD(driver) = { \
-		STANDARD_MODULE_STUFF, module_init }; \
-	static void module_init(server_rec *s, apr_pool_t *p)
-#endif
 
-#if defined(WITH_APACHE20)
-#   define LOGSQL_SHUTDOWN \
-    static
-#endif
-
-
-#if defined(WITH_APACHE20)
+#define LOGSQL_SHUTDOWN static
 #define LOGSQL_REGISTER_RETURN log_sql_register_finish(s); return OK;
-#elif defined(WITH_APACHE13)
-#define LOGSQL_REGISTER_RETURN log_sql_register_finish(s);
-#endif
 
 #endif /* MOD_LOG_SQL_H */

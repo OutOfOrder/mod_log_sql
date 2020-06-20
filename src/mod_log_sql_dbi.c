@@ -2,8 +2,6 @@
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
 #else
 #	error Unsupported Apache version
 #endif
@@ -232,9 +230,7 @@ static logsql_dbdriver log_sql_dbi_driver = {
 static apr_status_t log_sql_dbi_cleanup(void *data)
 {
     dbi_shutdown();
-#if defined(WITH_APACHE20)
     return APR_SUCCESS;
-#endif
 }
 
 LOGSQL_REGISTER(dbi) {

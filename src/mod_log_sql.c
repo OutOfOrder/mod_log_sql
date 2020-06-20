@@ -2,8 +2,6 @@
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
 #else
 #	error Unsupported Apache version
 #endif
@@ -258,11 +256,7 @@ LOGSQL_DECLARE(void) log_sql_register_driver(apr_pool_t *p,
 
 /* Include all the core extract functions */
 #include "functions.h"
-#if defined(WITH_APACHE13)
-#	include "functions13.h"
-#elif defined(WITH_APACHE20)
-#	include "functions20.h"
-#endif
+#include "functions20.h"
 
 static logsql_opendb_ret log_sql_opendb_link(server_rec* s)
 {
@@ -306,23 +300,15 @@ static void preserve_entry(request_rec *r, const char *query)
 
 	/* If preserve file is disabled bail out */
 	if (global_config.disablepreserve)
-       return;
-    #if defined(WITH_APACHE20)
-		result = apr_file_open(&fp, cls->preserve_file,APR_APPEND | APR_WRITE | APR_CREATE, APR_OS_DEFAULT, r->pool);
-    #elif defined(WITH_APACHE13)
-		fp = ap_pfopen(r->pool, cls->preserve_file, "a");
-		result = (fp)?0:errno;
-    #endif
-    if (result != APR_SUCCESS) {
+        return;
+
+	result = apr_file_open(&fp, cls->preserve_file,APR_APPEND | APR_WRITE | APR_CREATE, APR_OS_DEFAULT, r->pool);
+	if (result != APR_SUCCESS) {
 		log_error(APLOG_MARK, APLOG_ERR, result, r->server,
 			"attempted append of local preserve file '%s' but failed.",cls->preserve_file);
 	} else {
 		apr_file_printf(fp,"%s;\n", query);
-		#if defined(WITH_APACHE20)
-			apr_file_close(fp);
-		#elif defined(WITH_APACHE13)
-			ap_pfclose(r->pool, fp);
-		#endif
+		apr_file_close(fp);
 		log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
 			"mod_log_sql: entry preserved in %s", cls->preserve_file);
 	}
@@ -580,33 +566,19 @@ static const char *set_register_field(cmd_parms *cmd,
  * that are defined in the array 'mysql_lgog_module' (at EOF) *
  *------------------------------------------------------------*/
 /* Closing mysql link: child_exit(1.3), pool registration(2.0) */
-#if defined(WITH_APACHE20)
 static apr_status_t log_sql_close_link(void *data)
 {
 	if (global_config.driver)
         global_config.driver->disconnect(&global_config.db);
 	return APR_SUCCESS;
 }
-#elif defined(WITH_APACHE13)
-static void log_sql_child_exit(server_rec *s, apr_pool_t *p)
-{
-	if (global_config.driver)
-        global_config.driver->disconnect(&global_config.db);
-}
-#endif
 
 /* Child Init */
-#if defined(WITH_APACHE20)
 static void log_sql_child_init(apr_pool_t *p, server_rec *s)
-#elif defined(WITH_APACHE13)
-static void log_sql_child_init(server_rec *s, apr_pool_t *p)
-#endif
 {
 	logsql_opendb_ret retval;
-#	if defined(WITH_APACHE20)
 	/* Register cleanup hook to close DDB connection (apache 2 doesn't have child_exit) */
 	apr_pool_cleanup_register(p, NULL, log_sql_close_link, log_sql_close_link);
-#	endif
 	/* Open a link to the database */
 	retval = log_sql_opendb_link(s);
 	switch (retval) {
@@ -634,36 +606,22 @@ static void log_sql_child_init(server_rec *s, apr_pool_t *p)
 static apr_array_header_t *do_merge_array(apr_array_header_t *parent, apr_array_header_t *child, apr_pool_t *p);
 
 /* post_config / module_init */
-#if defined(WITH_APACHE20)
 static int log_sql_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
-#elif defined(WITH_APACHE13)
-static void log_sql_module_init(server_rec *s, apr_pool_t *p)
-#endif
 {
     server_rec *cur_s;
     const char *default_p = ap_server_root_relative(p, DEFAULT_PRESERVE_FILE);
     apr_array_header_t *parent = NULL;
 
     if (global_config.showconfig != NULL) {
-    	const char *tempfile = ap_server_root_relative(p, global_config.showconfig);
-		apr_status_t result;
-		#if defined(WITH_APACHE20)
-			result = apr_file_open(&global_config.showconfig_fp, tempfile,APR_TRUNCATE | APR_WRITE | APR_CREATE, APR_OS_DEFAULT, p);
-		#elif defined(WITH_APACHE13)
-			global_config.showconfig_fp = ap_pfopen(p, tempfile, "w");
-			result = (fp)?0:errno;
-		#endif
+    	    const char *tempfile = ap_server_root_relative(p, global_config.showconfig);
+	    apr_status_t result = apr_file_open(&global_config.showconfig_fp, tempfile,APR_TRUNCATE | APR_WRITE | APR_CREATE, APR_OS_DEFAULT, p);
 	    if (result != APR_SUCCESS) {
 			log_error(APLOG_MARK, APLOG_ERR, result, s,
 				"attempted open of showconfig file '%s' failed.",tempfile);
 			global_config.showconfig_fp = NULL;
 		} else {
-			#if defined(WITH_APACHE20)
-				char temp_time[APR_RFC822_DATE_LEN];
-				apr_rfc822_date(temp_time,apr_time_now());
-			#elif defined(WITH_APACHE13)
-				char *temp_time = ap_get_time());
-			#endif
+			char temp_time[APR_RFC822_DATE_LEN];
+			apr_rfc822_date(temp_time,apr_time_now());
 			apr_file_printf(global_config.showconfig_fp,"Mod_log_sql Config dump created on %s\n", temp_time);
 		}
     }
@@ -797,9 +755,7 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
     }
     global_config.db.p = p;
 
-#if defined(WITH_APACHE20)
-	return OK;
-#endif
+    return OK;
 }
 
 /* This function handles calling the DB module,  handling errors
@@ -838,24 +794,7 @@ static logsql_query_ret safe_sql_insert(request_rec *r, logsql_tabletype table_t
 		/* re-open the connection and try again */
 		if (log_sql_opendb_link(r->server) != LOGSQL_OPENDB_FAIL) {
 			log_error(APLOG_MARK,APLOG_NOTICE,0, r->server,"db reconnect successful");
-#			if defined(WITH_APACHE20)
 			apr_sleep(apr_time_from_sec(0.25)); /* pause for a quarter second */
-#			elif defined(WITH_APACHE13)
-#            if defined(WIN32)
-            Sleep((DWORD)0.25);
-#            else
-			{
-				struct timespec delay, remainder;
-				int nanoret;
-				delay.tv_sec = 0;
-				delay.tv_nsec = 250000000; /* pause for a quarter second */
-				nanoret = nanosleep(&delay, &remainder);
-				if (nanoret && errno != EINTR) {
-					log_error(APLOG_MARK,APLOG_ERR, errno, r->server,"nanosleep unsuccessful");
-				}
-			}
-#			 endif /* win32 */
-#			endif
 			result = global_config.driver->insert(r,&global_config.db,query);
 			if (result == LOGSQL_QUERY_SUCCESS) {
 				return LOGSQL_QUERY_SUCCESS;
@@ -1533,8 +1472,8 @@ static const command_rec log_sql_cmds[] = {
 	,
 	{NULL}
 };
+
 /* The configuration array that sets up the hooks into the module. */
-#if defined(WITH_APACHE20)
 static void register_hooks(apr_pool_t *p) {
 	ap_hook_post_config(log_sql_post_config, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_child_init(log_sql_child_init, NULL, NULL, APR_HOOK_MIDDLE);
@@ -1550,29 +1489,3 @@ module AP_MODULE_DECLARE_DATA log_sql_module = {
     log_sql_cmds,	/* command handlers */
     register_hooks	/* register hooks */
 };
-#elif defined(WITH_APACHE13)
-module MODULE_VAR_EXPORT log_sql_module = {
-	STANDARD_MODULE_STUFF,
-	log_sql_module_init,	 /* module initializer 				*/
-	NULL,					 /* create per-dir config 			*/
-	NULL,					 /* merge per-dir config 			*/
-	log_sql_make_state,		 /* create server config 			*/
-	log_sql_merge_state,	 /* merge server config 			*/
-	log_sql_cmds,			 /* config directive table 			*/
-	NULL,					 /* [9] content handlers 			*/
-	NULL,					 /* [2] URI-to-filename translation */
-	NULL,					 /* [5] check/validate user_id 		*/
-	NULL,					 /* [6] check authorization 		*/
-	NULL,					 /* [4] check access by host		*/
-	NULL,					 /* [7] MIME type checker/setter 	*/
-	NULL,					 /* [8] fixups 						*/
-	log_sql_transaction,	 /* [10] logger 					*/
-	NULL					 /* [3] header parser 				*/
-#if MODULE_MAGIC_NUMBER >= 19970728 /* 1.3-dev or later support these additionals... */
-	,log_sql_child_init,   /* child process initializer 		*/
-	log_sql_child_exit,    /* process exit/cleanup 			*/
-	NULL					 /* [1] post read-request 			*/
-#endif
-
-};
-#endif

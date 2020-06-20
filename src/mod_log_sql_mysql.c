@@ -2,8 +2,6 @@
 
 #if defined(WITH_APACHE20)
 #	include "apache20.h"
-#elif defined(WITH_APACHE13)
-#	include "apache13.h"
 #else
 #	error Unsupported Apache version
 #endif
