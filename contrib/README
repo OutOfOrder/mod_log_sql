@@ -3,14 +3,16 @@ This directory contains contributed scripts/programs/utilites for mod_log_sql.
 * create_tables.sql
 
 This is the create table SQL commands to create the access, headers_in, 
-headers_out, cookies, and notes tables in the MySQL database.
+headers_out, cookies, and notes tables in the MySQL or PostgreSQL database.
 Use it like this.
+
+psql -u user -h host -W apachelogdatabase < create_tables.sql
 mysql -u user -h host -p apachelogdatabase < create_tables.sql
 Where:
 	user is the username to log in as,
 	host is the hostname the server is on, 
 	apachelogdatabase is the database to put the tables into
-	-p will have mysql ask you for a password for the user
+	-p/W will have mysql/psql ask you for a password for the user
 
 *make_combined_log.pl
 
