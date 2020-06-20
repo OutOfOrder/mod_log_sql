@@ -3,9 +3,9 @@
 # Modify these top variables.
 SUBDIRS = 
 
-EXTRA_DIST = README \
-		manual.xml \
-		manual.html
+EXTRA_DIST = README  calstblx.dtd  dbcentx.mod  dbgenent.mod  dbhierx.mod  dbnotnx.mod  dbpoolx.mod  docbookx.dtd  htmltblx.mod manual.xml \
+	isoamsa.ent  isoamsc.ent  isoamso.ent  isobox.ent   isocyr2.ent  isogrk1.ent  isogrk3.ent  isolat1.ent  isonum.ent  isotech.ent \
+	isoamsb.ent  isoamsn.ent  isoamsr.ent  isocyr1.ent  isodia.ent   isogrk2.ent  isogrk4.ent  isolat2.ent  isopub.ent
 
 #Don't modify anything below here
 
@@ -16,7 +16,7 @@ STD_DIST = Makefile.in
 
 DISTFILES = $(STD_DIST) $(EXTRA_DIST)
 
-all: all-subdirs
+all: all-subdirs manual.html
 
 %.html: %.xml
 		@xmlto xhtml-nochunks $<
@@ -39,15 +39,12 @@ all-subdirs install-subdirs update-subdirs clean-subdirs distclean-subdirs:
 		fi; \
 	done; \
 
-include:
-	rm -rf include
-	ln -s @APACHE_INCDIR@ include
-
 install: install-subdirs
 
 update: update-subdirs
 
 clean: clean-subdirs
+	$(RM) manual.html manual.pdf
 
 distclean: clean distclean-subdirs
 	$(RM) Makefile
