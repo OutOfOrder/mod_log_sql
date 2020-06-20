@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet href="file://localhost/home/urkle/Documents/DocBook/docbook.css" type="text/css"?>
-<!DOCTYPE article PUBLIC "-//OOOCC//DTD Simplified DocBook XML V1.1 Variant V1.0//EN" "http://outoforder.cc/dtds/odocbook/1.1/odocbook.dtd" [
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "docbookx.dtd" [
 <!ENTITY EmailContact "<email>urkle &lt;at&gt; outoforder &lt;dot&gt; cc</email>">
+<!ATTLIST section
+    tocstyle CDATA #IMPLIED
+>
 ]>
 <article>
   <articleinfo>
@@ -2006,39 +2008,37 @@ WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                   </thead>
                   <tbody>
                     <row>
-                      <entry colname="1">A</entry>
-                      <entry colname="2">User Agent</entry>
-                      <entry colname="3">agent</entry>
-                      <entry colname="4">varchar(255)</entry>
-                      <entry colname="5">
-                        Mozilla/4.0 (compat; MSIE 6.0; Windows)
-                      </entry>
+                      <entry>A</entry>
+                      <entry>User Agent</entry>
+                      <entry>agent</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>Mozilla/4.0 (compat; MSIE 6.0; Windows)</entry>
                     </row>
                     <row>
-                      <entry colname="1">a</entry>
-                      <entry colname="2">CGi request arguments</entry>
-                      <entry colname="3">request_args</entry>
-                      <entry colname="4">varchar(255)</entry>
-                      <entry colname="5">
-                        user=Smith&amp;cart=1231&amp;item=532
-                      </entry>
+                      <entry>a</entry>
+                      <entry>CGi request arguments</entry>
+                      <entry>request_args</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>user=Smith&amp;cart=1231&amp;item=532</entry>
                     </row>
                     <row>
-                      <entry colname="1">b</entry>
-                      <entry colname="2">Bytes transfered</entry>
-                      <entry colname="3">bytes_sent</entry>
-                      <entry colname="4">int unsigned</entry>
-                      <entry colname="5">32561</entry>
+                      <entry>b</entry>
+                      <entry>Bytes transfered</entry>
+                      <entry>bytes_sent</entry>
+                      <entry>int unsigned</entry>
+                      <entry>32561</entry>
                     </row>
                     <row>
-                      <entry colname="1">
-                        c
-                        <xref linkend="Foot.LogCookie" xrefstyle="footer" />
+                      <entry>c</entry>
+                      <entry>
+                        Text of cookie
+                        <footnote id='fnrex1a'>
+                          <para>You must also specify LogSQLWhichCookie for this to take effect.</para>
+                        </footnote>
                       </entry>
-                      <entry colname="2">Text of cookie</entry>
-                      <entry colname="3">cookie</entry>
-                      <entry colname="4">varchar(255)</entry>
-                      <entry colname="5">
+                      <entry>cookie</entry>
+                      <entry>varchar(255)</entry>
+                      <entry>
                         Apache=sdyn.fooonline.net 1300102700823
                       </entry>
                     </row>
@@ -2081,7 +2081,9 @@ WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                       <entry>M</entry>
                       <entry>
                         Machine ID
-                        <xref linkend="Foot.MachineID" xrefstyle="footer" />
+                        <footnote id='fnrex1b'>
+                          <para> You must also specify LogSQLmachineID for this to take effect.</para>
+                        </footnote>
                       </entry>
                       <entry>machine_id</entry>
                       <entry>varchar(25)</entry>
@@ -2188,16 +2190,6 @@ WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                   </tbody>
                 </tgroup>
               </table>
-              <note>
-                <simpara id="Foot.LogCookie">
-                  [1] You must also specify LogSQLWhichCookie for this
-                  to take effect.
-                </simpara>
-                <simpara id="Foot.MachineID">
-                  [2] You must also specify LogSQLmachineID for this to
-                  take effect.
-                </simpara>
-              </note>
               <table>
                 <title>SSL LogFormat Parameters</title>
                 <tgroup cols="5">
@@ -2217,29 +2209,25 @@ WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                   </thead>
                   <tbody>
                     <row>
-                      <entry colname="1">z</entry>
-                      <entry colname="2">SSL cipher used</entry>
-                      <entry colname="3">ssl_cipher</entry>
-                      <entry colname="4">varchar(25)</entry>
-                      <entry colname="5">RC4-MD5</entry>
+                      <entry>z</entry>
+                      <entry>SSL cipher used</entry>
+                      <entry>ssl_cipher</entry>
+                      <entry>varchar(25)</entry>
+                      <entry>RC4-MD5</entry>
                     </row>
                     <row>
-                      <entry colname="1">q</entry>
-                      <entry colname="2">
-                        Keysize of the SSL connection
-                      </entry>
-                      <entry colname="3">ssl_keysize</entry>
-                      <entry colname="4">smallint unsigned</entry>
-                      <entry colname="5">56</entry>
+                      <entry>q</entry>
+                      <entry>Keysize of the SSL connection</entry>
+                      <entry>ssl_keysize</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>56</entry>
                     </row>
                     <row>
-                      <entry colname="1">Q</entry>
-                      <entry colname="2">
-                        maximum keysize supported
-                      </entry>
-                      <entry colname="3">ssl_maxkeysize</entry>
-                      <entry colname="4">smallint unsigned</entry>
-                      <entry colname="5">128</entry>
+                      <entry>Q</entry>
+                      <entry>maximum keysize supported</entry>
+                      <entry>ssl_maxkeysize</entry>
+                      <entry>smallint unsigned</entry>
+                      <entry>128</entry>
                     </row>
                   </tbody>
                 </tgroup>
@@ -2263,18 +2251,18 @@ WHERE a.id='PPIDskBRH30AAGPtAsg';</programlisting>
                   </thead>
                   <tbody>
                     <row>
-                      <entry colname="1">i</entry>
-                      <entry colname="2">Number of actual Bytes transfered in with the request</entry>
-                      <entry colname="3">bytes_in</entry>
-                      <entry colname="4">int unsigned</entry>
-                      <entry colname="5">505</entry>
+                      <entry>B</entry>
+                      <entry>Number of actual Bytes transfered in with the request</entry>
+                      <entry>bytes_in</entry>
+                      <entry>int unsigned</entry>
+                      <entry>505</entry>
                     </row>
                     <row>
-                      <entry colname="1">o</entry>
-                      <entry colname="2">Number of actual Bytes transfered out with the request</entry>
-                      <entry colname="3">bytes_out</entry>
-                      <entry colname="4">int unsigned</entry>
-                      <entry colname="5">4168</entry>
+                      <entry>b</entry>
+                      <entry>Number of actual Bytes transfered out with the request</entry>
+                      <entry>bytes_out</entry>
+                      <entry>int unsigned</entry>
+                      <entry>4168</entry>
                     </row>
                   </tbody>
                 </tgroup>
