@@ -113,8 +113,8 @@ static int post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, serve
     log_sql_register_function(p, "bytes_in", log_bytes_in,   LOGSQL_FUNCTION_REQ_FINAL);
     log_sql_register_function(p, "bytes_out", log_bytes_out,  LOGSQL_FUNCTION_REQ_FINAL);
 
-    log_sql_register_alias(s,p,'i', "bytes_in");
-    log_sql_register_alias(s,p,'o', "bytes_out");
+    log_sql_register_alias(s,p,'b', "bytes_in");
+    log_sql_register_alias(s,p,'B', "bytes_out");
 
     log_sql_register_field(p, "bytes_in",	"bytes_in", NULL,
     		"bytes_in", LOGSQL_DATATYPE_INT, 0);
