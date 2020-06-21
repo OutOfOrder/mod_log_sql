@@ -413,7 +413,12 @@ static apr_array_header_t *create_logformat_default(apr_pool_t *p)
 
 	logformat = apr_array_make(p, 12, sizeof(char *));
 	addme = apr_array_push(logformat); *addme = "useragent";
+#ifndef WITH_LOGIO_MOD
 	addme = apr_array_push(logformat); *addme = "bytes_sent";
+#else
+	addme = apr_array_push(logformat); *addme = "bytes_in";
+	addme = apr_array_push(logformat); *addme = "bytes_out";
+#endif
 	addme = apr_array_push(logformat); *addme = "request_protocol";
 	addme = apr_array_push(logformat); *addme = "remote_host";
 	addme = apr_array_push(logformat); *addme = "request_method";
@@ -690,7 +695,9 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
 	/** 	register_function(p, funcname,			func_ptr,				which request_rec); */
 	log_sql_register_function(p, "useragent",		extract_agent,			LOGSQL_FUNCTION_REQ_ORIG);
     log_sql_register_function(p, "request_args",	extract_request_query,	LOGSQL_FUNCTION_REQ_ORIG);
+#ifndef WITH_LOGIO_MOD
     log_sql_register_function(p, "bytes_sent",		extract_bytes_sent,		LOGSQL_FUNCTION_REQ_FINAL);
+#endif
     log_sql_register_function(p, "cookie",			extract_specific_cookie,LOGSQL_FUNCTION_REQ_FINAL);
     log_sql_register_function(p, "request_file",	extract_request_file,	LOGSQL_FUNCTION_REQ_FINAL);
     log_sql_register_function(p, "request_protocol",extract_request_protocol,LOGSQL_FUNCTION_REQ_FINAL);
@@ -716,7 +723,9 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
     /**  	register_alias(s, shortname, longname) */
     log_sql_register_alias(s,p,'A',"useragent");
     log_sql_register_alias(s,p,'a',"request_args");
+#ifndef WITH_LOGIO_MOD
     log_sql_register_alias(s,p,'b',"bytes_sent");
+#endif
     log_sql_register_alias(s,p,'c',"cookie");
     log_sql_register_alias(s,p,'f',"request_file");
     log_sql_register_alias(s,p,'H',"request_protocol");
@@ -745,8 +754,10 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
     		"agent", LOGSQL_DATATYPE_VARCHAR, 0);
     log_sql_register_field(p,"request_args",		"request_args",NULL,
     		"request_args",LOGSQL_DATATYPE_VARCHAR,0);
+#ifndef WITH_LOGIO_MOD
     log_sql_register_field(p,"bytes_sent",		"bytes_sent",NULL,
     		"bytes_sent",LOGSQL_DATATYPE_INT,0);
+#endif
     log_sql_register_field(p,"cookie",			"cookie","Apache",
     		"cookie",LOGSQL_DATATYPE_VARCHAR,0);
     log_sql_register_field(p,"request_file",		"request_file",NULL,
