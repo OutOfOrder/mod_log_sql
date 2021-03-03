@@ -739,56 +739,34 @@ static void log_sql_module_init(server_rec *s, apr_pool_t *p)
     log_sql_register_alias(s,p,'V',"server_name");
 
     /* Register handlers */
-    /**  	register_field(s,p, longname,		funcalias, arg,
-     * 		sqlfieldname, DATATYPE, DATA LENGTH); */
-    log_sql_register_field(p,"useragent",			"useragent",NULL,
-    		"agent", LOGSQL_DATATYPE_VARCHAR, 0);
-    log_sql_register_field(p,"request_args",		"request_args",NULL,
-    		"request_args",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"bytes_sent",		"bytes_sent",NULL,
-    		"bytes_sent",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"cookie",			"cookie","Apache",
-    		"cookie",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"request_file",		"request_file",NULL,
-    		"request_file",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"request_protocol",	"request_protocol",NULL,
-    		"request_protocol",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"remote_host",		"remote_host",NULL,
-    		"remote_host",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"unique_id",			"unique_id",NULL,
-    		"id",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"remote_logname",	"remote_logname",NULL,
-    		"remote_logname",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"request_method",	"request_method",NULL,
-    		"request_method",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"machine_id",		"machine_id",NULL,
-    		"machine_id",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"child_pid",			"child_pid",NULL,
-    		"child_pid",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"server_port",		"server_port",NULL,
-    		"server_port",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"referer",			"referrer",NULL,
-    		"referer",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"referrer",			"referrer",NULL,
-    		"referer",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"request_line",		"request_line",NULL,
-    		"request_line",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"timestamp",			"timestamp",NULL,
-    		"time_stamp",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"status",			"status",NULL,
-    		"status",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"request_duration",	"request_duration",NULL,
-    		"request_duration",LOGSQL_DATATYPE_INT,0);
-    log_sql_register_field(p,"request_time",		"request_time",NULL,
-    		"request_time",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"remote_user",		"remote_user",NULL,
-    		"remote_user",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"request_uri",		"request_uri",NULL,
-    		"request_uri",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"virtual_host",		"virtual_host",NULL,
-    		"virtual_host",LOGSQL_DATATYPE_VARCHAR,0);
-    log_sql_register_field(p,"server_name",		"server_name",NULL,
-    		"virtual_host",LOGSQL_DATATYPE_VARCHAR,0);
+    /**     register_field(p, longname, funcalias, arg, sqlfieldname, DATATYPE, DATA LENGTH); */
+    log_sql_register_field(p, "useragent",              "useragent",            NULL,   "agent",                LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "request_args",           "request_args",         NULL,   "request_args",         LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "bytes_sent",             "bytes_sent",           NULL,   "bytes_sent",           LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "connection_status",      "connection_status",    NULL,   "connection_status",    LOGSQL_DATATYPE_CHAR,           1);
+    log_sql_register_field(p, "cookie",                 "cookie",               NULL,   "cookie",               LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "local_address",          "local_address",        NULL,   "local_address",        LOGSQL_DATATYPE_CHAR,           15);
+    log_sql_register_field(p, "remote_address",         "remote_address",       NULL,   "remote_address",       LOGSQL_DATATYPE_CHAR,           15);
+    log_sql_register_field(p, "request_file",           "request_file",         NULL,   "request_file",         LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "request_protocol",       "request_protocol",     NULL,   "request_protocol",     LOGSQL_DATATYPE_VARCHAR,        10);
+    log_sql_register_field(p, "remote_host",            "remote_host",          NULL,   "remote_host",          LOGSQL_DATATYPE_VARCHAR,        50);
+    log_sql_register_field(p, "unique_id",              "unique_id",            NULL,   "id",                   LOGSQL_DATATYPE_CHAR,           28);
+    log_sql_register_field(p, "child_tid",              "child_tid",            "tid",  "child_tid",            LOGSQL_DATATYPE_BIGINT,         20);
+    log_sql_register_field(p, "remote_logname",         "remote_logname",       NULL,   "remote_logname",       LOGSQL_DATATYPE_VARCHAR,        50);
+    log_sql_register_field(p, "request_method",         "request_method",       NULL,   "request_method",       LOGSQL_DATATYPE_VARCHAR,        16);
+    log_sql_register_field(p, "machine_id",             "machine_id",           NULL,   "machine_id",           LOGSQL_DATATYPE_VARCHAR,        25);
+    log_sql_register_field(p, "child_pid",              "child_pid",            "pid",  "child_pid",            LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "server_port",            "server_port",          NULL,   "server_port",          LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "referer",                "referer",              NULL,   "referer",              LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "request_line",           "request_line",         NULL,   "request_line",         LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "timestamp",              "timestamp",            NULL,   "time_stamp",           LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "status",                 "status",               NULL,   "status",               LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "request_duration",       "request_duration",     NULL,   "request_duration",     LOGSQL_DATATYPE_INT,            20);
+    log_sql_register_field(p, "request_time",           "request_time",         NULL,   "request_time",         LOGSQL_DATATYPE_TIMESTAMP,      19);
+    log_sql_register_field(p, "remote_user",            "remote_user",          NULL,   "remote_user",          LOGSQL_DATATYPE_VARCHAR,        50);
+    log_sql_register_field(p, "request_uri",            "request_uri",          NULL,   "request_uri",          LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "virtual_host",           "virtual_host",         NULL,   "virtual_host",         LOGSQL_DATATYPE_VARCHAR,        255);
+    log_sql_register_field(p, "server_name",            "server_name",          NULL,   "server_name",          LOGSQL_DATATYPE_VARCHAR,        255);
 
     log_sql_register_finish(s);
 
@@ -1057,6 +1035,20 @@ static void *log_sql_merge_state(apr_pool_t *p, void *basev, void *addv)
 	return (void*) child;
 }
 
+static void str_trunc(char *src, int len, int show_ellipses) {
+
+    if(src && len < strlen(src)) {
+
+        src[len--] = '\0';
+
+        if(show_ellipses) {
+            if(len+1) src[len--] = '.';
+            if(len+1) src[len--] = '.';
+            if(len+1) src[len--] = '.';
+        }
+    }
+}
+
 /* Routine to perform the actual construction and execution of the relevant
  * INSERT statements.
  */
@@ -1186,23 +1178,21 @@ static int log_sql_transaction(request_rec *orig)
 			/* Yes, this key is one of the configured keys.
 			 * Call the key's function and put the returned value into 'formatted_item' */
 			formatted_item = item->func->func(item->func->want_orig_req ? orig : r,
-						item->param ? item->param : "");
+						item->param ? item->param : NULL);
 
-			/* Massage 'formatted_item' for proper SQL eligibility... */
-			if (!formatted_item) {
-				formatted_item = "";
-			} else if (formatted_item[0] == '-' && formatted_item[1] == '\0' && !item->string_contents) {
-				/* If apache tried to log a '-' character for a numeric field, convert that to a zero
-				 * because the database expects a numeral and will reject the '-' character. */
-				formatted_item = "0";
+			/* If apache tried to log a '-' character, an empty string, or NULL, skip this field and value */
+			if ( formatted_item && !(formatted_item[0] == '-' && formatted_item[1] == '\0') && !(formatted_item[0] == '\0') ) {
+
+				/* TODO: Make show_ellipses configurable */
+				str_trunc((char *) formatted_item, item->size, 1);
+
+				/* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
+				fields = apr_pstrcat(r->pool, fields, (showcomma ? "," : ""),
+					 item->sql_field_name, NULL);
+				values = apr_pstrcat(r->pool, values, (showcomma ? "," : ""),
+					 global_config.driver->escape(r, formatted_item, r->pool,&global_config.db), NULL);
+				showcomma = 1;
 			}
-
-		     /* Append the fieldname and value-to-insert to the appropriate strings, quoting stringvals with ' as appropriate */
-			fields = apr_pstrcat(r->pool, fields, (showcomma ? "," : ""),
-						 item->sql_field_name, NULL);
-			values = apr_pstrcat(r->pool, values, (showcomma ? "," : ""),
-					     global_config.driver->escape(r, formatted_item, r->pool,&global_config.db), NULL);
-			showcomma = 1;
 		}
 
 		/* Work through the list of notes defined by LogSQLWhichNotes */
